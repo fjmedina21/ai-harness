@@ -17,6 +17,18 @@
     },
     {
       "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/sdd"
+    },
+    {
+      "path": "../../packages/providers"
+    },
+    {
+      "path": "../../packages/checkpointing"
+    },
+    {
+      "path": "../../packages/security"
     }
   ]
 }

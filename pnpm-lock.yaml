@@ -184,6 +184,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@ai-harness/checkpointing':
+        specifier: workspace:*
+        version: link:../../packages/checkpointing
       '@ai-harness/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -193,6 +196,30 @@ importers:
       '@ai-harness/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@ai-harness/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@ai-harness/sdd':
+        specifier: workspace:*
+        version: link:../../packages/sdd
+      '@ai-harness/security':
+        specifier: workspace:*
+        version: link:../../packages/security
+
+  packages/agents:
+    dependencies:
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-harness/providers':
+        specifier: workspace:*
+        version: link:../providers
+
+  packages/checkpointing:
+    dependencies:
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/config:
     dependencies:
@@ -207,6 +234,36 @@ importers:
       '@ai-harness/config':
         specifier: workspace:*
         version: link:../config
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/orchestrator:
+    dependencies:
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/providers:
+    dependencies:
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/sdd:
+    dependencies:
+      '@ai-harness/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-harness/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
+
+  packages/security:
+    dependencies:
       '@ai-harness/contracts':
         specifier: workspace:*
         version: link:../contracts

@@ -9,6 +9,10 @@
   "dependencies": {
     "@ai-harness/contracts": "workspace:*",
     "@ai-harness/config": "workspace:*",
-    "@ai-harness/core": "workspace:*"
+    "@ai-harness/core": "workspace:*",
+    "@ai-harness/sdd": "workspace:*",
+    "@ai-harness/providers": "workspace:*",
+    "@ai-harness/checkpointing": "workspace:*",
+    "@ai-harness/security": "workspace:*"
   }
 }
