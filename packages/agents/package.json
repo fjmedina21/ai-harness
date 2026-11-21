@@ -13,6 +13,8 @@
     },
     "dependencies": {
         "@ai-harness/contracts": "workspace:*",
-        "@ai-harness/providers": "workspace:*"
+        "@ai-harness/providers": "workspace:*",
+        "@ai-harness/tools": "workspace:*"
+
     }
 }

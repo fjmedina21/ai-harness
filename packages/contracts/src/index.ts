@@ -115,3 +115,6 @@ export interface PolicyEngine {
   ): PolicyDecision;
 }
 export * from "./runtime.js";
+export type * from "./tools.js";
+export type * from "./tool-dispatch.js";
+export type * from "./tool-approval.js";

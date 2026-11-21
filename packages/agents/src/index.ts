@@ -54,3 +54,6 @@ export class PromptAgent implements Agent {
     };
   }
 }
+export { ToolAugmentedAgent } from "./tool-augmented-agent.js";
+
+export type { ToolAugmentedAgentOptions } from "./tool-augmented-agent.js";
