@@ -1,0 +1,14 @@
+{
+  "name": "@ai-harness/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "harness": "./dist/index.js"
+  },
+  "dependencies": {
+    "@ai-harness/contracts": "workspace:*",
+    "@ai-harness/config": "workspace:*",
+    "@ai-harness/core": "workspace:*"
+  }
+}
