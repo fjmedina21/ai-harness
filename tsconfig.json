@@ -1,9 +1,35 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/contracts" },
-    { "path": "./packages/config" },
-    { "path": "./packages/core" },
-    { "path": "./apps/cli" }
+    {
+      "path": "./packages/contracts"
+    },
+    {
+      "path": "./packages/config"
+    },
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/orchestrator"
+    },
+    {
+      "path": "./packages/providers"
+    },
+    {
+      "path": "./packages/agents"
+    },
+    {
+      "path": "./packages/sdd"
+    },
+    {
+      "path": "./packages/security"
+    },
+    {
+      "path": "./packages/checkpointing"
+    },
+    {
+      "path": "./apps/cli"
+    }
   ]
 }
