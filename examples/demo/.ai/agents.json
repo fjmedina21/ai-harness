@@ -1,0 +1,62 @@
+[
+  {
+    "role": "orchestrator",
+    "enabled": true
+  },
+  {
+    "role": "requirements-analyst",
+    "enabled": true
+  },
+  {
+    "role": "software-architect",
+    "enabled": true
+  },
+  {
+    "role": "planner",
+    "enabled": true
+  },
+  {
+    "role": "backend-developer",
+    "enabled": true
+  },
+  {
+    "role": "frontend-developer",
+    "enabled": true
+  },
+  {
+    "role": "mobile-developer",
+    "enabled": true
+  },
+  {
+    "role": "database-specialist",
+    "enabled": true
+  },
+  {
+    "role": "qa-engineer",
+    "enabled": true
+  },
+  {
+    "role": "security-specialist",
+    "enabled": true
+  },
+  {
+    "role": "devops-engineer",
+    "enabled": true
+  },
+  {
+    "role": "code-reviewer",
+    "enabled": true
+  },
+  {
+    "role": "technical-writer",
+    "enabled": true
+  },
+  {
+    "role": "validator",
+    "enabled": true
+  },
+  {
+    "role": "ui-ux-designer",
+    "enabled": true
+  }
+]

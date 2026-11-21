@@ -1,0 +1,13 @@
+{
+  "id": "sdd-iterative",
+  "version": 1,
+  "steps": [
+    "requirements",
+    "specification",
+    "planning",
+    "implementation",
+    "validation"
+  ],
+  "approval": "risk-based",
+  "status": "declarative-only"
+}

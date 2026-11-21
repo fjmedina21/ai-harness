@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "demo",
+    "kind": "fullstack"
+  },
+  "autonomy": {
+    "mode": "supervised"
+  },
+  "security": {
+    "defaultDeny": true,
+    "grantedPermissions": [
+      "files:read"
+    ],
+    "requireApprovalFor": [
+      "files:write",
+      "shell:execute",
+      "git:write",
+      "deployment:execute"
+    ]
+  },
+  "agents": {
+    "enabled": [
+      "orchestrator",
+      "requirements-analyst",
+      "software-architect",
+      "planner",
+      "backend-developer",
+      "frontend-developer",
+      "mobile-developer",
+      "database-specialist",
+      "qa-engineer",
+      "security-specialist",
+      "devops-engineer",
+      "code-reviewer",
+      "technical-writer",
+      "validator",
+      "ui-ux-designer"
+    ]
+  },
+  "workflows": {
+    "default": "sdd-iterative"
+  },
+  "storage": {
+    "mode": "files"
+  }
+}
