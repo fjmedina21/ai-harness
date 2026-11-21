@@ -214,6 +214,9 @@ importers:
       '@ai-harness/providers':
         specifier: workspace:*
         version: link:../providers
+      '@ai-harness/tools':
+        specifier: workspace:*
+        version: link:../tools
 
   packages/checkpointing:
     dependencies:
@@ -267,6 +270,15 @@ importers:
       '@ai-harness/contracts':
         specifier: workspace:*
         version: link:../contracts
+
+  packages/tools:
+    dependencies:
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-harness/security':
+        specifier: workspace:*
+        version: link:../security
 
 packages:
 

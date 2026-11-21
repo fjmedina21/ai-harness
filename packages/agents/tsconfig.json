@@ -11,7 +11,12 @@
     "references": [
         {
             "path": "../contracts",
-            "path": "../providers"
+        },
+        {
+            "path": "../providers",
+        },
+        {
+            "path": "../tools"
         }
     ]
 }
