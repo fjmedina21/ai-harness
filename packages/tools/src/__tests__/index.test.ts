@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { BUILTIN_TOOLS, ToolRegistry } from "./index.js";
+import { BUILTIN_TOOLS, ToolRegistry } from "../index.js";
 
 function createRegistry(): ToolRegistry {
   const registry = new ToolRegistry();

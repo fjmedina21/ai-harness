@@ -11,7 +11,7 @@
     "build": "tsc -b",
     "clean": "tsc -b --clean",
     "check": "tsc -b --pretty false",
-    "test": "pnpm run build && node --test packages/*/dist/*.test.js apps/*/dist/*.test.js",
+    "test": "pnpm run build && node --test packages/*/dist/__tests__/*.test.js apps/*/dist/__tests__/*.test.js",
     "harness": "node apps/cli/dist/index.js",
     "dev": "pnpm run build && pnpm harness --help"
   },

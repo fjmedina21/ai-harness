@@ -10,9 +10,9 @@ import type {
   ToolHandlerContext,
 } from "@ai-harness/contracts";
 
-import { BUILTIN_TOOLS, ToolDispatcher, ToolRegistry } from "./index.js";
+import { BUILTIN_TOOLS, ToolDispatcher, ToolRegistry } from "../index.js";
 
-import { shellExecuteHandler } from "./shell-tools.js";
+import { shellExecuteHandler } from "../shell-tools.js";
 
 async function withWorkspace(
   callback: (root: string) => Promise<void>,

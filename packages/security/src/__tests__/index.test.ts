@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DefaultPolicyEngine } from "./index.js";
+import { DefaultPolicyEngine } from "../index.js";
 
 const policy = new DefaultPolicyEngine();
 

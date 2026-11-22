@@ -7,7 +7,7 @@ import {
   initializeProject,
   inspectProject,
   loadProjectConfig,
-} from "./index.js";
+} from "../index.js";
 
 test("initialize, inspect, and refuse to overwrite", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "harness-test-"));

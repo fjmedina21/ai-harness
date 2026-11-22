@@ -83,3 +83,8 @@ export class FileRuntimeCheckpointStore implements RuntimeCheckpointStore {
     return data as RuntimeExecution;
   }
 }
+export {
+  planExecutionRecovery,
+  inspectStoredRecovery,
+  evaluateOperationReplay,
+} from "./recovery.js";

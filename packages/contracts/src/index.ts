@@ -118,3 +118,10 @@ export * from "./runtime.js";
 export type * from "./tools.js";
 export type * from "./tool-dispatch.js";
 export type * from "./tool-approval.js";
+export type * from "./tool-calling.js";
+export {
+  parseModelToolTurn,
+  TOOL_CALL_LIMITS,
+} from "./tool-calling-validation.js";
+export type * from "./approval-identity.js";
+export type * from "./recovery.js";

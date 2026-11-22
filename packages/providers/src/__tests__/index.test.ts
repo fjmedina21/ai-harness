@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AnthropicProvider, FixtureProvider, OpenAIProvider } from "./index.js";
+import { AnthropicProvider, FixtureProvider, OpenAIProvider } from "../index.js";
 
 const request = {
   system: "You are a software engineer",

@@ -6,7 +6,7 @@ import path from "node:path";
 
 import type { RuntimeExecution } from "@ai-harness/contracts";
 
-import { FileRuntimeCheckpointStore } from "./index.js";
+import { FileRuntimeCheckpointStore } from "../index.js";
 
 function execution(): RuntimeExecution {
   const now = new Date().toISOString();

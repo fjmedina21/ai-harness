@@ -174,3 +174,22 @@ export { BUILTIN_TOOLS } from "./builtins.js";
 export { ToolDispatcher } from "./dispatcher.js";
 export { fileReadHandler, registerFileTools } from "./file-tools.js";
 export { ToolApprovalManager } from "./approval.js";
+export { ContainerExecutor, NodeProcessRunner } from "./container-executor.js";
+
+export type {
+  ContainerCommand,
+  ContainerExecutionOptions,
+  ContainerExecutionResult,
+  ProcessResult,
+  ProcessRunner,
+} from "./container-executor.js";
+export { FileApprovalAuditLog } from "./approval-audit.js";
+
+export { AuthenticatedApprovalService } from "./authenticated-approval.js";
+export { fileWriteHandler } from "./file-write.js";
+
+export { createGitStatusHandler } from "./git-tools.js";
+
+export type { GitStatusOptions } from "./git-tools.js";
+
+export { registerControlledWorkspaceTools } from "./controlled-workspace-tools.js";

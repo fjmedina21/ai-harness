@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDefaultConfig, validateConfig } from "./index.js";
+import { createDefaultConfig, validateConfig } from "../index.js";
 
 test("default configuration passes validation", () => {
   const config = createDefaultConfig("demo");
