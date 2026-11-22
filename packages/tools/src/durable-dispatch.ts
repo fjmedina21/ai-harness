@@ -2,7 +2,7 @@ import type {
   DurableDispatchBinding, DurableOperation, ToolDispatchContext, ToolDispatchResult,
   ToolHandler, ToolInvocation, ToolDefinition,
 } from "@ai-harness/contracts";
-import { DurableStoreError } from "@ai-harness/contracts";
+import { beginTelemetry, endTelemetry, DurableStoreError } from "@ai-harness/contracts";
 import { digestDurableValue } from "@ai-harness/security";
 
 /** Called only after registry, Default Deny, permission and handler checks. */
@@ -13,6 +13,7 @@ export async function dispatchDurably(
 ): Promise<ToolDispatchResult> {
   const toolId = invocation.toolId;
   let op: DurableOperation | undefined;
+  let handlerSpan: ReturnType<typeof beginTelemetry>;
   const failed = (error: string, status: "failed" | "denied" = "failed"): ToolDispatchResult => ({
     toolId, status, error,
     ...(op ? { operationId: op.operationId, operationState: op.state } : {}),
@@ -54,10 +55,12 @@ export async function dispatchDurably(
       op = binding.store.finish(op.operationId, op.version, "Uncertain");
       return failed("Cancelled after Running; reconciliation required");
     }
+    handlerSpan = beginTelemetry(context.telemetry, "tool.handler", { toolId, operationId: op.operationId, operationState: op.state });
     const data = await handler(args, {
       executionId: context.executionId, projectRoot: context.projectRoot,
       signal: context.signal, requireAtomicFilesystem: context.requireAtomicFilesystem,
     });
+    endTelemetry(handlerSpan, { status: context.signal?.aborted ? "cancelled" : "ok", operationId: op.operationId });
     if (context.signal?.aborted) {
       op = binding.store.finish(op.operationId, op.version, "Uncertain");
       return failed("Cancelled operation; effects require reconciliation");
@@ -66,6 +69,7 @@ export async function dispatchDurably(
     op = binding.store.finish(op.operationId, op.version, "Completed", resultDigest);
     return { toolId, status: "executed", data, operationId: op.operationId, operationState: op.state };
   } catch (error) {
+    endTelemetry(handlerSpan, { status: context.signal?.aborted ? "cancelled" : "error", errorClass: "tool", operationId: op?.operationId });
     if (op) { try { op = binding.store.get(op.operationId) ?? op; } catch { /* Unknown storage state. */ } }
     if (op?.state === "Running") {
       try { op = binding.store.finish(op.operationId, op.version, "Uncertain"); }

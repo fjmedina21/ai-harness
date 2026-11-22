@@ -1,6 +1,7 @@
 import type { Permission, ToolInvocation } from "./index.js";
 
 export interface ToolDispatchContext {
+  telemetry?: import("./telemetry.js").TelemetryBinding;
   /** Host-only durable opt-in; never derived from model arguments. */
   durableOperations?: import("./durable.js").DurableDispatchBinding;
   operation?: { taskId: string; requestId: string; toolCallId?: string };

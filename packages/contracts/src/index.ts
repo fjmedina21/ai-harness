@@ -81,6 +81,7 @@ export interface ToolAdapter {
   execute(input: unknown, context: ToolContext): Promise<ToolResult>;
 }
 export interface ModelRequest {
+  telemetry?: import("./telemetry.js").TelemetryBinding;
   signal?: AbortSignal;
   system: string;
   prompt: string;
@@ -135,3 +136,5 @@ export {
 export type * from "./execution.js";
 
 export * from "./durable.js";
+
+export * from "./telemetry.js";

@@ -19,6 +19,6 @@ The workspace follows a pre-1.0 SemVer policy:
 - Use `1.0.0` only after the project has approved stable public contracts,
   supported runtime profiles, security acceptance and release procedures.
 
-The current workspace version is `0.6.0`, the pre-1.0 milestone containing Phase 6 durable operations
-and the intentional Podman-only runtime migration. The package manifests are private; this number identifies the source
-tree and CLI build, not an npm publication.
+The current workspace version is `0.7.0`, the pre-1.0 milestone containing
+Phase 7 observability and evaluations. The package manifests are private; this
+number identifies the source tree and CLI build, not an npm publication.

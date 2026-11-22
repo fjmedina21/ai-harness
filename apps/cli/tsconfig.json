@@ -29,6 +29,12 @@
     },
     {
       "path": "../../packages/security"
+    },
+    {
+      "path": "../../packages/evaluations"
+    },
+    {
+      "path": "../../packages/observability"
     }
   ]
 }

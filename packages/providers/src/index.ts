@@ -1,3 +1,4 @@
+import { beginTelemetry, endTelemetry } from "@ai-harness/contracts";
 import type {
   ModelProviderAdapter,
   ModelRequest,
@@ -5,6 +6,7 @@ import type {
 } from "@ai-harness/contracts";
 
 import { postJson, type TransportOptions } from "./transport.js";
+import { observeProvider } from "./telemetry.js";
 import { createProviderSession, oneShotToolTurn } from "./tool-session.js";
 import type {
   ModelToolRequest,
@@ -37,7 +39,8 @@ export class FixtureProvider implements ModelProviderAdapter {
   readonly id = "fixture";
 
   async complete(request: ModelRequest): Promise<ModelResponse> {
-    return {
+    const span = beginTelemetry(request.telemetry, "provider.request", { provider: this.id, model: "fixture" });
+    const result = {
       model: "fixture",
       text: `Fixture response for: ${request.prompt}`,
       usage: {
@@ -46,6 +49,8 @@ export class FixtureProvider implements ModelProviderAdapter {
         estimatedCostUsd: 0,
       },
     };
+    endTelemetry(span, { status: "ok", usage: { availability: "reported", inputTokens: 0, outputTokens: 0 } });
+    return result;
   }
 }
 
@@ -71,63 +76,68 @@ export class OpenAIProvider
   }
 
   async complete(request: ModelRequest): Promise<ModelResponse> {
-    const apiKey = requireCredential(
-      this.options.apiKey ?? process.env.OPENAI_API_KEY,
-      "OPENAI_API_KEY",
-    );
+    return observeProvider(request.telemetry, this.id, this.options.model, request.signal, async (telemetry, reportUsage) => {
+      const apiKey = requireCredential(
+        this.options.apiKey ?? process.env.OPENAI_API_KEY,
+        "OPENAI_API_KEY",
+      );
 
-    const data = (await postJson(
-      "https://api.openai.com/v1/responses",
-      {
-        authorization: `Bearer ${apiKey}`,
-      },
-      {
-        model: this.options.model,
-        instructions: request.system,
-        input: request.prompt,
-        store: false,
-      },
-      this.fetcher,
-      this.options,
-      request.signal,
-    )) as {
-      status?: string;
-      output_text?: string;
-      output?: Array<{
-        type?: string;
-        content?: Array<{ type?: string; text?: string }>;
-      }>;
-      usage?: {
-        input_tokens?: number;
-        output_tokens?: number;
+      const data = (await postJson(
+        "https://api.openai.com/v1/responses",
+        {
+          authorization: `Bearer ${apiKey}`,
+        },
+        {
+          model: this.options.model,
+          instructions: request.system,
+          input: request.prompt,
+          store: false,
+        },
+        this.fetcher,
+        this.options,
+        request.signal,
+        telemetry ? { binding: telemetry, provider: this.id, model: this.options.model } : undefined,
+      )) as {
+        status?: string;
+        output_text?: string;
+        output?: Array<{
+          type?: string;
+          content?: Array<{ type?: string; text?: string }>;
+        }>;
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+        };
       };
-    };
 
-    if (data.status && data.status !== "completed") {
-      throw new Error(`OpenAI response status: ${data.status}`);
-    }
+      reportUsage(data);
 
-    const text =
-      data.output_text ??
-      data.output
-        ?.flatMap((item) => item.content ?? [])
-        .filter((item) => item.type === "output_text")
-        .map((item) => item.text ?? "")
-        .join("\n") ??
-      "";
+      if (data.status && data.status !== "completed") {
+        throw new Error(`OpenAI response status: ${data.status}`);
+      }
 
-    if (!text.trim()) {
-      throw new Error("OpenAI returned no text content");
-    }
+      const text =
+        data.output_text ??
+        data.output
+          ?.flatMap((item) => item.content ?? [])
+          .filter((item) => item.type === "output_text")
+          .map((item) => item.text ?? "")
+          .join("\n") ??
+        "";
 
-    return {
-      model: this.options.model,
-      text,
-      usage: {
-        inputTokens: data.usage?.input_tokens,
-        outputTokens: data.usage?.output_tokens,
-      },
-    };
+      if (!text.trim()) {
+        throw new Error("OpenAI returned no text content");
+      }
+
+      return {
+        model: this.options.model,
+        text,
+        usage: {
+          inputTokens: data.usage?.input_tokens,
+          outputTokens: data.usage?.output_tokens,
+        },
+      };
+    });
   }
 }
 
@@ -153,59 +163,64 @@ export class AnthropicProvider
   }
 
   async complete(request: ModelRequest): Promise<ModelResponse> {
-    const apiKey = requireCredential(
-      this.options.apiKey ?? process.env.ANTHROPIC_API_KEY,
-      "ANTHROPIC_API_KEY",
-    );
+    return observeProvider(request.telemetry, this.id, this.options.model, request.signal, async (telemetry, reportUsage) => {
+      const apiKey = requireCredential(
+        this.options.apiKey ?? process.env.ANTHROPIC_API_KEY,
+        "ANTHROPIC_API_KEY",
+      );
 
-    const data = (await postJson(
-      "https://api.anthropic.com/v1/messages",
-      {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      {
-        model: this.options.model,
-        max_tokens: 2048,
-        system: request.system,
-        messages: [
-          {
-            role: "user",
-            content: request.prompt,
-          },
-        ],
-      },
-      this.fetcher,
-      this.options,
-      request.signal,
-    )) as {
-      content?: Array<{
-        type: string;
-        text?: string;
-      }>;
-      usage?: {
-        input_tokens?: number;
-        output_tokens?: number;
+      const data = (await postJson(
+        "https://api.anthropic.com/v1/messages",
+        {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        {
+          model: this.options.model,
+          max_tokens: 2048,
+          system: request.system,
+          messages: [
+            {
+              role: "user",
+              content: request.prompt,
+            },
+          ],
+        },
+        this.fetcher,
+        this.options,
+        request.signal,
+        telemetry ? { binding: telemetry, provider: this.id, model: this.options.model } : undefined,
+      )) as {
+        content?: Array<{
+          type: string;
+          text?: string;
+        }>;
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+        };
       };
-    };
 
-    const text = (data.content ?? [])
-      .filter((item) => item.type === "text")
-      .map((item) => item.text ?? "")
-      .join("\n");
+      reportUsage(data);
 
-    if (!text.trim()) {
-      throw new Error("Anthropic returned no text content");
-    }
+      const text = (data.content ?? [])
+        .filter((item) => item.type === "text")
+        .map((item) => item.text ?? "")
+        .join("\n");
 
-    return {
-      model: this.options.model,
-      text,
-      usage: {
-        inputTokens: data.usage?.input_tokens,
-        outputTokens: data.usage?.output_tokens,
-      },
-    };
+      if (!text.trim()) {
+        throw new Error("Anthropic returned no text content");
+      }
+
+      return {
+        model: this.options.model,
+        text,
+        usage: {
+          inputTokens: data.usage?.input_tokens,
+          outputTokens: data.usage?.output_tokens,
+        },
+      };
+    });
   }
 }
 

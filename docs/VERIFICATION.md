@@ -1,28 +1,19 @@
-# Verification — version 0.6.0
+# Verification — Phase 7 candidate, version 0.7.0
 
-This source version combines experimental Phase 6 durable operations and the
-owner-requested Podman-only runtime migration. Docker execution and implicit
-backend selection are removed. The default CLI/SDD remains safe and unchanged.
+Local candidate on `feat/phase7-observability-evaluations`; not published.
+`pnpm clean`, `pnpm build`, `pnpm test`: passed; 401/401 tests. CLI help and
+deterministic evaluation passed: 19/19 scenarios, 42/42 assertions.
+`git diff --check` passed. Logs are under excluded
+`harness-development/phase7/`.
 
-Local acceptance: 350/350 tests, real SQLite process-crash/concurrency coverage,
-clean build, CLI help/version and whitespace checks. The real Podman gate
-validates the fixed isolation/cancellation/timeout workload on the approved
-ai-harness-isolation VM, with empty final container inventory and stopped VM.
-
-Hosted build/test results are per commit and must be checked separately:
-[standard CI on main](https://github.com/fjmedina21/ai-harness/actions/workflows/ci.yml).
-The dedicated remote isolation workflow still requires its runner/environment
-and approved profile; local Podman evidence does not establish remote isolation.
-
-Detailed records below are historical snapshots. Statements that a prior
-candidate was unpublished describe those earlier checks. Publication/CI receipts
-for this integration are retained locally under harness-development/publication/.
-
-No production autonomous execution, automatic replay, external exactly-once
-semantics or new privileged-tool exposure is claimed. Current migration and
-security boundaries: [Podman](phase5-security.md), [durable operations](phase6-security.md).
-Workspace/CLI/manifests are aligned at 0.6.0. No npm package release or Git tag is
-implied by pushing this private repository.
+No hosted CI, live provider calls or live tariff checks are claimed. Podman
+controls were unchanged and not retested. The local microbenchmark measured
+memory sink 3.47 μs median, JSONL sink 141.31 μs, SQLite list-100 787.77 μs
+and unique registration 31.29 μs (9×2,500, Node 24.18.0/macOS arm64).
+These environment-specific figures did not justify optimization. Evaluations cover
+known fixtures only. Cost values are estimates. Telemetry is lossy and best
+effort, not a durable journal. See phase7-observability.md,
+phase7-evaluations.md and phase7-security.md.
 
 ---
 

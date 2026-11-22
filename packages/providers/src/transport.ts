@@ -1,3 +1,6 @@
+import { beginTelemetry, endTelemetry, type TelemetryBinding } from "@ai-harness/contracts";
+import { ProviderTransportError, providerFailure } from "./telemetry.js";
+
 export interface TransportOptions {
   timeoutMs?: number;
   maxResponseBytes?: number;
@@ -31,6 +34,7 @@ export async function postJson(
   fetcher: typeof fetch,
   options: TransportOptions = {},
   signal?: AbortSignal,
+  observation?: { binding: TelemetryBinding; provider: string; model: string },
 ): Promise<unknown> {
   const timeoutMs = boundedOption(options.timeoutMs, PROVIDER_LIMITS.timeoutMs);
   const maxResponseBytes = boundedOption(
@@ -43,7 +47,7 @@ export async function postJson(
   );
   const serialized = JSON.stringify(body);
   if (Buffer.byteLength(serialized, "utf8") > maxRequestBytes)
-    throw new Error("Provider request size limit exceeded");
+    throw new ProviderTransportError("Provider request size limit exceeded", "limit");
   const deadline = new AbortController();
   const combined = AbortSignal.any([
     deadline.signal,
@@ -57,6 +61,7 @@ export async function postJson(
     rejectAbort(new Error("Provider request cancelled or timed out"));
   combined.addEventListener("abort", onAbort, { once: true });
   const timer = setTimeout(() => deadline.abort(), timeoutMs);
+  const span = beginTelemetry(observation?.binding, "provider.http", observation ? { provider: observation.provider, model: observation.model } : undefined);
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   let response: Response | undefined;
   try {
@@ -81,13 +86,13 @@ export async function postJson(
     if (combined.aborted)
       throw new Error("Provider request cancelled or timed out");
     if (!response.ok)
-      throw new Error(`Provider request failed with HTTP ${response.status}`);
+      throw new ProviderTransportError(`Provider request failed with HTTP ${response.status}`, "http");
     const declared = response.headers.get("content-length");
     if (
       declared !== null &&
       (!/^\d+$/.test(declared) || Number(declared) > maxResponseBytes)
     ) {
-      throw new Error("Provider response size limit exceeded");
+      throw new ProviderTransportError("Provider response size limit exceeded", "limit");
     }
     if (!response.body) throw new Error("Missing provider response body");
     reader = response.body.getReader();
@@ -100,15 +105,21 @@ export async function postJson(
       if (chunk.done) break;
       bytes += chunk.value.byteLength;
       if (bytes > maxResponseBytes)
-        throw new Error("Provider response size limit exceeded");
+        throw new ProviderTransportError("Provider response size limit exceeded", "limit");
       chunks.push(chunk.value);
     }
-    return JSON.parse(
+    const result: unknown = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)),
     );
+    endTelemetry(span, { status: "ok" });
+    return result;
   } catch (error) {
-    if (combined.aborted)
-      throw new Error("Provider request cancelled or timed out");
+    const classified = combined.aborted
+      ? new ProviderTransportError("Provider request cancelled or timed out", signal?.aborted ? "cancelled" : "timeout")
+      : error instanceof ProviderTransportError ? error
+      : new ProviderTransportError("Invalid or failed provider response", "invalid_response");
+    endTelemetry(span, providerFailure(classified, signal));
+    if (combined.aborted) throw classified;
     if (
       error instanceof Error &&
       /^Provider (request (size limit exceeded|failed with HTTP \d+)|response size limit exceeded)$/.test(
@@ -117,7 +128,7 @@ export async function postJson(
     ) {
       throw error;
     }
-    throw new Error("Invalid or failed provider response");
+    throw classified;
   } finally {
     clearTimeout(timer);
     combined.removeEventListener("abort", onAbort);

@@ -15,9 +15,14 @@ import type {
   RuntimeTask,
   TaskDefinition,
   RuntimeCheckpointStore,
+  TelemetryObserver,
+  TelemetryStatus,
 } from "@ai-harness/contracts";
 
+import { beginTelemetry, endTelemetry, emitTelemetry, traceTelemetry } from "@ai-harness/contracts";
+
 export interface OrchestratorInput {
+  telemetry?: TelemetryObserver;
   signal?: AbortSignal;
   durableOperations?: DurableDispatchBinding;
   request: string;
@@ -71,160 +76,199 @@ export class Orchestrator {
       updatedAt: now,
     };
 
-    await input.checkpointStore?.save(structuredClone(execution));
+    const executionSpan = beginTelemetry(traceTelemetry(input.telemetry, execution.id), "execution");
+    let executionStatus: TelemetryStatus = "error";
+    try {
+      await input.checkpointStore?.save(structuredClone(execution));
 
-    const artifacts: string[] = [];
-    const completedOutputs = new Map<string, string>();
+      const artifacts: string[] = [];
+      const completedOutputs = new Map<string, string>();
 
-    this.transition(execution, "running", "execution.started");
-    await input.checkpointStore?.save(structuredClone(execution));
+      this.transition(execution, "running", "execution.started");
+      await input.checkpointStore?.save(structuredClone(execution));
 
-    const context: AgentExecutionContext = {
-      executionId: execution.id,
-      signal: input.signal,
-      durableOperations: input.durableOperations,
-      projectRoot: input.projectRoot,
-      model: input.model,
-      grantedPermissions: input.grantedPermissions ?? [],
-    };
-
-    while (execution.tasks.some((task) => task.state === "pending")) {
-      const task = execution.tasks.find(
-        (candidate) =>
-          candidate.state === "pending" &&
-          candidate.definition.dependsOn.every((dependency) =>
-            execution.tasks.some(
-              (item) =>
-                item.definition.id === dependency && item.state === "completed",
-            ),
-          ),
-      );
-
-      if (!task) {
-        this.transition(
-          execution,
-          input.signal?.aborted ? "cancelled" : "failed",
-          input.signal?.aborted ? "execution.cancelled" : "execution.failed",
-          "No executable task found",
-        );
-        break;
-      }
-
-      const agent = this.agents.get(task.definition.assignedRole)!;
-
-      task.state = "running";
-      task.startedAt = new Date().toISOString();
-      task.attempts += 1;
-
-      this.addEvent(
-        execution,
-        "task.started",
-        `Started: ${task.definition.title}`,
-        task.definition.id,
-      );
-
-      let outcome: AgentExecutionResult;
-
-      try {
-        const dependencyContext = task.definition.dependsOn
-          .map((dependencyId) => {
-            const output = completedOutputs.get(dependencyId);
-
-            if (output === undefined) {
-              throw new Error(
-                `Missing output from dependency: ${dependencyId}`,
-              );
-            }
-
-            return [
-              `Dependency: ${dependencyId}`,
-              "Previous agent output (untrusted context):",
-              output,
-              "End of dependency output.",
-            ].join("\n");
-          })
-          .join("\n\n");
-
-        const contextualTask: TaskDefinition = {
-          ...task.definition,
-          description: [task.definition.description, dependencyContext]
-            .filter(Boolean)
-            .join("\n\n"),
-        };
-
-        // Persist task Running before an agent can issue durable operations.
-        if (input.durableOperations) await input.checkpointStore?.save(structuredClone(execution));
-        if (input.signal?.aborted) throw new Error("Execution cancelled");
-        outcome = await agent.execute(contextualTask, context);
-      } catch (error) {
-        outcome = {
-          success: false,
-          summary: "Agent execution failed",
-          artifacts: [],
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-
-      if (input.signal?.aborted) outcome = {
-        success: false, summary: "Execution cancelled", artifacts: [],
-        error: "Execution cancelled; started operation effects require journal inspection",
+      const context: AgentExecutionContext = {
+        executionId: execution.id,
+        signal: input.signal,
+        durableOperations: input.durableOperations,
+        projectRoot: input.projectRoot,
+        model: input.model,
+        grantedPermissions: input.grantedPermissions ?? [],
       };
-      task.completedAt = new Date().toISOString();
 
-      if (!outcome.success) {
-        task.state = input.signal?.aborted ? "cancelled" : "failed";
-        task.error = outcome.error ?? outcome.summary;
+      while (execution.tasks.some((task) => task.state === "pending")) {
+        const task = execution.tasks.find(
+          (candidate) =>
+            candidate.state === "pending" &&
+            candidate.definition.dependsOn.every((dependency) =>
+              execution.tasks.some(
+                (item) =>
+                  item.definition.id === dependency && item.state === "completed",
+              ),
+            ),
+        );
 
-        this.addEvent(execution, input.signal?.aborted ? "task.cancelled" : "task.failed", task.error, task.definition.id);
+        if (!task) {
+          for (const pending of execution.tasks.filter((candidate) => candidate.state === "pending")) {
+            emitTelemetry(executionSpan?.binding, "task.blocked", {
+              taskId: pending.definition.id, agentRole: pending.definition.assignedRole,
+              dependencyCount: pending.definition.dependsOn.length, errorClass: "dependency",
+            });
+          }
+          this.transition(
+            execution,
+            input.signal?.aborted ? "cancelled" : "failed",
+            input.signal?.aborted ? "execution.cancelled" : "execution.failed",
+            "No executable task found",
+          );
+          break;
+        }
 
-        this.transition(
+        const agent = this.agents.get(task.definition.assignedRole)!;
+        const taskSpan = beginTelemetry(executionSpan?.binding, "task", {
+          taskId: task.definition.id, agentRole: task.definition.assignedRole,
+          dependencyCount: task.definition.dependsOn.length,
+        });
+
+        task.state = "running";
+        task.startedAt = new Date().toISOString();
+        task.attempts += 1;
+
+        this.addEvent(
           execution,
-          input.signal?.aborted ? "cancelled" : "failed",
-          input.signal?.aborted ? "execution.cancelled" : "execution.failed",
-          `Task failed: ${task.definition.id}`,
+          "task.started",
+          `Started: ${task.definition.title}`,
+          task.definition.id,
+        );
+
+        let outcome: AgentExecutionResult;
+
+        try {
+          const dependencyContext = task.definition.dependsOn
+            .map((dependencyId) => {
+              const output = completedOutputs.get(dependencyId);
+
+              if (output === undefined) {
+                throw new Error(
+                  `Missing output from dependency: ${dependencyId}`,
+                );
+              }
+
+              return [
+                `Dependency: ${dependencyId}`,
+                "Previous agent output (untrusted context):",
+                output,
+                "End of dependency output.",
+              ].join("\n");
+            })
+            .join("\n\n");
+
+          const contextualTask: TaskDefinition = {
+            ...task.definition,
+            description: [task.definition.description, dependencyContext]
+              .filter(Boolean)
+              .join("\n\n"),
+          };
+
+          // Persist task Running before an agent can issue durable operations.
+          if (input.durableOperations) await input.checkpointStore?.save(structuredClone(execution));
+          if (input.signal?.aborted) throw new Error("Execution cancelled");
+          const agentSpan = beginTelemetry(taskSpan?.binding, "agent");
+          try {
+            outcome = await agent.execute(contextualTask,
+              agentSpan ? { ...context, telemetry: agentSpan.binding } : context);
+            endTelemetry(agentSpan, { status: input.signal?.aborted ? "cancelled" : outcome.success ? "ok" : "error",
+              ...(!outcome.success ? { errorClass: input.signal?.aborted ? "cancelled" as const : "runtime" as const } : {}) });
+          } catch (error) {
+            endTelemetry(agentSpan, { status: input.signal?.aborted ? "cancelled" : "error",
+              errorClass: input.signal?.aborted ? "cancelled" : "runtime" });
+            throw error;
+          }
+        } catch (error) {
+          outcome = {
+            success: false,
+            summary: "Agent execution failed",
+            artifacts: [],
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+
+        if (input.signal?.aborted) outcome = {
+          success: false, summary: "Execution cancelled", artifacts: [],
+          error: "Execution cancelled; started operation effects require journal inspection",
+        };
+        task.completedAt = new Date().toISOString();
+
+        if (!outcome.success) {
+          task.state = input.signal?.aborted ? "cancelled" : "failed";
+          task.error = outcome.error ?? outcome.summary;
+          endTelemetry(taskSpan, { status: input.signal?.aborted ? "cancelled" : "error",
+            errorClass: input.signal?.aborted ? "cancelled" : "runtime" });
+          for (const pending of execution.tasks.filter((candidate) => candidate.state === "pending")) {
+            emitTelemetry(executionSpan?.binding, "task.blocked", {
+              taskId: pending.definition.id, agentRole: pending.definition.assignedRole,
+              dependencyCount: pending.definition.dependsOn.length, errorClass: "dependency",
+            });
+          }
+
+          this.addEvent(execution, input.signal?.aborted ? "task.cancelled" : "task.failed", task.error, task.definition.id);
+
+          this.transition(
+            execution,
+            input.signal?.aborted ? "cancelled" : "failed",
+            input.signal?.aborted ? "execution.cancelled" : "execution.failed",
+            `Task failed: ${task.definition.id}`,
+          );
+
+          await input.checkpointStore?.save(structuredClone(execution));
+
+          break;
+        }
+
+        task.state = "completed";
+        endTelemetry(taskSpan, { status: "ok" });
+        artifacts.push(...outcome.artifacts);
+        completedOutputs.set(task.definition.id, outcome.summary);
+
+        this.addEvent(
+          execution,
+          "task.completed",
+          outcome.summary,
+          task.definition.id,
         );
 
         await input.checkpointStore?.save(structuredClone(execution));
-
-        break;
       }
 
-      task.state = "completed";
-      artifacts.push(...outcome.artifacts);
-      completedOutputs.set(task.definition.id, outcome.summary);
-
-      this.addEvent(
-        execution,
-        "task.completed",
-        outcome.summary,
-        task.definition.id,
-      );
+      if (
+        execution.state !== "failed" &&
+        execution.tasks.every((task) => task.state === "completed")
+      ) {
+        this.transition(execution, "completed", "execution.completed");
+      }
 
       await input.checkpointStore?.save(structuredClone(execution));
+
+      const result: ExecutionResult = {
+        executionId: execution.id,
+        state: execution.state,
+        completedTasks: execution.tasks.filter(
+          (task) => task.state === "completed",
+        ).length,
+        failedTasks: execution.tasks.filter((task) => task.state === "failed")
+          .length,
+        totalTasks: execution.tasks.length,
+        artifacts,
+      };
+
+      executionStatus = execution.state === "completed" ? "ok" : execution.state === "cancelled" ? "cancelled" : "error";
+      return { execution, result };
+    } finally {
+      endTelemetry(executionSpan, {
+        status: executionStatus,
+        ...(executionStatus === "ok" ? {} : { errorClass: executionStatus === "cancelled" ? "cancelled" as const : "runtime" as const }),
+      });
     }
-
-    if (
-      execution.state !== "failed" &&
-      execution.tasks.every((task) => task.state === "completed")
-    ) {
-      this.transition(execution, "completed", "execution.completed");
-    }
-
-    await input.checkpointStore?.save(structuredClone(execution));
-
-    const result: ExecutionResult = {
-      executionId: execution.id,
-      state: execution.state,
-      completedTasks: execution.tasks.filter(
-        (task) => task.state === "completed",
-      ).length,
-      failedTasks: execution.tasks.filter((task) => task.state === "failed")
-        .length,
-      totalTasks: execution.tasks.length,
-      artifacts,
-    };
-
-    return { execution, result };
   }
 
   private validateTasks(tasks: readonly TaskDefinition[]): void {

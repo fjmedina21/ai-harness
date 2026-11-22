@@ -14,6 +14,7 @@ import type {
 } from "@ai-harness/contracts";
 import type { ProviderOptions } from "./index.js";
 import { boundedOption, postJson, PROVIDER_LIMITS } from "./transport.js";
+import { observeProvider, ProviderTransportError, providerFailure } from "./telemetry.js";
 
 type Vendor = "openai" | "anthropic";
 const MAX_NATIVE_BYTES = 262_144;
@@ -168,143 +169,148 @@ export function createProviderSession(
     identity: neutral.identity,
     close,
     async completeWithTools(request) {
-      // A concurrent rejected request must not close the request already running.
-      if (busy) throw new Error("Session request already in flight");
-      busy = true;
-      try {
-        neutral.assertActive();
-        if (closed || request.signal?.aborted)
-          throw new Error("Session cancelled or closed");
-        if (request.toolResults !== undefined)
-          throw new Error("Use neutral continuation, not legacy toolResults");
-        const continuation = parseToolCallingContinuation(
-          request.continuation,
-          neutral.identity,
-        );
-        const own = neutral.snapshot().history;
-        const supplied = continuation.history;
-        const pending = own.at(-1);
-        const prefixLength = own.length;
-        if (
-          JSON.stringify(supplied.slice(0, prefixLength)) !==
-            JSON.stringify(own) ||
-          supplied.length !== prefixLength + (pending ? 1 : 0)
-        ) {
-          throw new Error("Continuation does not match this session");
-        }
-        const fingerprint = JSON.stringify({
-          system: request.system,
-          prompt: request.prompt,
-          tools: request.tools,
-        });
-        if (bytes(fingerprint) > maxNative)
-          throw new Error("Session configuration size limit exceeded");
-        if (configuration !== undefined && configuration !== fingerprint)
-          throw new Error("Session configuration changed");
-        configuration = fingerprint;
-        const { names, definitions } = toolNames(request.tools);
-        let input = [...native];
-        if (pending) {
-          const batch = supplied.at(-1);
-          if (batch?.kind !== "tool_results")
-            throw new Error("Missing native tool results");
-          neutral.recordResults(neutral.identity, batch.results);
-          const results = batch.results.map((result) =>
+      return observeProvider(request.telemetry, vendor, options.model, request.signal, async (telemetry, reportUsage) => {
+        // A concurrent rejected request must not close the request already running.
+        if (busy) throw new Error("Session request already in flight");
+        busy = true;
+        try {
+          neutral.assertActive();
+          if (closed || request.signal?.aborted)
+            throw new Error("Session cancelled or closed");
+          if (request.toolResults !== undefined)
+            throw new Error("Use neutral continuation, not legacy toolResults");
+          const continuation = parseToolCallingContinuation(
+            request.continuation,
+            neutral.identity,
+          );
+          const own = neutral.snapshot().history;
+          const supplied = continuation.history;
+          const pending = own.at(-1);
+          const prefixLength = own.length;
+          if (
+            JSON.stringify(supplied.slice(0, prefixLength)) !==
+              JSON.stringify(own) ||
+            supplied.length !== prefixLength + (pending ? 1 : 0)
+          ) {
+            throw new Error("Continuation does not match this session");
+          }
+          const fingerprint = JSON.stringify({
+            system: request.system,
+            prompt: request.prompt,
+            tools: request.tools,
+          });
+          if (bytes(fingerprint) > maxNative)
+            throw new Error("Session configuration size limit exceeded");
+          if (configuration !== undefined && configuration !== fingerprint)
+            throw new Error("Session configuration changed");
+          configuration = fingerprint;
+          const { names, definitions } = toolNames(request.tools);
+          let input = [...native];
+          if (pending) {
+            const batch = supplied.at(-1);
+            if (batch?.kind !== "tool_results")
+              throw new Error("Missing native tool results");
+            neutral.recordResults(neutral.identity, batch.results);
+            const results = batch.results.map((result) =>
+              vendor === "openai"
+                ? {
+                    type: "function_call_output",
+                    call_id: result.callId,
+                    output: JSON.stringify(result.data),
+                  }
+                : {
+                    type: "tool_result",
+                    tool_use_id: result.callId,
+                    content: JSON.stringify(result.data),
+                  },
+            );
+            input.push(
+              ...(vendor === "openai"
+                ? results
+                : [{ role: "user", content: results }]),
+            );
+          } else {
+            input = [{ role: "user", content: request.prompt }];
+          }
+          if (bytes(input) + bytes(configuration) > maxNative)
+            throw new Error("Native session size limit exceeded");
+          const signal = AbortSignal.any([
+            closeController.signal,
+            ...(sessionOptions.signal ? [sessionOptions.signal] : []),
+            ...(request.signal ? [request.signal] : []),
+          ]);
+          if (signal.aborted) throw new Error("Session cancelled");
+          const key =
+            options.apiKey ??
+            process.env[
+              vendor === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
+            ];
+          if (!key?.trim()) throw new Error("Missing provider credential");
+          const body =
             vendor === "openai"
               ? {
-                  type: "function_call_output",
-                  call_id: result.callId,
-                  output: JSON.stringify(result.data),
+                  model: options.model,
+                  instructions: request.system,
+                  input,
+                  store: false,
+                  include: ["reasoning.encrypted_content"],
+                  max_output_tokens: outputTokens,
+                  tools: definitions.map(({ tool, name }) => ({
+                    type: "function",
+                    name,
+                    description: tool.description,
+                    parameters: tool.inputSchema,
+                    strict: false,
+                  })),
                 }
               : {
-                  type: "tool_result",
-                  tool_use_id: result.callId,
-                  content: JSON.stringify(result.data),
-                },
+                  model: options.model,
+                  system: request.system,
+                  messages: input,
+                  max_tokens: outputTokens,
+                  tools: definitions.map(({ tool, name }) => ({
+                    name,
+                    description: tool.description,
+                    input_schema: tool.inputSchema,
+                  })),
+                };
+          const raw = await postJson(
+            vendor === "openai"
+              ? "https://api.openai.com/v1/responses"
+              : "https://api.anthropic.com/v1/messages",
+            vendor === "openai"
+              ? { authorization: `Bearer ${key}` }
+              : { "x-api-key": key, "anthropic-version": "2023-06-01" },
+            body,
+            options.fetcher ?? fetch,
+            options,
+            signal,
+            telemetry ? { binding: telemetry, provider: vendor, model: options.model } : undefined,
           );
-          input.push(
+          reportUsage(raw);
+          neutral.assertActive();
+          if (signal.aborted) throw new Error("Session cancelled");
+          const parsed = normalize(vendor, raw, names);
+          const next = [
+            ...input,
             ...(vendor === "openai"
-              ? results
-              : [{ role: "user", content: results }]),
-          );
-        } else {
-          input = [{ role: "user", content: request.prompt }];
-        }
-        if (bytes(input) + bytes(configuration) > maxNative)
-          throw new Error("Native session size limit exceeded");
-        const signal = AbortSignal.any([
-          closeController.signal,
-          ...(sessionOptions.signal ? [sessionOptions.signal] : []),
-          ...(request.signal ? [request.signal] : []),
-        ]);
-        if (signal.aborted) throw new Error("Session cancelled");
-        const key =
-          options.apiKey ??
-          process.env[
-            vendor === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
+              ? parsed.native
+              : [{ role: "assistant", content: parsed.native }]),
           ];
-        if (!key?.trim()) throw new Error("Missing provider credential");
-        const body =
-          vendor === "openai"
-            ? {
-                model: options.model,
-                instructions: request.system,
-                input,
-                store: false,
-                include: ["reasoning.encrypted_content"],
-                max_output_tokens: outputTokens,
-                tools: definitions.map(({ tool, name }) => ({
-                  type: "function",
-                  name,
-                  description: tool.description,
-                  parameters: tool.inputSchema,
-                  strict: false,
-                })),
-              }
-            : {
-                model: options.model,
-                system: request.system,
-                messages: input,
-                max_tokens: outputTokens,
-                tools: definitions.map(({ tool, name }) => ({
-                  name,
-                  description: tool.description,
-                  input_schema: tool.inputSchema,
-                })),
-              };
-        const raw = await postJson(
-          vendor === "openai"
-            ? "https://api.openai.com/v1/responses"
-            : "https://api.anthropic.com/v1/messages",
-          vendor === "openai"
-            ? { authorization: `Bearer ${key}` }
-            : { "x-api-key": key, "anthropic-version": "2023-06-01" },
-          body,
-          options.fetcher ?? fetch,
-          options,
-          signal,
-        );
-        neutral.assertActive();
-        if (signal.aborted) throw new Error("Session cancelled");
-        const parsed = normalize(vendor, raw, names);
-        const next = [
-          ...input,
-          ...(vendor === "openai"
-            ? parsed.native
-            : [{ role: "assistant", content: parsed.native }]),
-        ];
-        if (bytes(next) + bytes(configuration) > maxNative)
-          throw new Error("Native session size limit exceeded");
-        neutral.recordTurn(neutral.identity, parsed.turn);
-        native = next;
-        return parsed.turn;
-      } catch {
-        close();
-        // No provider text, tool data or secrets are exposed through diagnostics.
-        throw new Error("Invalid, cancelled or failed tool-calling session");
-      } finally {
-        busy = false;
-      }
+          if (bytes(next) + bytes(configuration) > maxNative)
+            throw new Error("Native session size limit exceeded");
+          neutral.recordTurn(neutral.identity, parsed.turn);
+          native = next;
+          return parsed.turn;
+        } catch (error) {
+          const failure = providerFailure(error, request.signal ?? sessionOptions.signal);
+          close();
+          // No provider text, tool data or secrets are exposed through diagnostics.
+          throw new ProviderTransportError("Invalid, cancelled or failed tool-calling session", failure.errorClass);
+        } finally {
+          busy = false;
+        }
+      });
     },
   };
 }

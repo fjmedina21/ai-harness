@@ -29,6 +29,7 @@ export interface RuntimeTask {
 }
 
 export interface AgentExecutionContext {
+  telemetry?: import("./telemetry.js").TelemetryBinding;
   durableOperations?: import("./durable.js").DurableDispatchBinding;
   executionId: string;
   projectRoot: string;

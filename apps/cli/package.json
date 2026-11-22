@@ -1,6 +1,6 @@
 {
   "name": "@ai-harness/cli",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -13,6 +13,8 @@
     "@ai-harness/sdd": "workspace:*",
     "@ai-harness/providers": "workspace:*",
     "@ai-harness/checkpointing": "workspace:*",
-    "@ai-harness/security": "workspace:*"
+    "@ai-harness/security": "workspace:*",
+    "@ai-harness/evaluations": "workspace:*",
+    "@ai-harness/observability": "workspace:*"
   }
 }

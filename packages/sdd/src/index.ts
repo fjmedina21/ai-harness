@@ -8,6 +8,7 @@ import type {
   RiskLevel,
   TaskDefinition,
   RuntimeCheckpointStore,
+  TelemetryObserver,
 } from "@ai-harness/contracts";
 
 import { PromptAgent } from "@ai-harness/agents";
@@ -95,6 +96,7 @@ export interface SddDocument {
 }
 
 export interface SddInput {
+  telemetry?: TelemetryObserver;
   projectRoot: string;
   request: string;
   model: ModelProviderAdapter;
@@ -207,6 +209,7 @@ export async function runSddWorkflow(input: SddInput): Promise<SddOutput> {
     model: input.model,
     grantedPermissions: ["files:read"],
     checkpointStore: input.checkpointStore,
+    telemetry: input.telemetry,
   });
 
   const documents: SddDocument[] = execution.events

@@ -11,7 +11,8 @@ are targets, not evidence that those capabilities were delivered.
 | 3 | Tool-calling contracts/agent, container mock tests, audit interfaces, controlled handlers, recovery inspection | Experimental foundation |
 | 4 | Native OpenAI/Anthropic tool calling, isolated sessions, bounded/cancellable HTTP, opt-in read-only integration | Integrated; deterministic validation |
 | 5 | Podman cancellation/preflight/cleanup, bounded filesystem reads, opt-in real suite | Integrated in `main` at `fdd5c3b`; local Podman gate passed; dedicated GitHub runner validation pending |
-| 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Included in 0.6.0; local durable tests passed; hosted CI tracked per commit |
+| 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Included in 0.6.0; local durable tests passed |
+| 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Implemented in 0.7.0; local validation: 401 tests, 19 scenarios |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
@@ -56,7 +57,7 @@ remain required. See [design and runbook](phase6-durable-execution.md),
 
 Local test evidence is distinct from the per-commit hosted CI result and from
 the dedicated remote isolation gate. All manifests and CLI identify version
-0.6.0. Phases 7–8 remain proposed and were not started. Broader orchestration,
+0.6.0. Phase 8 remains proposed and was not started. Broader orchestration,
 automatic workflow recovery, distributed fencing and production acceptance
 require separate design and authorization.
 
@@ -72,3 +73,7 @@ results remain; option types now require explicit Podman Machine configuration.
 Historical phase reports record earlier Docker fixtures, not current support.
 See [migration and security](phase5-security.md). Publication and remote CI remain
 separate from local validation. No host Docker software is uninstalled.
+
+## Phase 7 acceptance
+
+Phase 7 adds neutral opt-in telemetry across orchestration, agents, providers and tools; bounded in-memory and rotating private JSONL sinks; trace/metrics reconstruction; host-supplied versioned rate estimates; offline deterministic evaluations and explicit CLI reports. Local clean, build, all tests, CLI help and deterministic suite passed. Benchmarks did not justify a runtime optimization. Hosted CI is not claimed for this branch.

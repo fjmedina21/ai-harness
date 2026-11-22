@@ -8,6 +8,9 @@ import type {
   TaskDefinition,
 } from "@ai-harness/contracts";
 
+import { beginTelemetry, endTelemetry } from "@ai-harness/contracts";
+import { observeAgent } from "./telemetry.js";
+
 export interface PromptAgentOptions {
   role: AgentRole;
   systemPrompt: string;
@@ -26,6 +29,13 @@ export class PromptAgent implements Agent {
     task: Readonly<TaskDefinition>,
     context: Readonly<AgentExecutionContext>,
   ): Promise<AgentExecutionResult> {
+    return observeAgent(this.role, task, context, (observed) => this.executeObserved(task, observed));
+  }
+
+  private async executeObserved(
+    task: Readonly<TaskDefinition>,
+    context: Readonly<AgentExecutionContext>,
+  ): Promise<AgentExecutionResult> {
     if (task.assignedRole !== this.role) {
       return {
         success: false,
@@ -38,9 +48,11 @@ export class PromptAgent implements Agent {
     const cancelled = (): AgentExecutionResult => ({ success: false, summary: "Execution cancelled", artifacts: [], error: "Execution cancelled" });
     if (context.signal?.aborted) return cancelled();
     let response;
+    const modelSpan = beginTelemetry(context.telemetry, "model.turn", { provider: context.model.id });
     try {
       response = await context.model.complete({
       signal: context.signal,
+      ...(modelSpan ? { telemetry: modelSpan.binding } : {}),
       system: this.systemPrompt,
       prompt: [
         `Task: ${task.title}`,
@@ -50,7 +62,10 @@ export class PromptAgent implements Agent {
       ].join("\n"),
       correlationId: `${context.executionId}:${task.id}:${randomUUID()}`,
       });
+      endTelemetry(modelSpan, { status: context.signal?.aborted ? "cancelled" : "ok", model: response.model });
     } catch (error) {
+      endTelemetry(modelSpan, { status: context.signal?.aborted ? "cancelled" : "error",
+        errorClass: context.signal?.aborted ? "cancelled" : "runtime" });
       if (context.signal?.aborted) return cancelled();
       throw error;
     }

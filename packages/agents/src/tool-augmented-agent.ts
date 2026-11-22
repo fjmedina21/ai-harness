@@ -1,3 +1,4 @@
+import { observeAgent } from "./telemetry.js";
 import type {
   Agent,
   AgentExecutionContext,
@@ -87,6 +88,13 @@ export class ToolAugmentedAgent implements Agent {
     task: Readonly<TaskDefinition>,
     context: Readonly<AgentExecutionContext>,
   ): Promise<AgentExecutionResult> {
+    return observeAgent(this.role, task, context, (observed) => this.executeObserved(task, observed));
+  }
+
+  private async executeObserved(
+    task: Readonly<TaskDefinition>,
+    context: Readonly<AgentExecutionContext>,
+  ): Promise<AgentExecutionResult> {
     if (task.assignedRole !== this.role) {
       return this.failure("Agent role mismatch");
     }
@@ -99,6 +107,7 @@ export class ToolAugmentedAgent implements Agent {
     // Workspace files and model responses cannot grant access.
     const dispatchContext = {
       executionId: context.executionId,
+      ...(context.telemetry ? { telemetry: context.telemetry } : {}),
       durableOperations: context.durableOperations,
       projectRoot: context.projectRoot,
       signal: context.signal,

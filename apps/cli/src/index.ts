@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
+import { diagnosticCommand } from "./diagnostics-cli.js";
 import { executeRun, getRunStatus } from "./runtime-cli.js";
 import { AGENT_ROLES } from "@ai-harness/contracts";
 import {
@@ -24,13 +25,14 @@ export async function main(
     return 0;
   }
   if (command === "version" || command === "--version" || command === "-v") {
-    output("ai-harness 0.6.0 (experimental)");
+    output("ai-harness 0.7.0 (experimental)");
     return 0;
   }
   if (args.includes("--help") || args.includes("-h")) {
     output(help());
     return 0;
   }
+  if (["eval", "metrics", "trace"].includes(command)) return diagnosticCommand(command, args, cwd, output);
   try {
     const root = optionValue(args, "--path") ?? cwd;
     const resolved = path.resolve(cwd, root);
@@ -170,6 +172,10 @@ function help(): string {
   \n  doctor [--path DIR]                          Validate project configuration and declarations
   \n  agents [--path DIR]                          List enabled agent roles
   \n  config [--path DIR]                          Print validated configuration
+  \n  eval run --suite deterministic                 Run offline host-owned fixtures
+  \n  eval report --input FILE [--baseline FILE]      Inspect or compare private evaluation reports
+  \n  trace --input FILE --id EXECUTION_ID            Inspect private JSONL spans
+  \n  metrics --input FILE --id EXECUTION_ID          Summarize captured execution metrics
   \n  version                                      Display version
   \n  help                                         Show help\n
 

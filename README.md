@@ -1,7 +1,7 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Phases 1–6 are **experimental foundations**, not production-ready autonomous execution.
+Phases 1–7 are **experimental foundations**, not production-ready autonomous execution.
 
 ## Requirements and verification
 
@@ -83,3 +83,7 @@ and model content remain untrusted. Unit tests do not establish production safet
 [Phase 2 security](docs/phase2-security.md) · [Phase 3 security](docs/phase3-security.md) ·
 [Continuation contract](docs/phase4-security.md#continuation-contract) ·
 [Versioning policy](docs/VERSIONING.md)
+
+## Phase 7 — observability and evaluations (0.7.0, experimental)
+
+Host-opt-in telemetry correlates execution, task, agent, provider and tool spans. Bounded memory and private rotating JSONL sinks support traces, aggregated metrics and host-supplied token cost estimates. Offline diagnostics include trace, metrics and eval commands. The deterministic suite has 19 scenarios and 42 assertions. Telemetry is best effort and cannot authorize or recover operations. See docs/phase7-observability.md, docs/phase7-evaluations.md, docs/phase7-security.md and docs/VERIFICATION.md.

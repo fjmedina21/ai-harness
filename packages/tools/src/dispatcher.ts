@@ -1,3 +1,4 @@
+import { beginTelemetry, endTelemetry, emitTelemetry } from "@ai-harness/contracts";
 import type {
   DurableDispatchBinding,
   ToolApprovalScope,
@@ -41,12 +42,48 @@ export class ToolDispatcher {
     context: ToolDispatchContext,
     approvalId?: string,
   ): Promise<ToolDispatchResult> {
+    // Unknown model-supplied tool labels are deliberately redacted.
+    const known = this.registry.get(invocation.toolId);
+    const span = beginTelemetry(context.telemetry, "tool.dispatch", {
+      ...(known ? { toolId: known.id } : {}),
+    });
+    const observed = span ? { ...context, telemetry: span.binding } : context;
+    try {
+      const result = await this.dispatchImpl(invocation, observed, approvalId);
+      emitTelemetry(observed.telemetry, "tool.authorization", {
+        ...(known ? { toolId: known.id } : {}),
+        accepted: result.status === "executed",
+        approvalRequired: result.status === "approval_required",
+        operationId: result.operationId, operationState: result.operationState,
+      });
+      endTelemetry(span, {
+        status: result.operationState === "Uncertain" ? "uncertain" :
+          context.signal?.aborted ? "cancelled" :
+          result.status === "executed" ? "ok" :
+          result.status === "denied" ? "denied" :
+          result.status === "approval_required" ? "blocked" : "error",
+        ...(result.status !== "executed" ? { errorClass: result.status === "invalid" ? "invalid_input" as const :
+          result.status === "approval_required" ? "approval" as const : result.status === "denied" ? "policy" as const :
+          context.signal?.aborted ? "cancelled" as const : "tool" as const } : {}),
+        operationId: result.operationId, operationState: result.operationState,
+      });
+      return result;
+    } catch (error) {
+      endTelemetry(span, { status: context.signal?.aborted ? "cancelled" : "error", errorClass: "runtime" });
+      throw error;
+    }
+  }
+
+  private async dispatchImpl(
+    invocation: ToolInvocation, context: ToolDispatchContext, approvalId?: string,
+  ): Promise<ToolDispatchResult> {
     const toolId = invocation.toolId;
     const cancelled = () => ({ toolId, status: "failed" as const, error: "Tool execution cancelled; prior effects are not rolled back" });
     if (context.signal?.aborted) return cancelled();
     const definition = this.registry.get(toolId);
 
     if (!definition) {
+      emitTelemetry(context.telemetry, "tool.validation", { accepted: false, errorClass: "invalid_input" });
       return {
         toolId,
         status: "invalid",
@@ -56,6 +93,7 @@ export class ToolDispatcher {
 
     const validation = this.registry.validate(invocation);
 
+    emitTelemetry(context.telemetry, "tool.validation", { toolId: definition.id, accepted: validation.valid });
     if (!validation.valid) {
       return {
         toolId,
@@ -65,6 +103,7 @@ export class ToolDispatcher {
     }
 
     if (context.defaultDeny !== true) {
+      emitTelemetry(context.telemetry, "tool.policy", { toolId, accepted: false, errorClass: "policy" });
       return {
         toolId,
         status: "denied",
@@ -73,6 +112,7 @@ export class ToolDispatcher {
     }
 
     if (!context.grantedPermissions.includes(definition.permission)) {
+      emitTelemetry(context.telemetry, "tool.policy", { toolId, accepted: false, errorClass: "policy" });
       return {
         toolId,
         status: "denied",
@@ -86,6 +126,10 @@ export class ToolDispatcher {
       context.grantedPermissions,
     );
 
+    emitTelemetry(context.telemetry, "tool.policy", {
+      toolId, accepted: decision.allowed,
+      approvalRequired: decision.approvalRequired || context.requireApprovalFor.includes(definition.permission),
+    });
     if (!decision.allowed && !decision.approvalRequired) {
       return {
         toolId,
@@ -177,6 +221,7 @@ export class ToolDispatcher {
       }
     }
 
+    let handlerSpan: ReturnType<typeof beginTelemetry>;
     try {
       const args = structuredClone(invocation.arguments) as Record<
         string,
@@ -184,13 +229,18 @@ export class ToolDispatcher {
       >;
 
       if (context.signal?.aborted) return cancelled();
+      handlerSpan = beginTelemetry(context.telemetry, "tool.handler", { toolId });
       const result = await handler(args, {
         executionId: context.executionId,
         projectRoot: context.projectRoot,
         signal: context.signal,
         requireAtomicFilesystem: context.requireAtomicFilesystem,
       });
-      if (context.signal?.aborted) return cancelled();
+      if (context.signal?.aborted) {
+        endTelemetry(handlerSpan, { status: "cancelled", errorClass: "cancelled" });
+        return cancelled();
+      }
+      endTelemetry(handlerSpan, { status: "ok" });
 
       return {
         toolId,
@@ -198,6 +248,7 @@ export class ToolDispatcher {
         data: result,
       };
     } catch {
+      endTelemetry(handlerSpan, { status: context.signal?.aborted ? "cancelled" : "error", errorClass: "tool" });
       return {
         toolId,
         status: "failed",

@@ -196,6 +196,12 @@ importers:
       '@ai-harness/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@ai-harness/evaluations':
+        specifier: workspace:*
+        version: link:../../packages/evaluations
+      '@ai-harness/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@ai-harness/providers':
         specifier: workspace:*
         version: link:../../packages/providers
@@ -221,6 +227,9 @@ importers:
       '@ai-harness/checkpointing':
         specifier: workspace:*
         version: link:../checkpointing
+      '@ai-harness/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@ai-harness/orchestrator':
         specifier: workspace:*
         version: link:../orchestrator
@@ -244,6 +253,33 @@ importers:
       '@ai-harness/config':
         specifier: workspace:*
         version: link:../config
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/evaluations:
+    dependencies:
+      '@ai-harness/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@ai-harness/checkpointing':
+        specifier: workspace:*
+        version: link:../checkpointing
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-harness/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
+      '@ai-harness/providers':
+        specifier: workspace:*
+        version: link:../providers
+      '@ai-harness/tools':
+        specifier: workspace:*
+        version: link:../tools
+
+  packages/observability:
+    dependencies:
       '@ai-harness/contracts':
         specifier: workspace:*
         version: link:../contracts

@@ -1,17 +1,17 @@
 {
-    "name": "@ai-harness/security",
-    "version": "0.6.0",
-    "private": true,
-    "type": "module",
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "default": "./dist/index.js"
-        }
-    },
-    "dependencies": {
-        "@ai-harness/contracts": "workspace:*"
+  "name": "@ai-harness/security",
+  "version": "0.7.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
+  },
+  "dependencies": {
+    "@ai-harness/contracts": "workspace:*"
+  }
 }

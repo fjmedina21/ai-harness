@@ -190,4 +190,15 @@ Requisitos, ADR, specs y tareas versionadas. Cambios generan análisis de impact
 
 ## 16. Escenario vertical de demostración
 
+## Observabilidad implementada — Fase 7
+
+La telemetría opt-in correlaciona spans de ejecución, tarea, agente, proveedor
+y herramienta; ofrece sinks locales acotados, reconstrucción de trazas,
+métricas agregadas y estimaciones con tarifas suministradas por el host. Es
+diagnóstico best effort y no otorga autoridad. El journal SQLite de la Fase 6
+sigue siendo la fuente durable de operaciones y aprobaciones. Las evaluaciones
+offline son escenarios host-authored conocidos y no garantizan calidad general.
+Véanse [observabilidad](phase7-observability.md),
+[evaluaciones](phase7-evaluations.md) y [seguridad](phase7-security.md).
+
 Proyecto de ejemplo API + web mínimo: `harness init`, solicitud «agrega endpoint GET /health con prueba», análisis/spec, planificación, asignación de analista/implementador/QA, modificación en worktree o rama autorizada, ejecución de test, registro de evidencias, pausa/aprobación de una acción protegida, interrupción simulada, reanudación desde checkpoint y reporte final. Repetir con un segundo adaptador de proveedor para comprobar compatibilidad.
