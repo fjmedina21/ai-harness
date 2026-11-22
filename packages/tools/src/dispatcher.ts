@@ -37,6 +37,8 @@ export class ToolDispatcher {
     approvalId?: string,
   ): Promise<ToolDispatchResult> {
     const toolId = invocation.toolId;
+    const cancelled = () => ({ toolId, status: "failed" as const, error: "Tool execution cancelled; prior effects are not rolled back" });
+    if (context.signal?.aborted) return cancelled();
     const definition = this.registry.get(toolId);
 
     if (!definition) {
@@ -126,6 +128,7 @@ export class ToolDispatcher {
       };
     }
 
+    if (context.signal?.aborted) return cancelled();
     if (requiresApproval) {
       const scope: ToolApprovalScope = {
         executionId: context.executionId,
@@ -166,10 +169,14 @@ export class ToolDispatcher {
         unknown
       >;
 
+      if (context.signal?.aborted) return cancelled();
       const result = await handler(args, {
         executionId: context.executionId,
         projectRoot: context.projectRoot,
+        signal: context.signal,
+        requireAtomicFilesystem: context.requireAtomicFilesystem,
       });
+      if (context.signal?.aborted) return cancelled();
 
       return {
         toolId,

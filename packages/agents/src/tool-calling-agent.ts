@@ -143,6 +143,7 @@ export class ToolCallingAgent implements Agent {
     const dispatchContext = {
       executionId: context.executionId,
       projectRoot: context.projectRoot,
+      signal: context.signal,
       defaultDeny: true as const,
       grantedPermissions: [...context.grantedPermissions],
       requireApprovalFor: [...this.options.requireApprovalFor],

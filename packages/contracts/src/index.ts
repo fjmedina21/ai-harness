@@ -131,3 +131,5 @@ export {
   parseToolCallingContinuation,
   TOOL_SESSION_LIMITS,
 } from "./tool-calling-session.js";
+
+export type * from "./execution.js";

@@ -193,3 +193,5 @@ export { createGitStatusHandler } from "./git-tools.js";
 export type { GitStatusOptions } from "./git-tools.js";
 
 export { registerControlledWorkspaceTools } from "./controlled-workspace-tools.js";
+
+export { ProcessExecutionError } from "./process-runner.js";

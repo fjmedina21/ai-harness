@@ -1,6 +1,8 @@
 import type { Permission, ToolInvocation } from "./index.js";
 
 export interface ToolDispatchContext {
+  signal?: AbortSignal;
+  requireAtomicFilesystem?: boolean;
   /**
    * Trusted host configuration.
    * Never construct this object directly from model output.
@@ -13,6 +15,9 @@ export interface ToolDispatchContext {
 }
 
 export interface ToolHandlerContext {
+  signal?: AbortSignal;
+  /** Reject local filesystem access when atomic rooted confinement is required. */
+  requireAtomicFilesystem?: boolean;
   executionId: string;
   projectRoot: string;
 }

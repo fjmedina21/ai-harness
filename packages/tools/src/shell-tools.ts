@@ -68,6 +68,8 @@ export const shellExecuteHandler: ToolHandler = async (
       {
         cwd: workspace,
         shell: false,
+        signal: context.signal,
+        killSignal: "SIGKILL",
         timeout: TIMEOUT_MS,
         maxBuffer: MAX_OUTPUT_BYTES,
         encoding: "utf8",

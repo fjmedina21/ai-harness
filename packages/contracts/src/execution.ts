@@ -1,0 +1,15 @@
+/** Neutral lifecycle metadata; never an execution grant. */
+export type RuntimeOperationState =
+  | "preflight" | "creating" | "running" | "cancelling" | "exited" | "failed" | "cleaning";
+export type ProcessFailureKind =
+  | "cancelled" | "timeout" | "output_limit" | "start_failed" | "termination_unconfirmed";
+export type CleanupStatus = "not_needed" | "confirmed" | "uncertain";
+export interface ProcessRunOptions { signal?: AbortSignal }
+export interface ProcessResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+export interface ProcessRunner {
+  run(executable: string, args: readonly string[], timeoutMs: number, options?: ProcessRunOptions): Promise<ProcessResult>;
+}

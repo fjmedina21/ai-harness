@@ -41,6 +41,8 @@ export function createGitStatusHandler(options: GitStatusOptions): ToolHandler {
         {
           cwd,
           shell: false,
+          signal: context.signal,
+          killSignal: "SIGKILL",
           timeout: TIMEOUT_MS,
           maxBuffer: MAX_BUFFER,
           encoding: "utf8",

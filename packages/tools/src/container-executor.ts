@@ -1,4 +1,5 @@
-import { execFile } from "node:child_process";
+import type { ProcessRunner } from "@ai-harness/contracts";
+import { NodeProcessRunner } from "./process-runner.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
@@ -26,57 +27,8 @@ export interface ContainerExecutionOptions {
   image: string;
 }
 
-export interface ProcessResult {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-}
-
-export interface ProcessRunner {
-  run(
-    executable: string,
-    args: readonly string[],
-    timeoutMs: number,
-  ): Promise<ProcessResult>;
-}
-
-export class NodeProcessRunner implements ProcessRunner {
-  async run(
-    executable: string,
-    args: readonly string[],
-    timeoutMs: number,
-  ): Promise<ProcessResult> {
-    return new Promise((resolve, reject) => {
-      execFile(
-        executable,
-        [...args],
-        {
-          shell: false,
-          timeout: timeoutMs,
-          maxBuffer: MAX_OUTPUT_BYTES,
-          encoding: "utf8",
-          windowsHide: true,
-          env: {
-            PATH: "/usr/local/bin:/usr/bin:/bin",
-            HOME: process.env.HOME ?? "",
-          },
-        },
-        (error, stdout, stderr) => {
-          if (error) {
-            reject(new Error("Container process failed"));
-            return;
-          }
-
-          resolve({
-            exitCode: 0,
-            stdout,
-            stderr,
-          });
-        },
-      );
-    });
-  }
-}
+export { NodeProcessRunner } from "./process-runner.js";
+export type { ProcessResult, ProcessRunner } from "@ai-harness/contracts";
 
 export interface ContainerExecutionResult {
   command: ContainerCommand;
