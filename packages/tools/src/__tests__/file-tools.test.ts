@@ -13,7 +13,7 @@ import {
   registerFileTools,
   ToolDispatcher,
   ToolRegistry,
-} from "./index.js";
+} from "../index.js";
 
 function createDispatcher(): ToolDispatcher {
   const registry = new ToolRegistry();

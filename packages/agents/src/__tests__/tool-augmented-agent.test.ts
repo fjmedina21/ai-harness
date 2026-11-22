@@ -15,7 +15,7 @@ import type {
   TaskDefinition,
 } from "@ai-harness/contracts";
 
-import { ToolAugmentedAgent } from "./index.js";
+import { ToolAugmentedAgent } from "../index.js";
 
 const task: TaskDefinition = {
   id: "task-001",

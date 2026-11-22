@@ -7,7 +7,7 @@ import type {
 } from "@ai-harness/contracts";
 
 import { FixtureProvider } from "@ai-harness/providers";
-import { PromptAgent } from "./index.js";
+import { PromptAgent } from "../index.js";
 
 const task: TaskDefinition = {
   id: "task-001",

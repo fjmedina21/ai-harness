@@ -11,7 +11,7 @@ import {
   loadWorkflow,
   runSddWorkflow,
   SDD_STAGES,
-} from "./index.js";
+} from "../index.js";
 
 const fixture: ModelProviderAdapter = {
   id: "fixture",

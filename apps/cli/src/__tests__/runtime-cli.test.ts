@@ -7,8 +7,8 @@ import path from "node:path";
 
 import { initializeProject } from "@ai-harness/core";
 
-import { main } from "./index.js";
-import { executeRun, getRunStatus } from "./runtime-cli.js";
+import { main } from "../index.js";
+import { executeRun, getRunStatus } from "../runtime-cli.js";
 
 async function withProject(
   callback: (root: string) => Promise<void>,

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AGENT_ROLES, isTerminalExecutionState } from "./index.js";
+import { AGENT_ROLES, isTerminalExecutionState } from "../index.js";
 
-import type { Agent, RuntimeExecution, TaskState } from "./index.js";
+import type { Agent, RuntimeExecution, TaskState } from "../index.js";
 
 test("all 15 agent roles remain available", () => {
   assert.equal(AGENT_ROLES.length, 15);

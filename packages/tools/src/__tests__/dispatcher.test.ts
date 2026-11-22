@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolDispatchContext } from "@ai-harness/contracts";
 
-import { BUILTIN_TOOLS, ToolDispatcher, ToolRegistry } from "./index.js";
+import { BUILTIN_TOOLS, ToolDispatcher, ToolRegistry } from "../index.js";
 
 function setup() {
   const registry = new ToolRegistry();

@@ -3,7 +3,7 @@ import test from 'node:test';
 import path from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { main } from './index.js';
+import { main } from '../index.js';
 
 test('CLI can initialize and validate a project', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'harness-cli-'));

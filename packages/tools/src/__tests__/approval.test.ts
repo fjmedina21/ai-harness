@@ -11,7 +11,7 @@ import {
   ToolApprovalManager,
   ToolDispatcher,
   ToolRegistry,
-} from "./index.js";
+} from "../index.js";
 
 const invocation: ToolInvocation = {
   toolId: "shell.execute",

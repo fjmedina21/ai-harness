@@ -8,7 +8,7 @@ import type {
   TaskDefinition,
 } from "@ai-harness/contracts";
 
-import { Orchestrator } from "./index.js";
+import { Orchestrator } from "../index.js";
 
 const model: ModelProviderAdapter = {
   id: "fixture",
