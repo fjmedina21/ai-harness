@@ -1,6 +1,6 @@
 # Phase 6 security review
 
-Locally implemented, unpublished experimental local-first durable operations.
+Version 0.6.0 implements experimental local-first durable operations.
 Not production autonomous execution.
 
 ## Trust boundaries and controls

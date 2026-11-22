@@ -1,6 +1,13 @@
 
 # AI Harness — Phase 3 Security Review
 
+## Current runtime migration
+
+This file preserves the historical Phase 3 review. The current owner-directed
+candidate removes Docker execution entirely and uses Podman Machine only.
+Historical Docker verification work items below are superseded by
+[the current runtime/security profile](phase5-security.md).
+
 ## Status
 
 Phase 3 implements experimental components for model tool calling,

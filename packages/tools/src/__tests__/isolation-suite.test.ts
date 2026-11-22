@@ -19,7 +19,7 @@ async function profileTest(fn: (file: string, root: string) => Promise<void>) {
   try { await writeFile(file, JSON.stringify(OPTIONS), { mode: 0o600 }); await fn(file, root); }
   finally { await rm(root, { recursive: true, force: true }); }
 }
-test("private explicit host profile loads without discovering or querying Docker", async () => {
+test("private explicit host profile loads without discovering or querying Podman", async () => {
   await profileTest(async (file) => assert.deepEqual(await loadIsolationProfile(file), OPTIONS));
 });
 test("profile loader rejects absent, relative, world-readable and symlink paths", async () => {

@@ -4,22 +4,22 @@ import { ContainerExecutor, ContainerExecutionError } from "../container-executo
 import { ContainerFixture, OPTIONS } from "./container-fixture.js";
 const execute = (runner: ContainerFixture) => new ContainerExecutor(OPTIONS, runner).execute("node.version");
 
-test("missing dedicated profile cannot reach any Docker operation", async () => {
+test("missing dedicated profile cannot reach any Podman operation", async () => {
   const runner = new ContainerFixture();
   await assert.rejects(new ContainerExecutor({ ...OPTIONS, securityProfile: undefined }, runner).execute("node.version"), /preflight_failed/);
   assert.equal(runner.calls.length, 0);
 });
-for (const field of ["version", "kernel", "id", "os", "arch", "cgroup", "driver", "security", "memory", "swap", "cpu", "pids"]) {
+for (const field of ["version", "kernel", "os", "arch", "cgroup", "manager", "controllers", "rootless", "seccomp"]) {
   test(`preflight rejects missing or wrong ${field} capability without creating anything`, async () => {
     const runner = new ContainerFixture(); delete runner.info[field];
     await assert.rejects(execute(runner), /preflight_failed/);
     assert.ok(runner.calls.every((c) => !c.args.includes("create")));
   });
 }
-test("endpoint changes and remote endpoints cannot redirect Docker commands", async () => {
+test("endpoint changes and remote endpoints cannot redirect Podman commands", async () => {
   const runner = new ContainerFixture(); runner.endpoint = "unix:///wrong.sock";
   await assert.rejects(execute(runner), /preflight_failed/);
-  assert.equal(runner.calls.length, 1);
+  assert.equal(runner.calls.length, 2);
   await assert.rejects(new ContainerExecutor({ ...OPTIONS, securityProfile: { ...OPTIONS.securityProfile, endpoint: "tcp://attacker:2375" } }, runner).execute("node.version"), /preflight_failed/);
 });
 for (const field of ["id", "os", "arch", "digests", "volumes"]) {
@@ -31,10 +31,10 @@ for (const field of ["id", "os", "arch", "digests", "volumes"]) {
 }
 test("effective restrictions are checked before starting created resources", async () => {
   for (const [field, value] of Object.entries({ Privileged: true, NetworkMode: "host", ReadonlyRootfs: false,
-    CapAdd: ["SYS_ADMIN"], SecurityOpt: ["no-new-privileges", "seccomp=unconfined"], Memory: 0, NanoCpus: 0,
+    CapAdd: ["SYS_ADMIN"], SecurityOpt: ["no-new-privileges", "seccomp=unconfined"], Memory: 0, NanoCpus: 900000000,
     Binds: ["/:/host"], Devices: [{}], PidMode: "host", CgroupnsMode: "host", RestartPolicy: { Name: "always", MaximumRetryCount: 0 }, Tmpfs: {}, PublishAllPorts: true })) {
     const runner = new ContainerFixture(); runner.host[field] = value;
-    await assert.rejects(execute(runner), /effective_configuration_mismatch/);
+    await assert.rejects(execute(runner), (error: unknown) => error instanceof ContainerExecutionError && ["effective_configuration_mismatch", "runtime_failed"].includes(error.kind) && error.cleanup === "confirmed");
     assert.ok(runner.calls.every((c) => !c.args.includes("start")));
     assert.equal(runner.removed, true);
   }
@@ -75,7 +75,10 @@ test("runtime always pins the validated endpoint and freezes host options", asyn
   const executor = new ContainerExecutor(options, runner); options.securityProfile.endpoint = "unix:///changed.sock";
   const result = await executor.execute("node.version");
   assert.equal(result.cleanup, "confirmed");
-  assert.ok(runner.calls.slice(1).every((c) => c.args[0] === "--host" && c.args[1] === OPTIONS.securityProfile.endpoint));
+  const pinned = runner.calls.filter(c => c.args[0] === "--remote");
+  assert.ok(pinned.length > 0);
+  assert.ok(pinned.every(c => c.args[1] === "--url" && c.args[2] === OPTIONS.securityProfile.endpoint));
+  assert.ok(runner.calls.every(c => c.executable === OPTIONS.podmanExecutable));
 });
 test("nonzero operation exit is not hidden by successful cleanup", async () => {
   const runner = new ContainerFixture(); runner.result.exitCode = 9;

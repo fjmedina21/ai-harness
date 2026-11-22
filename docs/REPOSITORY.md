@@ -31,7 +31,7 @@ ai-harness/
 │   └── plugin-sdk/                # Extensiones, fase 2
 ├── adapters/
 │   ├── providers/                 # Proveedores concretos a elegir
-│   ├── tools/                     # fs, shell, git, docker, browser, MCP
+│   ├── tools/                     # fs, shell, git, Podman, browser, MCP
 │   └── infrastructure/            # Workers, cloud y storage
 ├── agents/                        # 15 manifiestos de roles
 ├── skills/                        # Capacidades compartidas por dominio
@@ -52,7 +52,7 @@ ai-harness/
 │   ├── architecture/
 │   └── operations/
 └── infra/
-    ├── docker/
+    ├── containers/
     └── kubernetes/
 ```
 

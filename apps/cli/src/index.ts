@@ -24,7 +24,7 @@ export async function main(
     return 0;
   }
   if (command === "version" || command === "--version" || command === "-v") {
-    output("ai-harness 0.5.0 (experimental)");
+    output("ai-harness 0.6.0 (experimental)");
     return 0;
   }
   if (args.includes("--help") || args.includes("-h")) {
@@ -161,7 +161,7 @@ function rejectUnknown(
   }
 }
 function help(): string {
-  return `AI Harness CLI — experimental\n
+  return `AI Harness CLI — experimental
   \nUsage: harness <command> [options]\n
   \nCommands:
   \n  init [--path DIR] [--name NAME] [--dry-run]   Initialize .ai/ without overwriting files
@@ -173,7 +173,7 @@ function help(): string {
   \n  version                                      Display version
   \n  help                                         Show help\n
 
-  \nNot exposed by the default CLI: resume, deployment, approvals, provider selection, isolated runtime, dashboard.\n `;
+  \nNot exposed by the default CLI: resume, deployment, approvals, provider selection, isolated runtime, dashboard.`;
 }
 if (
   process.argv[1] &&

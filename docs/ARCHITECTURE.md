@@ -23,7 +23,7 @@ Desarrollar un Harness extensible para coordinar agentes especializados en proye
 | 05 | Catálogo de 15 agentes, incluyendo UI/UX. |
 | 06 | Flujo adaptativo SDD, iterativo y paralelo para tareas independientes. |
 | 07 | Memoria híbrida: archivos fuente de verdad y almacenamiento estructurado opcional. |
-| 08 | Integraciones: archivos, shell, Git, GitHub/GitLab, Docker, BD, navegador, MCP, APIs, cloud, web y observabilidad. |
+| 08 | Integraciones: archivos, shell, Git, GitHub/GitLab, Podman, BD, navegador, MCP, APIs, cloud, web y observabilidad. |
 | 09 | Especificaciones proporcionales al riesgo y complejidad. |
 | 10 | Validación adaptativa con corrección, reintentos acotados y evidencias. |
 | 11 | Resiliencia avanzada: checkpoints, circuit breakers, rollback, fallback y aislamiento. |
@@ -38,7 +38,7 @@ Desarrollar un Harness extensible para coordinar agentes especializados en proye
 | 20 | CLI, IDE, dashboard y API comparten servicios y controles. |
 | 21 | TypeScript/Node.js (núcleo, orquestador, CLI); React o Next.js (dashboard). |
 | 22 | Archivos + SQLite local + PostgreSQL compartido + Redis opcional + artefactos externos. |
-| 23 | npm, binarios y Docker; SemVer, migraciones, compatibilidad, rollback. |
+| 23 | npm, binarios e imágenes OCI; SemVer, migraciones, compatibilidad, rollback. |
 | 24 | Estándares jerárquicos versionados, detección de convenciones existentes. |
 | 25 | Gestión de cambios con análisis de impacto, replanificación y aprobaciones. |
 | 26 | Conocimiento reutilizable, documentación automática, ADR y búsqueda opcional. |
@@ -155,7 +155,7 @@ Construir DAG por dependencias; reservar archivos/recursos antes de ejecutar; us
 
 ## 12. Estrategia de compatibilidad y distribución
 
-Distribución objetivo: npm, binarios autónomos Windows/macOS/Linux y Docker. Publicar SemVer para núcleo y contratos, catálogo de versiones de adaptadores, migraciones comprobables con `dry-run`, respaldo y rollback cuando aplique. El MVP entrega CLI instalable por npm, y los canales restantes pueden llegar después.
+Distribución objetivo: npm, binarios autónomos Windows/macOS/Linux e imágenes OCI para Podman. Publicar SemVer para núcleo y contratos, catálogo de versiones de adaptadores, migraciones comprobables con `dry-run`, respaldo y rollback cuando aplique. El MVP entrega CLI instalable por npm, y los canales restantes pueden llegar después.
 
 ## 13. Control de cambios y conocimiento
 

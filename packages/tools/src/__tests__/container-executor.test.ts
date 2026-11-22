@@ -3,7 +3,7 @@ import test from "node:test";
 import { ContainerExecutor, ContainerExecutionError, type ContainerExecutionResult } from "../container-executor.js";
 import { ContainerFixture, OPTIONS } from "./container-fixture.js";
 
-test("builds a restricted Docker invocation", async () => {
+test("builds a restricted Podman invocation", async () => {
   const legacy: ContainerExecutionResult = { command: "node.version", exitCode: 0, stdout: "v24", stderr: "" };
   assert.equal(legacy.cleanup, undefined); // additive public result contract
   const runner = new ContainerFixture();
@@ -15,18 +15,18 @@ test("builds a restricted Docker invocation", async () => {
   for (const flag of ["--privileged", "--volume", "--mount", "host"]) assert.ok(!args.includes(flag));
 });
 test("rejects unpinned container images", () => {
-  assert.throws(() => new ContainerExecutor({ ...OPTIONS, image: "node:latest" }), /SHA-256 digest/);
+  assert.throws(() => new ContainerExecutor({ ...OPTIONS, image: "node:latest" }), /pinned by digest/);
 });
 test("rejects unsupported commands", async () => {
   const runner = new ContainerFixture();
   await assert.rejects(new ContainerExecutor(OPTIONS, runner).execute("shell.execute" as "node.version"), /Unsupported container command/);
   assert.equal(runner.calls.length, 0);
 });
-test("rejects unsafe Docker configuration", () => {
-  assert.throws(() => new ContainerExecutor({ ...OPTIONS, dockerExecutable: "docker" }), /must be absolute/);
-  assert.throws(() => new ContainerExecutor({ ...OPTIONS, dockerContext: "default --host attacker" }), /Invalid Docker context/);
+test("rejects unsafe Podman configuration", () => {
+  assert.throws(() => new ContainerExecutor({ ...OPTIONS, podmanExecutable: "podman" }), /must be absolute/);
+  assert.throws(() => new ContainerExecutor({ ...OPTIONS, machineName: "default --host attacker" }), /Invalid Podman machine name/);
 });
-test("performs cleanup after a Docker failure", async () => {
+test("performs cleanup after a Podman failure", async () => {
   const runner = new ContainerFixture(); runner.failStart = true;
   await assert.rejects(new ContainerExecutor(OPTIONS, runner).execute("node.version"), (error: unknown) =>
     error instanceof ContainerExecutionError && error.kind === "runtime_failed" && error.cleanup === "confirmed" && !error.message.includes("secret"));

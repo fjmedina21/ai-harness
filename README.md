@@ -44,15 +44,17 @@ runtime preflight, owned-resource cleanup and incremental file reads. The real
 isolation suite **passed on a dedicated rootless Podman Machine**, including
 effective limits, running cancellation, timeout and confirmed cleanup. The
 default CLI/SDD stays unchanged. `pnpm test:isolation` fails closed without an
-explicit private host profile. No runtime installation is automatic.
+explicit private host profile. No runtime installation is automatic. Former Docker callers must migrate to
+an explicitly approved Podman profile; the host Docker installation is unaffected.
 
 The regular GitHub Actions workflow runs build and deterministic tests. A
 separate manual workflow targets a dedicated isolation runner; it is not evidence
 until that runner and its approved profile are configured and the job passes.
-Live Docker isolation remains unverified. See [verification](docs/VERIFICATION.md)
+The current runtime supports only explicit Podman Machine profiles; Docker
+execution and implicit backend selection are rejected. See [verification](docs/VERIFICATION.md)
 and [Phase 5 security](docs/phase5-security.md).
 
-## Phase 6 — durable execution (local, unpublished)
+## Phase 6 — durable execution (0.6.0, experimental)
 
 Optional SQLite journal with stable operation/request/call identities, validated
 state transitions, transactional single-use approvals and versioned host
@@ -64,7 +66,8 @@ The host opts in through ToolDispatcher, the read-only factory or Orchestrator.
 The default CLI/SDD remain unchanged; no privileged tools are enabled.
 Actual SQLite tests cover interprocess races, abrupt SIGKILL/reopen, rollback,
 corruption, lock failures and SQLITE_FULL. Local verification is distinct from
-remote CI, which is pending publication.
+hosted CI, whose per-commit result is available in the
+[standard workflow](https://github.com/fjmedina21/ai-harness/actions/workflows/ci.yml).
 See [architecture, schema and recovery runbook](docs/phase6-durable-execution.md),
 [security](docs/phase6-security.md) and [verification](docs/VERIFICATION.md).
 
@@ -73,7 +76,7 @@ See [architecture, schema and recovery runbook](docs/phase6-durable-execution.md
 No automatic resume, durable exactly-once execution, arbitrary shell, Git-writing
 or deployment integration. Filesystem guards have TOCTOU limitations; approvals
 remain in-memory on the legacy path; durable mode needs a trusted private local
-SQLite store and host identity verifier. Live Docker isolation remains unverified. Tool outputs
+SQLite store and host identity verifier. Tool outputs
 and model content remain untrusted. Unit tests do not establish production safety.
 
 [Roadmap](docs/ROADMAP.md) · [Verification](docs/VERIFICATION.md) ·

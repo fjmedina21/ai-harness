@@ -1,8 +1,8 @@
 # Phase 6 — durable operations and conservative recovery
 
-Implemented locally on the Phase 6 branch. Experimental, opt-in, single-host
+Included in version 0.6.0. Experimental, opt-in, single-host
 execution support; no automatic workflow resume or external exactly-once claim.
-The workspace remains at published version 0.5.0 pending release review.
+Workspace manifests and CLI identify 0.6.0; validation scope is recorded in VERIFICATION.md.
 
 ## Architecture and persistence decision
 

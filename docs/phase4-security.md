@@ -163,6 +163,8 @@ stops as a failed agent result; no approval resumption is implemented.
 
 No durable native sessions, automatic recovery, operation journal, transactional
 audit, exactly-once semantics or authenticated result provenance. The Phase 2/3
-filesystem TOCTOU, Docker, identity and in-memory approval limitations still
+filesystem TOCTOU, identity and legacy in-memory approval limitations still
 apply. Live API tests require a separate explicit credential/cost decision;
 remote CI can only be verified after authorized publication.
+
+Current container execution is Podman-only; see [runtime migration](phase5-security.md).

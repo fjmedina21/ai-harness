@@ -57,7 +57,7 @@ try {
   await assert.rejects(executeFixedContainer(options, runner, "isolation.wait"),
     (e: unknown) => e instanceof ContainerExecutionError && e.kind === "timeout" && e.cleanup === "confirmed" && e.states.includes("running"));
   console.log(JSON.stringify({ status: "passed", timestamp: new Date().toISOString(), node: process.version,
-    backend: preflight.backend ?? "docker", preflight, containerNode: version.stdout.trim(), image: options.image, probes: evidence, cleanup: "confirmed", cancellation: "confirmed", cancellationRunning: observedRunning, timeout: "confirmed" }));
+    backend: preflight.backend, preflight, containerNode: version.stdout.trim(), image: options.image, probes: evidence, cleanup: "confirmed", cancellation: "confirmed", cancellationRunning: observedRunning, timeout: "confirmed" }));
 } catch {
   console.error(JSON.stringify({ stage, status: validated ? "failed" : "blocked", reason: validated
     ? "Real isolation probe or confirmed cleanup did not pass" : "Dedicated private runtime profile or required daemon capabilities unavailable" }));

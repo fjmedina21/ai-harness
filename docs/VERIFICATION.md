@@ -1,4 +1,93 @@
-# Verification report — Phase 6
+# Verification — version 0.6.0
+
+This source version combines experimental Phase 6 durable operations and the
+owner-requested Podman-only runtime migration. Docker execution and implicit
+backend selection are removed. The default CLI/SDD remains safe and unchanged.
+
+Local acceptance: 350/350 tests, real SQLite process-crash/concurrency coverage,
+clean build, CLI help/version and whitespace checks. The real Podman gate
+validates the fixed isolation/cancellation/timeout workload on the approved
+ai-harness-isolation VM, with empty final container inventory and stopped VM.
+
+Hosted build/test results are per commit and must be checked separately:
+[standard CI on main](https://github.com/fjmedina21/ai-harness/actions/workflows/ci.yml).
+The dedicated remote isolation workflow still requires its runner/environment
+and approved profile; local Podman evidence does not establish remote isolation.
+
+Detailed records below are historical snapshots. Statements that a prior
+candidate was unpublished describe those earlier checks. Publication/CI receipts
+for this integration are retained locally under harness-development/publication/.
+
+No production autonomous execution, automatic replay, external exactly-once
+semantics or new privileged-tool exposure is claimed. Current migration and
+security boundaries: [Podman](phase5-security.md), [durable operations](phase6-security.md).
+Workspace/CLI/manifests are aligned at 0.6.0. No npm package release or Git tag is
+implied by pushing this private repository.
+
+---
+
+# Historical local verification — Podman-only runtime
+
+Owner-directed local change on feat/phase6-durable-execution-recovery.
+Docker daemon/context execution and implicit backend selection have been removed.
+This candidate is not published; remote CI has not been run for this change.
+Older sections below preserve historical evidence from earlier implementations.
+
+## Local checks after Docker removal
+
+- pnpm clean, pnpm build, pnpm test: success, **350/350 tests passed**,
+  zero failed/cancelled/skipped.
+- pnpm harness --help and git diff --check: success.
+- Former Docker runtime regression cases now use native Podman fixtures.
+  Five new tests reject explicit Docker, legacy implicit Docker, mixed options,
+  unknown backends and former/missing-backend profile configurations without
+  making process calls.
+- The 348-test starting suite had three Docker-only daemon capability cases
+  superseded by native Podman capability coverage; five rejection tests were added.
+- No package manager, external dependency, credential or privileged tool added.
+- Existing owner CLI/fixture/report edits are preserved.
+
+## Real Podman evidence after removal
+
+pnpm test:isolation returned exit 0 and status=passed at
+2026-11-22T13:45:09.951Z, using the updated source and private Podman-only profile.
+
+- Dedicated disposable rootless VM ai-harness-isolation; Linux/arm64,
+  Podman client/server 6.1.4, kernel 7.2.7-200.fc44.aarch64.
+- Host Node v24.18.0, container Node v24.22.3.
+- Image docker.io/library/node@sha256:b4955566e9320d2b70ddbd933053c216ae4b1d83f6bf947184e4d7de504059c2,
+  ID 9ca3f7b76099c042f1e655ca8936e0a1ccda68b3c74a8a36375428ef76476d4e.
+- Actual UID 65534; effective capabilities empty; seccomp=2;
+  no-new-privileges=true; root filesystem read-only.
+- Empty bounded 16 MiB tmpfs; no host shares/socket/workspace exposure;
+  container network denied.
+- Actual memory 256 MiB, swap 0, PID limit 64, CPU quota 0.5.
+- Cancellation after observed Running, timeout and cleanup all confirmed.
+- Independent final container query returned an empty list. VM stopped afterward.
+- No runtime installation, image pull, daemon/context change or Docker command
+  was performed. The OCI registry name docker.io is retained as image provenance,
+  not a supported execution backend.
+
+Supporting scripts, complete logs, owner snapshots and machine-readable evidence
+are under excluded harness-development/docker-removal/. No generated build
+files belong in Git. No new commit, push or merge was part of this removal.
+
+## Migration and remaining limits
+
+ContainerExecutor/result names stay neutral; option contracts now require
+explicit backend=podman, podmanExecutable, machineName, qualified digest-pinned
+image and approved security profile. Docker/legacy callers must migrate
+explicitly; no compatibility execution path or automatic conversion remains.
+See [current runtime migration/security](phase5-security.md).
+
+Remote dedicated-runner evidence is pending. Passing these fixed-workload probes
+does not establish protection against arbitrary code/kernel escapes or a
+compromised host. Filesystem TOCTOU, uncertain external effects and manual
+reconciliation limitations remain.
+
+---
+
+# Historical local verification — Phase 6
 
 Local candidate on feat/phase6-durable-execution-recovery, starting from clean
 main/origin/main 959f20f5fb7cd70790ccd492a06a3ad2f4fd6f16 (version 0.5.0).
@@ -119,7 +208,7 @@ Local process-group tests do not establish a container or OS sandbox.
 `pnpm test:isolation` returned exit **0**, JSON `status: passed`, at
 `2026-11-22T02:49:47.473Z`. This run used real containers, not fixtures:
 
-- Dedicated disposable Podman Machine `harness-phase5`, 2 CPUs, 2048 MiB RAM,
+- Dedicated disposable Podman Machine `harness-isolation`, 2 CPUs, 2048 MiB RAM,
   16 GiB disk; rootless Linux/arm64, no host shares (configuration and guest
   `findmnt` checked), no privileged containers or workspace/socket binds.
 - Podman client/server 6.1.4, kernel `7.2.7-200.fc44.aarch64`;
