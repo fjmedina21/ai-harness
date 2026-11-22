@@ -8,10 +8,10 @@ export const OPTIONS = {
 export class ContainerFixture implements ProcessRunner {
   calls: Array<{ executable: string; args: string[]; timeoutMs: number; signal?: AbortSignal }> = [];
   owner = ""; removed = false; id = "b".repeat(64);
-  info: Record<string, unknown> = { id: "test-daemon", os: "linux", arch: "aarch64", cgroup: "2", driver: "systemd",
+  info: Record<string, unknown> = { version: "29.8.2", kernel: "fixture-kernel", id: "test-daemon", os: "linux", arch: "aarch64", cgroup: "2", driver: "systemd",
     security: ["name=rootless", "name=seccomp,profile=builtin"], memory: true, swap: true, cpu: true, pids: true };
   image: Record<string, unknown> = { id: "sha256:" + "c".repeat(64), os: "linux", arch: "arm64", digests: [IMAGE], volumes: null };
-  host: Record<string, unknown> = { Privileged: false, ReadonlyRootfs: true, NetworkMode: "none", Memory: 268435456,
+  host: Record<string, unknown> = { RestartPolicy: { Name: "no", MaximumRetryCount: 0 }, Privileged: false, ReadonlyRootfs: true, NetworkMode: "none", Memory: 268435456,
     MemorySwap: 268435456, NanoCpus: 500000000, PidsLimit: 64, CapDrop: ["ALL"], CapAdd: null,
     SecurityOpt: ["no-new-privileges"], PidMode: "", IpcMode: "private", CgroupnsMode: "private", UsernsMode: "",
     Binds: null, Devices: [], DeviceRequests: null, PublishAllPorts: false, PortBindings: {}, Tmpfs: { "/tmp": "rw,nosuid,nodev,noexec,size=16m" } };

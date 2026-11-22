@@ -23,6 +23,8 @@ export function createGitStatusHandler(options: GitStatusOptions): ToolHandler {
   const executable = options.executable;
 
   return async (_args, context) => {
+    context.signal?.throwIfAborted();
+    if (context.requireAtomicFilesystem) throw new Error("Atomic rooted filesystem access is unavailable");
     const cwd = await realpath(context.projectRoot);
 
     const stdout = await new Promise<string>((resolve, reject) => {

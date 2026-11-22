@@ -10,12 +10,16 @@ export interface ContainerSecurityProfile {
   platform: "linux/amd64" | "linux/arm64";
 }
 export interface ContainerExecutionOptions {
+  backend?: "docker";
   dockerExecutable: string;
   dockerContext: string;
   image: string;
   securityProfile?: ContainerSecurityProfile;
 }
 export interface ContainerPreflight {
+  backend?: "docker" | "podman";
+  serverVersion: string;
+  kernel: string;
   daemonId: string;
   platform: string;
   imageId: string;
@@ -56,11 +60,13 @@ export async function preflightContainer(options: ContainerExecutionOptions, run
   // Pin the endpoint after resolving the context; ambient context/env cannot redirect commands.
   const docker = ["--host", p.endpoint];
   const info = record(JSON.parse(await query(runner, options.dockerExecutable, [...docker, "info", "--format", template({
-    id: ".ID", os: ".OSType", arch: ".Architecture", cgroup: ".CgroupVersion", driver: ".CgroupDriver",
+    version: ".ServerVersion", kernel: ".KernelVersion", id: ".ID", os: ".OSType", arch: ".Architecture", cgroup: ".CgroupVersion", driver: ".CgroupDriver",
     security: ".SecurityOptions", memory: ".MemoryLimit", swap: ".SwapLimit", cpu: ".CPUCfsQuota", pids: ".PidsLimit",
   })], signal)));
   const arch = info.arch === "x86_64" ? "amd64" : info.arch === "aarch64" ? "arm64" : info.arch;
-  if (info.id !== p.daemonId || info.os !== "linux" || `linux/${arch}` !== p.platform
+  if (typeof info.version !== "string" || !info.version || info.version.length > 128
+    || typeof info.kernel !== "string" || !info.kernel || info.kernel.length > 256
+    || info.id !== p.daemonId || info.os !== "linux" || `linux/${arch}` !== p.platform
     || info.cgroup !== "2" || info.driver !== "systemd" || info.memory !== true || info.swap !== true || info.cpu !== true || info.pids !== true
     || !Array.isArray(info.security) || !info.security.includes("name=rootless")
     || !info.security.some((s) => typeof s === "string" && s.startsWith("name=seccomp,"))) {
@@ -72,5 +78,5 @@ export async function preflightContainer(options: ContainerExecutionOptions, run
   if (typeof image.id !== "string" || !/^sha256:[a-f0-9]{64}$/.test(image.id)
     || image.os !== "linux" || `linux/${image.arch}` !== p.platform || !Array.isArray(image.digests) || !image.digests.includes(options.image)
     || (image.volumes !== null && Object.keys(record(image.volumes)).length !== 0)) throw new Error("Image does not match profile");
-  return { daemonId: p.daemonId, platform: p.platform, imageId: image.id, endpoint: p.endpoint };
+  return { serverVersion: info.version, kernel: info.kernel, daemonId: p.daemonId, platform: p.platform, imageId: image.id, endpoint: p.endpoint };
 }

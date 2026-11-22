@@ -9,7 +9,7 @@ test("missing dedicated profile cannot reach any Docker operation", async () => 
   await assert.rejects(new ContainerExecutor({ ...OPTIONS, securityProfile: undefined }, runner).execute("node.version"), /preflight_failed/);
   assert.equal(runner.calls.length, 0);
 });
-for (const field of ["id", "os", "arch", "cgroup", "driver", "security", "memory", "swap", "cpu", "pids"]) {
+for (const field of ["version", "kernel", "id", "os", "arch", "cgroup", "driver", "security", "memory", "swap", "cpu", "pids"]) {
   test(`preflight rejects missing or wrong ${field} capability without creating anything`, async () => {
     const runner = new ContainerFixture(); delete runner.info[field];
     await assert.rejects(execute(runner), /preflight_failed/);
@@ -32,7 +32,7 @@ for (const field of ["id", "os", "arch", "digests", "volumes"]) {
 test("effective restrictions are checked before starting created resources", async () => {
   for (const [field, value] of Object.entries({ Privileged: true, NetworkMode: "host", ReadonlyRootfs: false,
     CapAdd: ["SYS_ADMIN"], SecurityOpt: ["no-new-privileges", "seccomp=unconfined"], Memory: 0, NanoCpus: 0,
-    Binds: ["/:/host"], Devices: [{}], PidMode: "host", CgroupnsMode: "host", Tmpfs: {}, PublishAllPorts: true })) {
+    Binds: ["/:/host"], Devices: [{}], PidMode: "host", CgroupnsMode: "host", RestartPolicy: { Name: "always", MaximumRetryCount: 0 }, Tmpfs: {}, PublishAllPorts: true })) {
     const runner = new ContainerFixture(); runner.host[field] = value;
     await assert.rejects(execute(runner), /effective_configuration_mismatch/);
     assert.ok(runner.calls.every((c) => !c.args.includes("start")));
@@ -53,7 +53,7 @@ test("cleanup failures and remaining resources cannot produce success", async ()
 });
 test("a timed-out create with no visible container remains uncertain", async () => {
   const runner = new ContainerFixture(); runner.createFailure = true; runner.lateAbsent = true;
-  await assert.rejects(execute(runner), (e: unknown) => e instanceof ContainerExecutionError && e.kind === "timeout" && e.cleanup === "uncertain");
+  await assert.rejects(execute(runner), (e: unknown) => e instanceof ContainerExecutionError && e.kind === "timeout" && e.cleanup === "uncertain" && Boolean(e.resource?.name.startsWith("ai-harness-")) && Boolean(e.resource?.owner));
   assert.ok(runner.calls.every((c) => !c.args.includes("rm")));
 });
 test("a late owned creation is reconciled once and removed by immutable ID", async () => {
@@ -80,4 +80,10 @@ test("runtime always pins the validated endpoint and freezes host options", asyn
 test("nonzero operation exit is not hidden by successful cleanup", async () => {
   const runner = new ContainerFixture(); runner.result.exitCode = 9;
   await assert.rejects(execute(runner), (e: unknown) => e instanceof ContainerExecutionError && e.kind === "nonzero_exit" && e.cleanup === "confirmed");
+});
+
+test("public preflight sanitizes malformed daemon metadata", async () => {
+  const runner = new ContainerFixture();
+  runner.endpoint = "not JSON";
+  await assert.rejects(new ContainerExecutor(OPTIONS, runner).preflight(), (e: unknown) => e instanceof ContainerExecutionError && e.kind === "preflight_failed" && !e.message.includes("not JSON"));
 });

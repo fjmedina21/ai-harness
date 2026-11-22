@@ -35,7 +35,12 @@ export class PromptAgent implements Agent {
       };
     }
 
-    const response = await context.model.complete({
+    const cancelled = (): AgentExecutionResult => ({ success: false, summary: "Execution cancelled", artifacts: [], error: "Execution cancelled" });
+    if (context.signal?.aborted) return cancelled();
+    let response;
+    try {
+      response = await context.model.complete({
+      signal: context.signal,
       system: this.systemPrompt,
       prompt: [
         `Task: ${task.title}`,
@@ -44,7 +49,12 @@ export class PromptAgent implements Agent {
         ...task.acceptanceCriteria.map((item) => `- ${item}`),
       ].join("\n"),
       correlationId: `${context.executionId}:${task.id}:${randomUUID()}`,
-    });
+      });
+    } catch (error) {
+      if (context.signal?.aborted) return cancelled();
+      throw error;
+    }
+    if (context.signal?.aborted) return cancelled();
 
     return {
       success: true,

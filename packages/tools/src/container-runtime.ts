@@ -1,14 +1,16 @@
+import { preflightRuntime, runtimeExecutable, runtimePrefix, normalizeRuntimeConfiguration, configurationTemplate, type ExecutionRuntimeOptions } from "./runtime-backend.js";
 import { randomUUID } from "node:crypto";
 import type { CleanupStatus, ProcessRunner, RuntimeOperationState } from "@ai-harness/contracts";
 import { ProcessExecutionError } from "./process-runner.js";
 import {
-  ID_PATTERN, OWNER_LABEL, preflightContainer, query, record, template,
-  type ContainerExecutionOptions, type ContainerPreflight,
+  ID_PATTERN, OWNER_LABEL, query, record, template,
+  type ContainerPreflight,
 } from "./container-profile.js";
 import { FIXED_CONTAINER_OPERATIONS, type FixedContainerOperation } from "./container-operations.js";
 
 export class ContainerExecutionError extends Error {
-  constructor(readonly kind: string, readonly cleanup: CleanupStatus, readonly states: readonly RuntimeOperationState[]) {
+  constructor(readonly kind: string, readonly cleanup: CleanupStatus, readonly states: readonly RuntimeOperationState[],
+    readonly resource?: { name: string; id?: string; owner: string }) {
     super(`Container execution failed: ${kind}; cleanup: ${cleanup}`);
   }
 }
@@ -21,7 +23,7 @@ function listArgs(filter: string) { return ["container", "ls", "--all", "--no-tr
 
 /** Host-only fixed operations; the public executor permits node.version only. */
 export async function executeFixedContainer(
-  options: ContainerExecutionOptions, runner: ProcessRunner, operation: FixedContainerOperation, signal?: AbortSignal,
+  options: ExecutionRuntimeOptions, runner: ProcessRunner, operation: FixedContainerOperation, signal?: AbortSignal,
 ): Promise<HardenedContainerResult> {
   if (!Object.hasOwn(FIXED_CONTAINER_OPERATIONS, operation)) throw new ContainerExecutionError("unsupported_operation", "not_needed", []);
   const states: RuntimeOperationState[] = ["preflight"];
@@ -38,26 +40,27 @@ export async function executeFixedContainer(
   const check = () => { if (combined.aborted) throw new ProcessExecutionError(signal?.aborted ? "cancelled" : "timeout"); };
   try {
     check();
-    verified = await preflightContainer(options, runner, combined);
+    verified = await preflightRuntime(options, runner, combined);
     check();
-    const docker = ["--host", verified.endpoint];
+    const docker = runtimePrefix(options, verified);
     states.push("creating");
     attemptedCreation = true;
-    const creation = await runner.run(options.dockerExecutable, [...docker,
+    const creation = await runner.run(runtimeExecutable(options), [...docker,
       "container", "create", "--pull", "never", "--platform", verified.platform,
-      "--name", name, "--label", `${OWNER_LABEL}=${owner}`, "--network", "none", "--read-only", "--cap-drop", "ALL",
+      ...(options.backend === "podman" ? ["--http-proxy=false", "--image-volume=ignore", "--init=false", "--read-only-tmpfs=false", "--systemd=false"] : []),
+      "--name", name, "--restart", "no", "--label", `${OWNER_LABEL}=${owner}`, "--network", "none", "--read-only", "--cap-drop", "ALL",
       "--security-opt", "no-new-privileges", "--pids-limit", "64", "--memory", "256m", "--memory-swap", "256m", "--cpus", "0.5",
-      "--user", "65534:65534", "--tmpfs", TMPFS, "--ipc", "private", "--cgroupns", "private", "--no-healthcheck",
+      "--user", "65534:65534", "--tmpfs", options.backend === "podman" ? `${TMPFS},rprivate,notmpcopyup` : TMPFS, "--ipc", "private", "--cgroupns", "private", "--no-healthcheck",
       "--entrypoint", "node", verified.imageId, ...FIXED_CONTAINER_OPERATIONS[operation],
     ], 10_000, { signal: combined });
     if (creation.exitCode !== 0 || !ID_PATTERN.test(creation.stdout.trim())) throw new Error("creation_failed");
     id = creation.stdout.trim();
     check();
-    const config = record(JSON.parse(await query(runner, options.dockerExecutable, [...docker, "container", "inspect", id, "--format", template({
-      id: ".Id", owner: `(index .Config.Labels "${OWNER_LABEL}")`, user: ".Config.User", host: ".HostConfig", mounts: ".Mounts",
-    })], combined)));
+    const config = normalizeRuntimeConfiguration(options, JSON.parse(await query(runner, runtimeExecutable(options), [...docker, "container", "inspect", id, "--format", configurationTemplate(options)], combined)));
     const host = record(config.host);
+    const restart = record(host.RestartPolicy);
     if (config.id !== id || config.owner !== owner || config.user !== "65534:65534"
+      || restart.Name !== "no" || restart.MaximumRetryCount !== 0
       || host.Privileged !== false || host.ReadonlyRootfs !== true || host.NetworkMode !== "none"
       || host.Memory !== 268435456 || host.MemorySwap !== 268435456 || host.NanoCpus !== 500000000 || host.PidsLimit !== 64
       || !Array.isArray(host.CapDrop) || !host.CapDrop.includes("ALL") || (host.CapAdd !== null && (!Array.isArray(host.CapAdd) || host.CapAdd.length > 0))
@@ -72,7 +75,7 @@ export async function executeFixedContainer(
       throw new Error("effective_configuration_mismatch");
     }
     check(); states.push("running");
-    output = await runner.run(options.dockerExecutable, [...docker, "container", "start", "--attach", id], 10_000, { signal: combined });
+    output = await runner.run(runtimeExecutable(options), [...docker, "container", "start", "--attach", id], 10_000, { signal: combined });
     check();
     if (output.exitCode !== 0) throw new Error("nonzero_exit");
     if (Buffer.byteLength(output.stdout) + Buffer.byteLength(output.stderr) > 4096) throw new Error("output_limit");
@@ -86,27 +89,28 @@ export async function executeFixedContainer(
   } finally {
     if (attemptedCreation && verified) {
       states.push("cleaning"); cleanup = "uncertain";
-      const docker = ["--host", verified.endpoint];
+      const docker = runtimePrefix(options, verified);
       try {
         // Independent cleanup deadlines: never inherit cancellation. No retry/replay.
-        const found = await query(runner, options.dockerExecutable, [...docker, ...listArgs(`name=^/${name}$`)]);
+        const found = await query(runner, runtimeExecutable(options), [...docker, ...listArgs(`name=^/${name}$`)]);
         if (!found) {
           // If create did not return an ID, daemon-side late creation remains uncertain.
-          if (id && !(await query(runner, options.dockerExecutable, [...docker, ...listArgs(`id=${id}`)]))) cleanup = "confirmed";
+          if (id && !(await query(runner, runtimeExecutable(options), [...docker, ...listArgs(`id=${id}`)]))) cleanup = "confirmed";
         } else if (ID_PATTERN.test(found)) {
-          const owned = record(JSON.parse(await query(runner, options.dockerExecutable, [...docker, "container", "inspect", found, "--format", template({
-            id: ".Id", owner: `(index .Config.Labels "${OWNER_LABEL}")`,
+          const owned = record(JSON.parse(await query(runner, runtimeExecutable(options), [...docker, "container", "inspect", found, "--format", template({
+            id: options.backend === "podman" ? ".ID" : ".Id", owner: `(index .Config.Labels "${OWNER_LABEL}")`,
           })])));
           if (owned.id === found && owned.owner === owner && (!id || id === found)) {
-            await query(runner, options.dockerExecutable, [...docker, "container", "rm", "--force", found]);
-            const byId = await query(runner, options.dockerExecutable, [...docker, ...listArgs(`id=${found}`)]);
-            const byName = await query(runner, options.dockerExecutable, [...docker, ...listArgs(`name=^/${name}$`)]);
+            await query(runner, runtimeExecutable(options), [...docker, "container", "rm", "--force", ...(options.backend === "podman" ? ["--time", "0"] : []), found]);
+            const byId = await query(runner, runtimeExecutable(options), [...docker, ...listArgs(`id=${found}`)]);
+            const byName = await query(runner, runtimeExecutable(options), [...docker, ...listArgs(`name=^/${name}$`)]);
             if (!byId && !byName) cleanup = "confirmed";
           }
         }
       } catch { /* uncertain is preserved and exposed */ }
+      states.push(cleanup === "confirmed" ? "cleaned" : "cleanup_uncertain");
     }
   }
-  if (failure || cleanup !== "confirmed" || !verified) throw new ContainerExecutionError(failure ?? "cleanup_uncertain", cleanup, [...states]);
+  if (failure || cleanup !== "confirmed" || !verified) throw new ContainerExecutionError(failure ?? "cleanup_uncertain", cleanup, [...states], attemptedCreation ? { name, id, owner } : undefined);
   return { ...output, cleanup, states: [...states], preflight: verified };
 }

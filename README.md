@@ -37,6 +37,18 @@ No privileged handlers are registered by the read-only factory.
 `sdd`, `security`, `checkpointing`, `tools`; executable commands in `apps/cli`.
 TypeScript strict / NodeNext ESM, project references and `node:test`.
 
+## Phase 5 candidate
+
+Execution hardening adds host cancellation, dedicated Docker/Podman preflight,
+owned-resource cleanup and incremental file reads. The real isolation suite
+**passed on a dedicated rootless Podman Machine**, including effective limits,
+running cancellation, timeout and confirmed cleanup. Docker's backend retains
+fixture coverage; live Docker isolation has not been validated. The default
+CLI/SDD stays unchanged. `pnpm test:isolation` fails closed without an explicit
+private host profile. No runtime installation is automatic. Implementation is
+ready for review; publication and CI remain pending. See [verification](docs/VERIFICATION.md)
+and [Phase 5 security and migration](docs/phase5-security.md).
+
 ## Current limits
 
 No automatic resume, durable exactly-once execution, arbitrary shell, Git-writing

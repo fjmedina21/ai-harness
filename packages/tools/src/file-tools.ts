@@ -1,12 +1,12 @@
-import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
+import type { BigIntStats } from "node:fs";
+import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 
 import type { ToolHandler } from "@ai-harness/contracts";
 
 import type { ToolDispatcher } from "./dispatcher.js";
 
-const MAX_FILE_BYTES = 1024 * 1024;
+import { readVerifiedFile } from "./bounded-file.js";
 
 const BLOCKED_DIRECTORIES = new Set([
   ".git",
@@ -63,19 +63,21 @@ function validateRelativePath(input: string): string[] {
  *
  * This is a local filesystem guard, not a sandbox.
  */
-async function resolveReadableFile(
+export async function resolveReadableFile(
   projectRoot: string,
   relativePath: string,
-): Promise<string> {
+): Promise<{ filename: string; expected: BigIntStats }> {
   const segments = validateRelativePath(relativePath);
   const root = await realpath(projectRoot);
 
   let current = root;
+  let expected: BigIntStats | undefined;
 
   for (const [index, segment] of segments.entries()) {
     current = path.join(current, segment);
 
-    const info = await lstat(current);
+    const info = await lstat(current, { bigint: true });
+    expected = info;
 
     if (info.isSymbolicLink()) {
       throw new Error("Symbolic links are not allowed");
@@ -104,7 +106,8 @@ async function resolveReadableFile(
     throw new Error("File escapes workspace");
   }
 
-  return resolved;
+  if (!expected) throw new Error("Missing file identity");
+  return { filename: resolved, expected };
 }
 
 /**
@@ -114,44 +117,21 @@ async function resolveReadableFile(
  * Register it through ToolDispatcher instead.
  */
 export const fileReadHandler: ToolHandler = async (args, context) => {
+  context.signal?.throwIfAborted();
+  if (context.requireAtomicFilesystem) throw new Error("Atomic rooted filesystem access is unavailable");
   const relativePath = args.path;
 
   if (typeof relativePath !== "string") {
     throw new Error("Invalid file path");
   }
 
-  const filename = await resolveReadableFile(context.projectRoot, relativePath);
-
-  // O_NOFOLLOW prevents following a symlink at the
-  // final component if it changes before open().
-  const handle = await open(
-    filename,
-    constants.O_RDONLY | constants.O_NOFOLLOW,
-  );
-
-  try {
-    const metadata = await handle.stat();
-
-    if (!metadata.isFile() || metadata.size > MAX_FILE_BYTES) {
-      throw new Error("Unsupported file or file too large");
-    }
-
-    const buffer = await handle.readFile();
-
-    if (buffer.byteLength > MAX_FILE_BYTES) {
-      throw new Error("File exceeds maximum size");
-    }
-
-    return {
-      path: relativePath,
-      content: new TextDecoder("utf-8", {
-        fatal: true,
-      }).decode(buffer),
-      bytes: buffer.byteLength,
-    };
-  } finally {
-    await handle.close();
-  }
+  const { filename, expected } = await resolveReadableFile(context.projectRoot, relativePath);
+  const buffer = await readVerifiedFile(filename, expected, context.signal);
+  return {
+    path: relativePath,
+    content: new TextDecoder("utf-8", { fatal: true }).decode(buffer),
+    bytes: buffer.byteLength,
+  };
 };
 
 /**

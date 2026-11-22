@@ -57,6 +57,8 @@ function validatePath(input: string): string[] {
  * The dispatcher must authorize this handler before use.
  */
 export const fileWriteHandler: ToolHandler = async (args, context) => {
+  context.signal?.throwIfAborted();
+  if (context.requireAtomicFilesystem) throw new Error("Atomic rooted filesystem access is unavailable");
   const relativePath = args.path;
   const content = args.content;
 
@@ -105,10 +107,13 @@ export const fileWriteHandler: ToolHandler = async (args, context) => {
     constants.O_EXCL |
     constants.O_NOFOLLOW;
 
+  context.signal?.throwIfAborted();
   const handle = await open(filename, flags, 0o600);
 
   try {
+    context.signal?.throwIfAborted();
     await handle.writeFile(content, "utf8");
+    context.signal?.throwIfAborted();
     await handle.sync();
 
     return {

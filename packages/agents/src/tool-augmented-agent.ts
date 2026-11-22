@@ -20,6 +20,7 @@ const MAX_CONTEXT_FILES = 5;
 const MAX_CONTEXT_CHARS = 80_000;
 
 export interface ToolAugmentedAgentOptions {
+  requireAtomicFilesystem?: boolean;
   role: AgentRole;
   systemPrompt: string;
 
@@ -44,9 +45,11 @@ export class ToolAugmentedAgent implements Agent {
   private readonly readFiles: readonly string[];
   private readonly requireApprovalFor: readonly Permission[];
   private readonly dispatcher: ToolDispatcher;
+  private readonly requireAtomicFilesystem: boolean;
 
   constructor(options: ToolAugmentedAgentOptions) {
     this.role = options.role;
+    this.requireAtomicFilesystem = options.requireAtomicFilesystem === true;
 
     if (options.readFiles.length > MAX_CONTEXT_FILES) {
       throw new Error("Too many context files");
@@ -97,6 +100,8 @@ export class ToolAugmentedAgent implements Agent {
     const dispatchContext = {
       executionId: context.executionId,
       projectRoot: context.projectRoot,
+      signal: context.signal,
+      requireAtomicFilesystem: this.requireAtomicFilesystem,
       defaultDeny: true as const,
       grantedPermissions: context.grantedPermissions,
       requireApprovalFor: this.requireApprovalFor,

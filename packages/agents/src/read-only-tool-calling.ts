@@ -14,6 +14,7 @@ import {
 import { ToolCallingAgent } from "./tool-calling-agent.js";
 
 export interface ReadOnlyToolCallingOptions {
+  requireAtomicFilesystem?: boolean;
   role: AgentRole;
   systemPrompt: string;
   provider: SessionToolCallingProviderAdapter;

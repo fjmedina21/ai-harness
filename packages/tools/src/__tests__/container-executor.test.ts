@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ContainerExecutor, ContainerExecutionError } from "../container-executor.js";
+import { ContainerExecutor, ContainerExecutionError, type ContainerExecutionResult } from "../container-executor.js";
 import { ContainerFixture, OPTIONS } from "./container-fixture.js";
 
 test("builds a restricted Docker invocation", async () => {
+  const legacy: ContainerExecutionResult = { command: "node.version", exitCode: 0, stdout: "v24", stderr: "" };
+  assert.equal(legacy.cleanup, undefined); // additive public result contract
   const runner = new ContainerFixture();
   const result = await new ContainerExecutor(OPTIONS, runner).execute("node.version");
   assert.equal(result.exitCode, 0); assert.match(result.stdout, /^v24/); assert.equal(result.cleanup, "confirmed");

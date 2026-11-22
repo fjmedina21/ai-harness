@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import type { ProcessFailureKind, ProcessResult, ProcessRunner, ProcessRunOptions } from "@ai-harness/contracts";
 
 export class ProcessExecutionError extends Error {
@@ -17,7 +18,9 @@ export class NodeProcessRunner implements ProcessRunner {
       const child = spawn(executable, [...args], {
         shell: false, detached: process.platform !== "win32", windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
-        env: { PATH: "/usr/local/bin:/usr/bin:/bin", HOME: process.env.HOME ?? "" },
+        // Preserve the host temp directory: Podman Machine derives its macOS
+        // socket identity from it. Never forward ambient provider/runtime options.
+        env: { PATH: "/usr/local/bin:/usr/bin:/bin", HOME: process.env.HOME ?? "", TMPDIR: tmpdir() },
       });
       let settled = false;
       let failure: ProcessFailureKind | undefined;

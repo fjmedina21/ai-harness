@@ -24,6 +24,7 @@ const MAX_TOTAL_TOOL_CALLS = 16;
 const MAX_TOOL_RESULT_BYTES = 16_384;
 
 export interface ToolCallingAgentOptions {
+  requireAtomicFilesystem?: boolean;
   role: AgentRole;
   systemPrompt: string;
   provider: ToolCallingProviderAdapter;
@@ -144,6 +145,7 @@ export class ToolCallingAgent implements Agent {
       executionId: context.executionId,
       projectRoot: context.projectRoot,
       signal: context.signal,
+      requireAtomicFilesystem: this.options.requireAtomicFilesystem,
       defaultDeny: true as const,
       grantedPermissions: [...context.grantedPermissions],
       requireApprovalFor: [...this.options.requireApprovalFor],

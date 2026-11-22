@@ -41,6 +41,8 @@ export const shellExecuteHandler: ToolHandler = async (
   args,
   context,
 ): Promise<ShellCommandResult> => {
+  context.signal?.throwIfAborted();
+  if (context.requireAtomicFilesystem) throw new Error("Atomic rooted filesystem access is unavailable");
   const command = args.command;
 
   if (typeof command !== "string") {

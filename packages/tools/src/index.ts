@@ -198,3 +198,6 @@ export { ProcessExecutionError } from "./process-runner.js";
 
 export { ContainerExecutionError } from "./container-executor.js";
 export type { ContainerSecurityProfile, ContainerPreflight } from "./container-executor.js";
+
+export type { PodmanExecutionOptions } from "./podman-profile.js";
+export type { ExecutionRuntimeOptions } from "./runtime-backend.js";
