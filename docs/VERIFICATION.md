@@ -1,4 +1,88 @@
-# Verification report — Phase 5
+# Verification report — Phase 6
+
+Local candidate on feat/phase6-durable-execution-recovery, starting from clean
+main/origin/main 959f20f5fb7cd70790ccd492a06a3ad2f4fd6f16 (version 0.5.0).
+The starting build and 282 tests passed before implementation.
+
+## Final local evidence
+
+- pnpm clean, pnpm build, pnpm test: success, **348/348 tests passed**,
+  zero failed/cancelled/skipped; 282 baseline tests plus 66 new tests.
+- Focused durable suite: **66/66 passed** on the actual SQLite backend.
+- pnpm harness --help and git diff --check: success.
+- Environment: Node 24.18.0, pnpm 12.21.0, TypeScript 5.8.3, local macOS.
+- No real credentials, paid model calls, external database or new external
+  dependency were used. Providers were deterministic fixtures/mocked HTTP.
+- Local supporting plans, logs and machine-readable results are exclusively
+  under excluded harness-development/phase6/. AGENTS.md and the local handoff
+  remain excluded and untracked. No generated build output belongs in commits.
+
+| Coverage | New tests | Evidence type |
+| --- | --- | --- |
+| State machine, journal, approvals, corruption, bounds, recovery | 30 | Unit/domain checks plus actual SQLite/filesystem integration, interprocess races and SIGKILL/reopen |
+| Dispatcher and verified approval service | 24 | Real SQLite integration; selected port failures injected to cover acknowledgement windows |
+| Orchestrator, both tool agents and read-only factory | 10 | Real SQLite/filesystem/checkpoints with fixture model sessions |
+| Canonical digest semantics and input budgets | 2 | Deterministic unit tests |
+
+Actual backend/process evidence includes:
+- Reopen persistence for operation, grant and full event history.
+- Old Created/PendingApproval/Approved/Prepared/Running sessions cannot execute.
+- Real independent Node processes race the same request and same call ID under
+  different request IDs; exactly one fixed local fixture effect is observed.
+  This is bounded duplicate-prevention evidence, not external exactly-once.
+- Parent-confirmed SIGKILL at Prepared, Running, after a flushed local effect
+  but before completion persistence, and inside an uncommitted SQLite update.
+  A new store recovers the journal without replay; Running/Prepared need host
+  reconciliation. The existing flushed effect remains single.
+- Actual SQLite lock contention, event-insert failure/transaction rollback and
+  SQLITE_FULL using a lowered database page cap. Approval/state/event changes
+  roll back together; a storage failure retires execution for that store.
+- Physical corruption, bad payload/checksum/state/schema, missing grant/events,
+  unsafe filesystem modes, symlinks and hardlinks fail closed without recreation.
+- Expiry is tested at decision, prepare and start. Revocation/denial/consumption,
+  repeated requests, changed scope, stale versions and concurrent decisions fail closed.
+
+Injected storage-port failures additionally cover pre-start errors, failed
+completion persistence and a committed completion whose acknowledgement is
+lost. These are fault-window tests alongside real backend tests, not substitutes
+for durability/concurrency tests. Handler failures/cancellation preserve
+Uncertain where possible; a failed commit can leave Running/Completed for
+inspection. No success is fabricated and no failed authorization is reused.
+
+The clean regression run initially found that a new checkpoint changed the
+legacy callback sequence; the additional task-Running save now applies only
+to explicit orchestrator durable opt-in. Final baseline regressions pass.
+
+## Publication, user changes and limits
+
+This candidate has not been pushed, merged, released or remotely validated.
+No GitHub Actions result for Phase 6 exists as part of this work. Standard CI
+must pass after authorized publication. Version remains 0.5.0 pending release
+review/alignment; do not treat this as published version 0.6.0.
+
+The owner concurrently edited CLI help formatting, the Podman fixture machine
+name/formatting and the historical Podman machine name below. Those changes are
+preserved separately from Phase 6 commits. At the owner request, the helper is
+now computePodmanMachineFingerprint, without the former alias; it computes the
+same digest and changes no runtime policy.
+
+No container runtime controls were functionally changed, so the live Podman
+isolation suite was not rerun. Existing deterministic container regressions
+pass. Historical real Podman evidence below remains distinct from this phase;
+live Docker and dedicated remote isolation validation remain unverified.
+
+Residual limits: trusted host/verifier/clock and local filesystem, no same-user
+tamper or database rollback resistance, no deployed IdP, no hardware power-loss
+proof, no distributed fencing, no atomic external effect/SQLite commit, no
+durable provider transcript or automatic task/model-session continuation.
+Independent request IDs can describe the same real-world effect: the host must
+not create fresh IDs to bypass uncertainty. Manual recovery requires authentic
+external evidence and quiescence. See [architecture/runbook](phase6-durable-execution.md)
+and [security](phase6-security.md).
+
+---
+
+# Historical verification report — Phase 5
 
 Phase 5 was integrated and pushed to `main` at `fdd5c3b`.
 

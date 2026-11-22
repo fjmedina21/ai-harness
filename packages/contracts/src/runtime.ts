@@ -29,6 +29,7 @@ export interface RuntimeTask {
 }
 
 export interface AgentExecutionContext {
+  durableOperations?: import("./durable.js").DurableDispatchBinding;
   executionId: string;
   projectRoot: string;
   model: ModelProviderAdapter;
@@ -62,9 +63,11 @@ export type ExecutionEventType =
   | "execution.started"
   | "execution.completed"
   | "execution.failed"
+  | "execution.cancelled"
   | "task.started"
   | "task.completed"
   | "task.failed"
+  | "task.cancelled"
   | "approval.required"
   | "checkpoint.saved";
 

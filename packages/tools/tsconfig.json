@@ -1,23 +1,26 @@
 {
-    "extends": "../../tsconfig.base.json",
-    "compilerOptions": {
-        "rootDir": "src",
-        "outDir": "dist",
-        "tsBuildInfoFile": "dist/.tsbuildinfo"
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ],
+  "references": [
+    {
+      "path": "../contracts"
     },
-    "include": [
-        "src/**/*.ts"
-    ],
-    "exclude": [
-        "dist",
-        "node_modules"
-    ],
-    "references": [
-        {
-            "path": "../contracts"
-        },
-        {
-            "path": "../security"
-        }
-    ]
+    {
+      "path": "../security"
+    },
+    {
+      "path": "../checkpointing"
+    }
+  ]
 }

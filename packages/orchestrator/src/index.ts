@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type {
+  DurableDispatchBinding,
   Agent,
   AgentExecutionContext,
   AgentExecutionResult,
@@ -17,6 +18,8 @@ import type {
 } from "@ai-harness/contracts";
 
 export interface OrchestratorInput {
+  signal?: AbortSignal;
+  durableOperations?: DurableDispatchBinding;
   request: string;
   projectRoot: string;
   tasks: TaskDefinition[];
@@ -78,6 +81,8 @@ export class Orchestrator {
 
     const context: AgentExecutionContext = {
       executionId: execution.id,
+      signal: input.signal,
+      durableOperations: input.durableOperations,
       projectRoot: input.projectRoot,
       model: input.model,
       grantedPermissions: input.grantedPermissions ?? [],
@@ -98,8 +103,8 @@ export class Orchestrator {
       if (!task) {
         this.transition(
           execution,
-          "failed",
-          "execution.failed",
+          input.signal?.aborted ? "cancelled" : "failed",
+          input.signal?.aborted ? "execution.cancelled" : "execution.failed",
           "No executable task found",
         );
         break;
@@ -147,6 +152,9 @@ export class Orchestrator {
             .join("\n\n"),
         };
 
+        // Persist task Running before an agent can issue durable operations.
+        if (input.durableOperations) await input.checkpointStore?.save(structuredClone(execution));
+        if (input.signal?.aborted) throw new Error("Execution cancelled");
         outcome = await agent.execute(contextualTask, context);
       } catch (error) {
         outcome = {
@@ -157,18 +165,22 @@ export class Orchestrator {
         };
       }
 
+      if (input.signal?.aborted) outcome = {
+        success: false, summary: "Execution cancelled", artifacts: [],
+        error: "Execution cancelled; started operation effects require journal inspection",
+      };
       task.completedAt = new Date().toISOString();
 
       if (!outcome.success) {
-        task.state = "failed";
+        task.state = input.signal?.aborted ? "cancelled" : "failed";
         task.error = outcome.error ?? outcome.summary;
 
-        this.addEvent(execution, "task.failed", task.error, task.definition.id);
+        this.addEvent(execution, input.signal?.aborted ? "task.cancelled" : "task.failed", task.error, task.definition.id);
 
         this.transition(
           execution,
-          "failed",
-          "execution.failed",
+          input.signal?.aborted ? "cancelled" : "failed",
+          input.signal?.aborted ? "execution.cancelled" : "execution.failed",
           `Task failed: ${task.definition.id}`,
         );
 
@@ -269,7 +281,7 @@ export class Orchestrator {
   private transition(
     execution: RuntimeExecution,
     state: ExecutionState,
-    event: "execution.started" | "execution.completed" | "execution.failed",
+    event: "execution.started" | "execution.completed" | "execution.failed" | "execution.cancelled",
     message: string = state,
   ): void {
     const allowed: Record<ExecutionState, readonly ExecutionState[]> = {

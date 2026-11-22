@@ -47,3 +47,5 @@ export class DefaultPolicyEngine implements PolicyEngine {
     };
   }
 }
+
+export { DurableApprovalService, digestDurableValue } from "./durable-approval.js";

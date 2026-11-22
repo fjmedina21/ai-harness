@@ -1,11 +1,11 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Phases 1–5 are **experimental foundations**, not production-ready autonomous execution.
+Phases 1–6 are **experimental foundations**, not production-ready autonomous execution.
 
 ## Requirements and verification
 
-- Node.js >= 22 (development and CI: Node 24).
+- Node.js >= 22 (development and CI: Node 24); durable opt-in needs Node 22.13+.
 - pnpm **12.21.0**, pinned in `package.json`.
 
 ```bash
@@ -52,11 +52,28 @@ until that runner and its approved profile are configured and the job passes.
 Live Docker isolation remains unverified. See [verification](docs/VERIFICATION.md)
 and [Phase 5 security](docs/phase5-security.md).
 
+## Phase 6 — durable execution (local, unpublished)
+
+Optional SQLite journal with stable operation/request/call identities, validated
+state transitions, transactional single-use approvals and versioned host
+reconciliation. Approval consumption and Prepared commit together; Running is
+durable before a handler begins. Reopening never reuses a previous store-session
+grant or preparation. No automatic replay/resume is introduced.
+
+The host opts in through ToolDispatcher, the read-only factory or Orchestrator.
+The default CLI/SDD remain unchanged; no privileged tools are enabled.
+Actual SQLite tests cover interprocess races, abrupt SIGKILL/reopen, rollback,
+corruption, lock failures and SQLITE_FULL. Local verification is distinct from
+remote CI, which is pending publication.
+See [architecture, schema and recovery runbook](docs/phase6-durable-execution.md),
+[security](docs/phase6-security.md) and [verification](docs/VERIFICATION.md).
+
 ## Current limits
 
 No automatic resume, durable exactly-once execution, arbitrary shell, Git-writing
 or deployment integration. Filesystem guards have TOCTOU limitations; approvals
-are in-memory; Docker isolation has only mock-runner verification. Tool outputs
+remain in-memory on the legacy path; durable mode needs a trusted private local
+SQLite store and host identity verifier. Live Docker isolation remains unverified. Tool outputs
 and model content remain untrusted. Unit tests do not establish production safety.
 
 [Roadmap](docs/ROADMAP.md) · [Verification](docs/VERIFICATION.md) ·

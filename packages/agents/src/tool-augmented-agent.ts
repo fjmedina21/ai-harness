@@ -99,6 +99,7 @@ export class ToolAugmentedAgent implements Agent {
     // Workspace files and model responses cannot grant access.
     const dispatchContext = {
       executionId: context.executionId,
+      durableOperations: context.durableOperations,
       projectRoot: context.projectRoot,
       signal: context.signal,
       requireAtomicFilesystem: this.requireAtomicFilesystem,
@@ -114,7 +115,7 @@ export class ToolAugmentedAgent implements Agent {
 
     let totalChars = 0;
 
-    for (const file of this.readFiles) {
+    for (const [index, file] of this.readFiles.entries()) {
       if (context.signal?.aborted) {
         return this.failure("Execution cancelled");
       }
@@ -124,7 +125,7 @@ export class ToolAugmentedAgent implements Agent {
           toolId: "file.read",
           arguments: { path: file },
         },
-        dispatchContext,
+        { ...dispatchContext, operation: { taskId: task.id, requestId: "context-file:" + index } },
       );
 
       if (result.status !== "executed") {

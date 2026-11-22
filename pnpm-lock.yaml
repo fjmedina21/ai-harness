@@ -217,6 +217,13 @@ importers:
       '@ai-harness/tools':
         specifier: workspace:*
         version: link:../tools
+    devDependencies:
+      '@ai-harness/checkpointing':
+        specifier: workspace:*
+        version: link:../checkpointing
+      '@ai-harness/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
 
   packages/checkpointing:
     dependencies:
@@ -279,6 +286,10 @@ importers:
       '@ai-harness/security':
         specifier: workspace:*
         version: link:../security
+    devDependencies:
+      '@ai-harness/checkpointing':
+        specifier: workspace:*
+        version: link:../checkpointing
 
 packages:
 

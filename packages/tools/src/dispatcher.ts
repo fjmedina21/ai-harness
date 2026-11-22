@@ -1,4 +1,5 @@
 import type {
+  DurableDispatchBinding,
   ToolApprovalScope,
   ToolDispatchContext,
   ToolDispatchResult,
@@ -6,6 +7,7 @@ import type {
   ToolInvocation,
 } from "@ai-harness/contracts";
 
+import { dispatchDurably } from "./durable-dispatch.js";
 import { DefaultPolicyEngine } from "@ai-harness/security";
 import { ToolApprovalManager } from "./approval.js";
 import type { ToolRegistry } from "./index.js";
@@ -17,7 +19,10 @@ export class ToolDispatcher {
   constructor(
     private readonly registry: ToolRegistry,
     private readonly approvals?: ToolApprovalManager,
-  ) {}
+    private readonly durable?: DurableDispatchBinding,
+  ) {
+    if (durable) this.durable = { ...durable, requester: { ...durable.requester }, safetyByTool: { ...durable.safetyByTool } };
+  }
 
   registerHandler(toolId: string, handler: ToolHandler): void {
     if (!this.registry.get(toolId)) {
@@ -108,7 +113,7 @@ export class ToolDispatcher {
     //
     // Without an approval manager, preserve the
     // approval_required result even if no handler exists.
-    if (requiresApproval && !this.approvals) {
+    if (requiresApproval && !this.approvals && !this.durable && !context.durableOperations) {
       return {
         toolId,
         status: "approval_required",
@@ -129,6 +134,15 @@ export class ToolDispatcher {
     }
 
     if (context.signal?.aborted) return cancelled();
+    const durable = this.durable ?? context.durableOperations;
+    if (durable) {
+      if (this.durable && context.durableOperations &&
+          (this.durable.store !== context.durableOperations.store ||
+           JSON.stringify(this.durable.requester) !== JSON.stringify(context.durableOperations.requester) ||
+           JSON.stringify(this.durable.safetyByTool) !== JSON.stringify(context.durableOperations.safetyByTool)))
+        return { toolId, status: "denied", error: "Conflicting host durable bindings" };
+      return dispatchDurably(durable, invocation, definition, handler, context, requiresApproval, approvalId);
+    }
     if (requiresApproval) {
       const scope: ToolApprovalScope = {
         executionId: context.executionId,

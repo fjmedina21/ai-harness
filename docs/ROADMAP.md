@@ -12,6 +12,8 @@ are targets, not evidence that those capabilities were delivered.
 | 4 | Native OpenAI/Anthropic tool calling, isolated sessions, bounded/cancellable HTTP, opt-in read-only integration | Integrated; deterministic validation |
 | 5 | Docker/Podman cancellation/preflight/cleanup, bounded filesystem reads, opt-in real suite | Integrated in `main` at `fdd5c3b`; local Podman gate passed; dedicated GitHub runner validation pending |
 
+| 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Locally verified candidate; unpublished, remote CI pending |
+
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
 an explicit host API, not automatic repository-selected configuration.
@@ -29,7 +31,7 @@ an explicit host API, not automatic repository-selected configuration.
 Live API compatibility and remote CI are separate acceptance evidence; they are
 not established by local mocked-HTTP tests. See [verification](VERIFICATION.md).
 
-## Phase 5 acceptance and proposed phases 6–8
+## Phase 5 acceptance
 
 Phase 5 was merged and pushed to `main` at `fdd5c3b`. Its real isolation gate
 passed locally on a dedicated, disposable rootless Podman Machine. Effective
@@ -40,12 +42,25 @@ a passing run. Live Docker validation remains unverified. No privileged tools
 were enabled. See [verification](VERIFICATION.md) and
 [Phase 5 security](phase5-security.md).
 
-Phases 6–8 remain proposed, without an approved implementation specification.
-Transactional approvals/audit, recovery and broader orchestration remain
-unresolved areas outside this execution-hardening scope. Each expansion requires
-a separate specification and approval.
+## Phase 6 acceptance and proposed phases 7–8
 
-No production-readiness, distributed-runtime or exactly-once promise follows
-from completion of experimental Phases 1–5. Publication is recorded at
-`fdd5c3b`; production readiness still requires separate security and operational
-acceptance.
+Phase 6 is implemented behind explicit host opt-in on
+feat/phase6-durable-execution-recovery. It adds a private local SQLite journal,
+unique request/call identities, version-checked states, scoped transactional
+approvals, session-bound execution and journaled conservative host recovery.
+Real backend tests exercise process interruption/reopen, interprocess races,
+transaction rollback, corruption, lock contention and capacity exhaustion.
+No provider gains storage authority, no privileged handler is newly enabled and
+no uncertain operation is automatically replayed. Original CLI/SDD regressions
+remain required. See [design and runbook](phase6-durable-execution.md),
+[security](phase6-security.md) and [verification](VERIFICATION.md).
+
+This is local evidence, not a main merge, release or hosted CI result.
+Workspace version remains 0.5.0 pending release review; do not infer a published
+0.6.0. Phases 7–8 remain proposed and were not started. Broader orchestration,
+automatic workflow recovery, distributed fencing and production acceptance
+require separate design and authorization.
+
+No production-readiness or external exactly-once promise follows from these
+experimental foundations. Phase 5 publication remains recorded at fdd5c3b;
+the current published starting point for this work was main 959f20f.

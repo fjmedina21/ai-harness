@@ -1,4 +1,5 @@
 import type {
+  DurableDispatchBinding,
   AgentRole,
   Permission,
   SessionToolCallingProviderAdapter,
@@ -14,6 +15,7 @@ import {
 import { ToolCallingAgent } from "./tool-calling-agent.js";
 
 export interface ReadOnlyToolCallingOptions {
+  durableOperations?: DurableDispatchBinding;
   requireAtomicFilesystem?: boolean;
   role: AgentRole;
   systemPrompt: string;
@@ -34,7 +36,7 @@ export function createReadOnlyToolCallingAgent(
   for (const definition of BUILTIN_TOOLS) {
     if (allowedToolIds.includes(definition.id)) registry.register(definition);
   }
-  const dispatcher = new ToolDispatcher(registry);
+  const dispatcher = new ToolDispatcher(registry, undefined, options.durableOperations);
   dispatcher.registerHandler("file.read", fileReadHandler);
   if (options.git)
     dispatcher.registerHandler(

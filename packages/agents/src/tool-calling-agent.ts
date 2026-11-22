@@ -143,6 +143,7 @@ export class ToolCallingAgent implements Agent {
     const identity = { executionId: context.executionId, taskId: task.id };
     const dispatchContext = {
       executionId: context.executionId,
+      durableOperations: context.durableOperations,
       projectRoot: context.projectRoot,
       signal: context.signal,
       requireAtomicFilesystem: this.options.requireAtomicFilesystem,
@@ -249,7 +250,7 @@ export class ToolCallingAgent implements Agent {
           return this.failure("Execution cancelled");
         }
 
-        const outcome = await this.dispatch(call, dispatchContext);
+        const outcome = await this.dispatch(call, { ...dispatchContext, operation: { taskId: task.id, requestId: call.id, toolCallId: call.id } });
         // Cancellation prevents subsequent work, but cannot undo this invocation.
         if (context.signal?.aborted) return this.failure("Execution cancelled");
 

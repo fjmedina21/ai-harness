@@ -1,6 +1,9 @@
 import type { Permission, ToolInvocation } from "./index.js";
 
 export interface ToolDispatchContext {
+  /** Host-only durable opt-in; never derived from model arguments. */
+  durableOperations?: import("./durable.js").DurableDispatchBinding;
+  operation?: { taskId: string; requestId: string; toolCallId?: string };
   signal?: AbortSignal;
   requireAtomicFilesystem?: boolean;
   /**
@@ -35,6 +38,8 @@ export type ToolDispatchStatus =
   | "failed";
 
 export interface ToolDispatchResult {
+  operationId?: string;
+  operationState?: import("./durable.js").OperationState;
   toolId: ToolInvocation["toolId"];
   status: ToolDispatchStatus;
   data?: unknown;

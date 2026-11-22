@@ -88,3 +88,8 @@ export {
   inspectStoredRecovery,
   evaluateOperationReplay,
 } from "./recovery.js";
+
+export { openSqliteOperationJournal } from "./sqlite-journal.js";
+export { planDurableOperationRecovery, inspectDurableRecovery, inspectPendingDurableRecovery } from "./durable-recovery.js";
+
+export type { SqliteJournalOptions } from "./sqlite-journal.js";
