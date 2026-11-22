@@ -1,4 +1,4 @@
-# Repository map — Phase 8 candidate, version 0.8.0
+# Repository map — current source, version 0.8.0
 
 This map describes packages present in the current TypeScript workspace.
 Architecture proposals are maintained separately and do not imply that an

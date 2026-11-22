@@ -1,8 +1,9 @@
 # Phase 8 E2E strategy
 
 Phase 8 separates deterministic offline integration, mocked provider protocol
-coverage and optional live-provider smoke testing. Only local test runs are
-evidence for this branch; no hosted CI or live API result is inferred.
+coverage and optional live-provider smoke testing. The source commit `d9ecbf4`
+has a successful standard hosted CI run; that does not imply live provider
+validation.
 
 ## Deterministic offline E2E
 
@@ -59,12 +60,14 @@ response text, and removes its temporary fixture afterward. A successful run
 requires three completed tasks and three successful `file.read` calls. The
 maximum generated output budget is the output-token ceiling multiplied by the
 request count; input-token spend still depends on each model and request. No
-exact dollar cap is promised. This smoke has not been run for the Phase 8
-candidate unless a future evidence entry records it.
+exact dollar cap is promised. The smoke was not run for the Phase 8 source
+validation recorded in [VERIFICATION.md](VERIFICATION.md).
 
 ## Isolation and hosted CI
 
 Phase 8 does not change Podman, the isolation profile, or container execution;
-the real Podman suite is not required for this branch. Local deterministic tests
-do not establish remote hosted CI. Record actual branch commit and CI run IDs in
-`docs/VERIFICATION.md` only after they exist.
+the real Podman suite is not required for Phase 8. Local deterministic tests do
+not establish hosted isolation. The standard hosted CI run is recorded in
+[VERIFICATION.md](VERIFICATION.md); the dedicated real Podman isolation
+workflow remains a separate gate and was not run for Phase 8 because its
+controls were unchanged.

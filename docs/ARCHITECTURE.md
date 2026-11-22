@@ -20,7 +20,7 @@
   orquestación secuencial, adaptadores OpenAI/Anthropic, dispatcher con Default
   Deny, herramientas controladas, journal SQLite opt-in, recuperación conservadora,
   aislamiento explícito con Podman Machine y observabilidad/evaluaciones opt-in.
-- **Fase 8 en desarrollo:** `@ai-harness/application` compone una inspección
+- **Fase 8 implementada en `main`:** `@ai-harness/application` compone una inspección
   secuencial de tres roles en la CLI, con herramientas de solo lectura,
   checkpoints, journal opcional y telemetría opt-in. No implementa escritura de
   código, ejecución de pruebas ni continuación de sesiones interrumpidas.

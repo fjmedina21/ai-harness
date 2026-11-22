@@ -3,13 +3,15 @@
 This status follows the implemented code. Earlier broad architecture proposals
 are targets, not evidence that those capabilities were delivered.
 
-## Current published baseline
+## Current source state
 
-The current source baseline is version `0.7.0` at commit `6dcb0e7`
-(`6dcb0e768e702c27741f2ae1c3c1f2e55fe62723`). Phases 1–7 are integrated in
-`main`. Phase 8 is pending at this snapshot; it becomes in development only
-after implementation has actually started. This section records the published
-baseline and is not a claim about future CI or releases.
+The current source on `main` is version `0.8.0` at commit `d9ecbf4`
+(`d9ecbf49597c5c22784257d519a6a217c2c9e73f`). Phases 0–8 are integrated in
+`main`. The Phase 8 code has a successful standard GitHub Actions run for this
+commit (run [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502)).
+The GitHub releases endpoint has no release record for this source; npm
+publication was not independently verified. `0.8.0` is the experimental
+source version, not a production-readiness claim.
 
 | Phase | Implemented scope | Status |
 |---|---|---|
@@ -21,7 +23,7 @@ baseline and is not a claim about future CI or releases.
 | 5 | Podman cancellation/preflight/cleanup, bounded filesystem reads, opt-in real suite | Integrated in `main` at `fdd5c3b`; local Podman gate passed; dedicated GitHub runner validation pending |
 | 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Included in 0.6.0; local durable tests passed |
 | 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Integrated on `main` at `c390459`; 401 local tests and 19 scenarios passed; hosted CI run 45035585620 passed |
-| 8 | End-to-end host composition, read-only CLI workflow, bounded provider selection, durable/telemetry integration and release readiness | In development on `feat/phase8-e2e-cli-integration`; local deterministic integration is under validation |
+| 8 | End-to-end host composition, read-only CLI workflow, bounded provider selection, durable/telemetry integration and release readiness | Implemented and integrated in `main` at `d9ecbf4`; local validation and standard hosted CI passed; live-provider smoke and real isolation gates remain separate |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
@@ -68,15 +70,16 @@ remain required. See [design and runbook](phase6-durable-execution.md),
 Local test evidence for that historical phase is distinct from its per-commit hosted CI result and from
 the dedicated remote isolation gate. At that snapshot manifests and CLI identified version
 0.6.0. Phase 7 was subsequently implemented and integrated as 0.7.0. Phase 8
-has since started implementation on its dedicated feature branch. Broader orchestration,
+was subsequently implemented on its feature branch and integrated into `main`
+as source version 0.8.0. Broader orchestration,
 automatic workflow recovery, distributed fencing and production acceptance
 require separate design and authorization.
 
 No production-readiness or external exactly-once promise follows from these
 experimental foundations. Phase 5 publication remains recorded at fdd5c3b;
-Phase 7 was integrated at c390459 and the current published documentation
-baseline is 6dcb0e7. Commit 959f20f is an earlier 0.5.0 historical reference,
-not the current starting point.
+Phase 7 was integrated at c390459; the former 0.7.0 snapshot at 6dcb0e7 is
+historical. Phase 8 is at d9ecbf4 on current `main`. Commit 959f20f is an
+earlier 0.5.0 historical reference, not the current starting point.
 
 ## Runtime backend removal (0.6.0 migration)
 

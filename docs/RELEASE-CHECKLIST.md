@@ -1,45 +1,62 @@
 # Release readiness checklist — Phase 8
 
-This checklist defines the evidence needed before a 0.8.0 source milestone is
-considered ready. The successful local checks for the current branch are
-recorded in VERIFICATION.md; remaining unchecked items require release review
-or evidence tied to the final published candidate.
+This checklist records Phase 8 acceptance evidence for source version 0.8.0 on
+`main` at `d9ecbf49597c5c22784257d519a6a217c2c9e73f`. It is an experimental
+source milestone, not a formal release announcement. The GitHub releases
+endpoint has no release record; npm publication was not independently
+verified. Evidence is split between local validation, standard hosted CI, and
+separately authorized checks.
 
 ## Build and behavior
 
-- [ ] `pnpm clean`, `pnpm build` and complete `pnpm test` pass on the release
-  candidate commit.
-- [ ] `pnpm harness --help`, `pnpm harness version` and
-  `pnpm harness eval run --suite deterministic` pass.
-- [ ] Offline CLI E2E covers initialization through execution, status, JSON/text
+- [x] `pnpm clean`, `pnpm build` and complete `pnpm test` pass locally on the
+  source commit; 417/417 tests passed.
+- [x] `pnpm harness --help`, `pnpm harness version` and
+  `pnpm harness eval run --suite deterministic` pass; 19 scenarios and 42
+  assertions passed.
+- [x] Offline CLI E2E covers initialization through execution, status, JSON/text
   output, repeated requests, policy denial, cancellation and timeout.
-- [ ] SQLite persistence/reopen and fail-closed invalid-store coverage pass.
-- [ ] Both provider adapters pass CLI integration with deterministic mocked
-  HTTP; live provider smoke status is recorded separately.
-- [ ] `git diff --check`, docs links, package versions and Git exclusions are
-  verified.
+- [x] SQLite persistence/reopen and fail-closed invalid-store coverage pass
+  against the real local backend.
+- [x] Both provider adapters pass CLI integration with deterministic mocked
+  HTTP. Live provider smoke was not run; see `docs/VERIFICATION.md`.
+- [x] `git diff --check`, relative docs links, workspace package versions and
+  local Git exclusions were verified.
 
 ## Security and operational limits
 
-- [ ] Confirm the inspection command exposes only `file.read` and fixed host
+- [x] Confirm the inspection command exposes only `file.read` and fixed host
   permission `files:read`.
-- [ ] Confirm the default SDD CLI behavior remains compatible.
-- [ ] Confirm no provider credential, prompt, file content, tool argument or
+- [x] Confirm the default SDD CLI behavior remains compatible.
+- [x] Confirm no provider credential, prompt, file content, tool argument or
   result is written to telemetry or committed artifacts.
-- [ ] Confirm request/output budgets and cancellation remain bounded.
-- [ ] Confirm SQLite path permissions and operation records are reviewed without
+- [x] Confirm request/output budgets and cancellation remain bounded.
+- [x] Confirm SQLite path permissions and operation records are reviewed without
   resume/replay.
-- [ ] Record that no code writing, shell, Git mutation, deployment, automatic
+- [x] Record that no code writing, shell, Git mutation, deployment, automatic
   resume or privileged approval operation is enabled.
 
 ## Publication
 
-- [ ] Hosted CI for the exact final commit passes and its URL/SHA is recorded.
-- [ ] Review the candidate and known limitations before creating any tag or
-  publishing packages.
-- [ ] Treat `0.8.0` as a pre-1.0 source milestone, not production readiness.
-- [ ] Do not publish npm packages, create a GitHub release, merge or push without
+- [x] Standard hosted CI for the exact source commit passed: run
+  [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502),
+  SHA `d9ecbf49597c5c22784257d519a6a217c2c9e73f`.
+- [ ] Complete release review before creating any tag or publishing packages.
+- [x] Treat `0.8.0` as a pre-1.0 source milestone, not production readiness.
+- [x] Do not publish npm packages, create a GitHub release, merge or push without
   explicit owner authorization.
 
-This branch's checklist is a set of release gates, not evidence that those gates
-have passed.
+## Separate validation gates
+
+- [ ] Live OpenAI smoke: requires explicit owner authorization and host-supplied
+  credentials, model, request budget and output-token budget.
+- [ ] Live Anthropic smoke: requires the same explicit authorization and
+  host-supplied bounded inputs.
+- [ ] Real Podman isolation: not rerun for Phase 8 because its controls were not
+  changed; local prior-phase evidence does not establish remote isolation.
+- [ ] Formal GitHub release: none found. npm publication: not independently
+  verified. Neither is part of this source-validation task.
+
+The checkboxes above record evidence on the integrated source commit. These
+remaining gates are separate from standard CI and must not be represented as
+passed by mocks or local deterministic tests.

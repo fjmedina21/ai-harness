@@ -1,8 +1,10 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-The Phase 8 candidate targets version 0.8.0 and integrates a bounded read-only
-engineering review workflow into the CLI. The published baseline remains 0.7.0.
+The source on `main` is version 0.8.0 and integrates a bounded read-only
+engineering review workflow into the CLI. This is an experimental source
+milestone, not a formal release announcement. The hosted GitHub release API
+has no release record for this commit; npm publication has not been verified.
 The project is experimental and is **not a production-ready autonomous agent**.
 
 ## Quick start
@@ -129,7 +131,7 @@ tokens and request count; it does not guarantee a dollar ceiling.
 
 - [Architecture](docs/ARCHITECTURE.md) — implemented foundations and target design
 - [Repository map](docs/REPOSITORY.md) — implemented workspace packages
-- [Roadmap](docs/ROADMAP.md) — status through Phase 8 in development
+- [Roadmap](docs/ROADMAP.md) — status through implemented Phase 8
 - [Verification](docs/VERIFICATION.md) — local evidence, hosted CI and isolation status
 - [Versioning](docs/VERSIONING.md) — pre-1.0 policy
 - [Phase 8 integration](docs/phase8-integration.md) · [security](docs/phase8-security.md) · [E2E](docs/phase8-e2e.md) · [release checklist](docs/RELEASE-CHECKLIST.md)

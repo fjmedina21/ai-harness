@@ -1,11 +1,15 @@
-# Verification — Phase 8 candidate, version 0.8.0
+# Verification — Phase 8 source, version 0.8.0
 
-The published baseline remains **0.7.0** (Phase 7). The current source
-candidate is on feat/phase8-e2e-cli-integration; this is local validation, not
-a release or hosted CI result.
+The current source is **0.8.0** at commit
+`d9ecbf49597c5c22784257d519a6a217c2c9e73f` on `main`. This is not a formal
+formal release announcement. The GitHub releases endpoint has no release
+record for this commit; npm publication was not independently verified. Phase
+8 has both local validation and a successful standard GitHub Actions run for
+this exact commit.
 
-## Phase 8 candidate — local evidence
+## Phase 8 source — local evidence
 
+Commit: `d9ecbf49597c5c22784257d519a6a217c2c9e73f` on `main`.
 Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
 
 - pnpm clean: passed.
@@ -18,16 +22,22 @@ Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
 - pnpm harness version: reports **ai-harness 0.8.0 (experimental)**.
 - pnpm harness eval run --suite deterministic: **19/19 scenarios and 42/42
   assertions passed**; these are host-authored deterministic fixtures.
-- git diff --check: passed after the local candidate changes.
+- git diff --check: passed on the Phase 8 source tree before finalization.
+- `pnpm clean`, `pnpm build`, `pnpm test`, CLI help/version and deterministic
+  evaluation were rerun during finalization; all passed. The working diff in
+  this documentation audit is checked separately and does not change runtime.
 
 The new E2E tests use temporary local projects and the actual filesystem and
 SQLite journal, including reopen/persistence, invalid-journal rejection,
 cancellation, telemetry, and CLI status. OpenAI and Anthropic adapters run
 through mocked HTTP only. No paid/live provider smoke was run. Phase 8 does not
 change Podman or its isolation policy, so the real Podman isolation suite was
-not run for this candidate. No Phase 8 hosted GitHub Actions run exists yet;
-that remains a post-publication gate. No reproducible performance benchmark was
-run, so this candidate makes no runtime performance-improvement claim.
+not run for this candidate. Standard hosted GitHub Actions CI run
+[45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502)
+completed successfully for commit `d9ecbf49597c5c22784257d519a6a217c2c9e73f`
+(install, build, test and CLI smoke). This does not validate live provider
+behavior or the separate real isolation workflow. No reproducible performance
+benchmark was run, so no runtime performance improvement is claimed.
 
 ## Published Phase 7 baseline — historical evidence
 

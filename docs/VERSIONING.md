@@ -19,11 +19,12 @@ The workspace follows a pre-1.0 SemVer policy:
 - Use `1.0.0` only after the project has approved stable public contracts,
   supported runtime profiles, security acceptance and release procedures.
 
-The Phase 8 candidate uses workspace version `0.8.0`, a pre-1.0 capability
+The Phase 8 source milestone uses workspace version `0.8.0`, a pre-1.0 capability
 milestone for the bounded read-only application workflow and CLI integration.
 This aligns the root, CLI and all private workspace manifests under the policy
-above; it is not an npm publication or a claim of production readiness. The
-published baseline remains `0.7.0` until this branch is reviewed and released.
+above; it is not a claim of production readiness. The source on `main` is now
+`0.8.0`. The GitHub releases endpoint returned no release; npm publication was
+not independently verified. Both remain separate release actions.
 
 The current code requires Node.js `>=22.0.0`; the local durable SQLite path
 requires Node.js 22.13 or newer (or Node 24). CI uses Node 24. The repository
