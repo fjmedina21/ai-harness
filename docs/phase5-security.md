@@ -1,12 +1,17 @@
 # Phase 5 Execution isolation and runtime hardening
 
-Status: locally verified implementation, including real isolation on dedicated rootless Podman; review/publication pending.
+Status: integrated into `main` at `fdd5c3b`. The implementation and real
+isolation gate were validated locally on a dedicated rootless Podman Machine.
+The regular hosted CI runs deterministic build/tests; the separate dedicated
+runner workflow requires infrastructure and an approved profile before it can
+provide remote isolation evidence. Live Docker isolation remains unverified.
 The Phase 4 baseline is `25fdb68`, with 198 deterministic tests.
 
 ## Trust and supported profile
 
-The trusted host owns executable paths, Docker context, exact Unix endpoint,
-daemon ID, pinned image digest/platform, operation allowlist and resource limits.
+The trusted host owns runtime executable paths, selected runtime, exact Unix
+endpoint, daemon ID, pinned image digest/platform, operation allowlist and
+resource limits.
 Models, repository configuration, tool output and container output cannot grant
 permissions or select these values. ToolDispatcher remains the authorization gate.
 Container operations are not registered for models or the default CLI.
@@ -61,9 +66,13 @@ no-new-privileges, root readonly, bounded tmpfs, network denial, no workspace or
 socket mounts, cgroup limits, cancellation and confirmed owned-resource cleanup.
 A missing runtime is blocked evidence, never a passed or silently skipped test.
 Do not install runtimes, pull images, alter daemon/global config or use privileged
-containers to make the gate pass. CI runtime validation requires a separately
-approved dedicated runner/profile; the existing CI must not target an arbitrary
-shared daemon.
+containers to make the gate pass. Real runtime validation requires a separately
+approved dedicated runner/profile; the standard CI must not target an arbitrary
+shared daemon. The manual workflow in `.github/workflows/phase5-isolation.yml`
+targets only the `ai-harness-phase5-isolation` runner label and the
+`phase5-isolation` environment. Configure the runner as dedicated and the
+environment with required reviewers before use. It is not remote evidence until
+the runner and profile are configured and a run passes.
 
 Filesystem guards are not a race-free sandbox. Callers requiring atomic rooted
 confinement must be rejected until an appropriate OS primitive/backend exists.
@@ -116,7 +125,9 @@ already have effects when cancellation is observed; writes can remain partial.
 ## Running the real suite on a validated dedicated host
 
 The host explicitly provides an absolute JSON profile path through
-`HARNESS_ISOLATION_PROFILE`. The file must be a regular, single-link file owned
+`HARNESS_ISOLATION_PROFILE`. In the dedicated GitHub workflow, the environment
+variable `HARNESS_ISOLATION_PROFILE_PATH` points to that pre-provisioned file.
+The file must be a regular, single-link file owned
 by the current user, with no group/other permissions and at most 8192 bytes.
 Docker profiles accept only `backend` (optional), `dockerExecutable`,
 `dockerContext`, `image` and `securityProfile`. Podman keys are listed below;
@@ -142,9 +153,10 @@ the owned VM was stopped. See [exact environment and results](VERIFICATION.md).
 This validates the fixed tested workload/profile; it does not prove arbitrary
 untrusted-code safety, kernel-escape resistance or race-free filesystem access.
 Live Docker isolation remains unverified: the existing Docker Desktop daemon
-was unsuitable for this rootless profile and was preserved unchanged. A dedicated
-CI job is not enabled until its runner/profile is validated. Unit CI does not
-substitute for the real gate, and no production-readiness claim follows.
+was unsuitable for this rootless profile and was preserved unchanged. The
+dedicated workflow is prepared but cannot validate isolation until its runner
+and approved profile are configured. Unit CI does not substitute for the real
+gate, and no production-readiness claim follows.
 
 ## Podman backend candidate
 

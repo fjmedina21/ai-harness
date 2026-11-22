@@ -17,5 +17,5 @@ test('CLI can initialize and validate a project', async () => {
 test('CLI help and version have no external dependencies', async () => {
   const lines: string[] = [];
   assert.equal(await main(['--help'], process.cwd(), line => lines.push(line)), 0);
-  assert.match(lines[0]!, /Phase 0/);
+  assert.match(lines[0]!, /experimental/);
 });

@@ -24,7 +24,7 @@ export async function main(
     return 0;
   }
   if (command === "version" || command === "--version" || command === "-v") {
-    output("ai-harness 0.1.0 (Phase 0)");
+    output("ai-harness 0.5.0 (experimental)");
     return 0;
   }
   if (args.includes("--help") || args.includes("-h")) {
@@ -55,7 +55,7 @@ export async function main(
           `OK: ${result.config.project.name}; schema v${result.config.schemaVersion}; ${result.agentCount} agents; workflows: ${result.workflows.join(", ")}`,
         );
         output(
-          "Note: provider adapters and execution engine are not implemented in Phase 0.",
+          "Note: the default CLI uses the fixture provider; provider adapters and controlled tools require explicit host integration.",
         );
         return 0;
       }
@@ -161,7 +161,7 @@ function rejectUnknown(
   }
 }
 function help(): string {
-  return `AI Harness CLI — Phase 0\n
+  return `AI Harness CLI — experimental\n
   \nUsage: harness <command> [options]\n
   \nCommands:
   \n  init [--path DIR] [--name NAME] [--dry-run]   Initialize .ai/ without overwriting files
@@ -173,7 +173,7 @@ function help(): string {
   \n  version                                      Display version
   \n  help                                         Show help\n
 
-  \nNot yet implemented: resume, deploy, approvals, providers, dashboard.\n `;
+  \nNot exposed by the default CLI: resume, deployment, approvals, provider selection, isolated runtime, dashboard.\n `;
 }
 if (
   process.argv[1] &&

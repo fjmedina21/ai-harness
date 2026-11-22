@@ -10,7 +10,7 @@ are targets, not evidence that those capabilities were delivered.
 | 2 | Registry, Default Deny dispatcher, scoped approvals, restricted reads/subprocesses | Experimental foundation |
 | 3 | Tool-calling contracts/agent, container mock tests, audit interfaces, controlled handlers, recovery inspection | Experimental foundation |
 | 4 | Native OpenAI/Anthropic tool calling, isolated sessions, bounded/cancellable HTTP, opt-in read-only integration | Integrated; deterministic validation |
-| 5 | Docker/Podman cancellation/preflight/cleanup, bounded filesystem reads, opt-in real suite | Locally verified on rootless Podman; review/publication pending |
+| 5 | Docker/Podman cancellation/preflight/cleanup, bounded filesystem reads, opt-in real suite | Integrated in `main` at `fdd5c3b`; local Podman gate passed; dedicated GitHub runner validation pending |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
@@ -31,12 +31,14 @@ not established by local mocked-HTTP tests. See [verification](VERIFICATION.md).
 
 ## Phase 5 acceptance and proposed phases 6–8
 
-Phase 5 implementation and its real isolation gate passed locally on a dedicated,
-disposable rootless Podman Machine. Effective isolation, running cancellation,
-timeout and confirmed cleanup were exercised; the VM was stopped afterward.
-Live Docker validation and dedicated CI remain separate pending evidence.
-No privileged tools were enabled. See [verification](VERIFICATION.md) and
-[Phase 5 security](phase5-security.md). Publication awaits authorization.
+Phase 5 was merged and pushed to `main` at `fdd5c3b`. Its real isolation gate
+passed locally on a dedicated, disposable rootless Podman Machine. Effective
+isolation, running cancellation, timeout and confirmed cleanup were exercised;
+the VM was stopped afterward. A separate manual GitHub Actions workflow targets
+a dedicated runner, but its runner and approved profile still require setup and
+a passing run. Live Docker validation remains unverified. No privileged tools
+were enabled. See [verification](VERIFICATION.md) and
+[Phase 5 security](phase5-security.md).
 
 Phases 6–8 remain proposed, without an approved implementation specification.
 Transactional approvals/audit, recovery and broader orchestration remain
@@ -44,5 +46,6 @@ unresolved areas outside this execution-hardening scope. Each expansion requires
 a separate specification and approval.
 
 No production-readiness, distributed-runtime or exactly-once promise follows
-from completion of experimental Phase 4. Git publication and CI require a
-separate authorized publication workflow.
+from completion of experimental Phases 1–5. Publication is recorded at
+`fdd5c3b`; production readiness still requires separate security and operational
+acceptance.

@@ -1,7 +1,12 @@
-# Verification report Phase 5 candidate
+# Verification report — Phase 5
 
-Phase 5 implementation and the real isolation gate are **locally verified on Podman**.
-Review, publication and remote CI remain pending.
+Phase 5 was integrated and pushed to `main` at `fdd5c3b`.
+
+Implementation and real isolation are **locally verified on Podman**. The
+dedicated GitHub workflow is prepared but has not produced remote isolation
+evidence; its runner and approved profile must first be configured. The GitHub
+combined-status lookup returned no status records for `fdd5c3b`, so this report
+does not assert that commit's hosted build/test job passed.
 Reference baseline: Phase 4 merged at `25fdb68`, 198 tests, successful published CI.
 Local environment: Node 24.18.0, pnpm 12.21.0, TypeScript 5.8.3.
 
@@ -21,8 +26,8 @@ bounded file reads and controlled races (10), isolated-suite/profile loader
 and fixed probe syntax/immutability (6), agent cancellation/confinement (2),
 native Podman selection/preflight/translation/cleanup/security conformance (27).
 
-Process and filesystem fixtures run on actual temporary local resources; Docker
-execution in mandatory tests is mocked. No credentials are used for tests.
+Process and filesystem fixtures run on actual temporary local resources; Podman
+execution in mandatory tests uses fixtures. No credentials are used for tests.
 Local process-group tests do not establish a container or OS sandbox.
 
 ## Real isolation gate
@@ -61,18 +66,20 @@ control session open through validation and closed the VM explicitly afterward.
 
 Docker Desktop `desktop-linux` was preserved: its cgroupfs/non-rootless daemon
 was not used for probes. **Live Docker isolation is not established.** No global
-Docker settings were changed. Existing CI does not run the dedicated suite;
-a validated dedicated CI runner/profile and publication are still pending.
+Docker settings were changed. The standard hosted CI job does not run the
+dedicated suite. `.github/workflows/phase5-isolation.yml` now provides a manual
+job restricted to a self-hosted `ai-harness-phase5-isolation` Linux runner and
+the `phase5-isolation` GitHub Environment. The runner, environment approval
+rules and `HARNESS_ISOLATION_PROFILE_PATH` still need to be configured; until a
+run passes, remote isolation validation remains pending.
 
 ## Git and delivery
 
-Work is confined to `feat/phase5-execution-isolation`. Three early-step local
-commits exist: `6af2432` (threat model), `af2788a` (cancellation/process lifecycle),
-`e4c5640` (preflight/cleanup). Per the subsequent owner instruction, remaining
-changes are left uncommitted for final owner review.
-No Phase 5 push, merge, branch deletion or main modification was performed.
-Remote CI for these changes has not run. The implementation is ready for review before an authorized publication.
-Remote CI must pass after publication.
+The Phase 5 delivery commit is `fdd5c3b` on `main` and `origin/main`. Its
+publication is complete. This report's current combined-status lookup returned
+no status records for that SHA; inspect GitHub Actions before treating the
+standard build/test run as green. No new commit or push is part of this report
+update.
 
 ## Remaining risks
 
@@ -83,3 +90,4 @@ late daemon request was never processed; uncertain resources need host review.
 The host/daemon/profile remain trusted. No kernel-escape, durable journal,
 transactional approval, automatic recovery or exactly-once guarantee is established.
 See [Phase 5 security and migration](phase5-security.md).
+The workspace version is `0.5.0`; see the [versioning policy](VERSIONING.md).

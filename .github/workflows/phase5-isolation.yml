@@ -1,0 +1,38 @@
+name: Phase 5 dedicated isolation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5-dedicated-isolation
+  cancel-in-progress: false
+
+jobs:
+  isolation:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, ai-harness-phase5-isolation]
+    environment: phase5-isolation
+    timeout-minutes: 15
+    env:
+      HARNESS_ISOLATION_PROFILE: ${{ vars.HARNESS_ISOLATION_PROFILE_PATH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run real isolation gate
+        run: pnpm test:isolation

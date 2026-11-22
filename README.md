@@ -1,7 +1,7 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Phases 1–4 are **experimental foundations**, not production-ready autonomous execution.
+Phases 1–5 are **experimental foundations**, not production-ready autonomous execution.
 
 ## Requirements and verification
 
@@ -37,17 +37,20 @@ No privileged handlers are registered by the read-only factory.
 `sdd`, `security`, `checkpointing`, `tools`; executable commands in `apps/cli`.
 TypeScript strict / NodeNext ESM, project references and `node:test`.
 
-## Phase 5 candidate
+## Phase 5 — execution isolation
 
-Execution hardening adds host cancellation, dedicated Docker/Podman preflight,
-owned-resource cleanup and incremental file reads. The real isolation suite
-**passed on a dedicated rootless Podman Machine**, including effective limits,
-running cancellation, timeout and confirmed cleanup. Docker's backend retains
-fixture coverage; live Docker isolation has not been validated. The default
-CLI/SDD stays unchanged. `pnpm test:isolation` fails closed without an explicit
-private host profile. No runtime installation is automatic. Implementation is
-ready for review; publication and CI remain pending. See [verification](docs/VERIFICATION.md)
-and [Phase 5 security and migration](docs/phase5-security.md).
+Phase 5 was merged and pushed to `main` as `fdd5c3b`. It adds host cancellation,
+runtime preflight, owned-resource cleanup and incremental file reads. The real
+isolation suite **passed on a dedicated rootless Podman Machine**, including
+effective limits, running cancellation, timeout and confirmed cleanup. The
+default CLI/SDD stays unchanged. `pnpm test:isolation` fails closed without an
+explicit private host profile. No runtime installation is automatic.
+
+The regular GitHub Actions workflow runs build and deterministic tests. A
+separate manual workflow targets a dedicated isolation runner; it is not evidence
+until that runner and its approved profile are configured and the job passes.
+Live Docker isolation remains unverified. See [verification](docs/VERIFICATION.md)
+and [Phase 5 security](docs/phase5-security.md).
 
 ## Current limits
 
@@ -58,4 +61,5 @@ and model content remain untrusted. Unit tests do not establish production safet
 
 [Roadmap](docs/ROADMAP.md) · [Verification](docs/VERIFICATION.md) ·
 [Phase 2 security](docs/phase2-security.md) · [Phase 3 security](docs/phase3-security.md) ·
-[Continuation contract](docs/phase4-security.md#continuation-contract)
+[Continuation contract](docs/phase4-security.md#continuation-contract) ·
+[Versioning policy](docs/VERSIONING.md)
