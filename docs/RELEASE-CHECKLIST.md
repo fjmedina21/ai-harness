@@ -1,7 +1,9 @@
 # Release readiness checklist — Phase 8
 
 This checklist defines the evidence needed before a 0.8.0 source milestone is
-considered ready. An item stays unchecked until its evidence exists.
+considered ready. The successful local checks for the current branch are
+recorded in VERIFICATION.md; remaining unchecked items require release review
+or evidence tied to the final published candidate.
 
 ## Build and behavior
 
