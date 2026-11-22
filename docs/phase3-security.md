@@ -81,3 +81,12 @@ controlled workspace tools, and conservative recovery inspection.
 - Do not advertise automatic recovery or exactly-once execution.
 - Do not enable deployment or Git write operations.
 - Do not classify this phase as production-ready.
+
+## Phase 4 integration note
+
+This review records its original phase boundaries. Native provider tool calling
+is now opt-in through an explicit read-only host API; see
+[Phase 4 security](phase4-security.md) for implementation and validation scope.
+Historical statements about absent native integration/default exposure do not
+replace that current scope. The filesystem, container, approval/audit and
+recovery limitations above remain unresolved.

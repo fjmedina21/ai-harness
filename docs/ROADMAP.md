@@ -1,91 +1,40 @@
-# Roadmap de implementación — AI Harness
+# AI Harness — implementation roadmap
 
-> Secuencia recomendada sin comprometer fechas ni esfuerzo antes de medir capacidad del equipo. Cada fase produce una entrega verificable; las capacidades dependientes permanecen desactivadas hasta superar sus gates.
+This status follows the implemented code. Earlier broad architecture proposals
+are targets, not evidence that those capabilities were delivered.
 
-## Fase 0 — Fundaciones y contratos
-**Objetivo:** monorepo, tooling, dominio, políticas mínimas, contratos y diseño versionado.
+| Phase | Implemented scope | Status |
+|---|---|---|
+| 0 | Monorepo, configuration, project initialization, role declarations, CLI | Foundation |
+| 1 | Sequential task orchestration, fixture/text providers, SDD, checkpoints | Experimental foundation |
+| 2 | Registry, Default Deny dispatcher, scoped approvals, restricted reads/subprocesses | Experimental foundation |
+| 3 | Tool-calling contracts/agent, container mock tests, audit interfaces, controlled handlers, recovery inspection | Experimental foundation |
+| 4 | Native OpenAI/Anthropic tool calling, isolated sessions, bounded/cancellable HTTP, opt-in read-only integration | Implemented and locally validated with mocked HTTP |
 
-- Definir decisiones ADR para motor, persistencia, sandbox y proveedores.
-- `pnpm` workspaces + TypeScript strict, lint, test, build, CI.
-- Paquetes `contracts`, `core`, `cli`, `provider-sdk`, `policy-engine`, `storage-sqlite`.
-- Esquema versionado de `.ai/config.yaml` y migraciones.
-- Simuladores de agentes y herramientas, fixture de proyecto de prueba.
+Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
+and SDD remain fixture/text workflows. Read-only provider integration is through
+an explicit host API, not automatic repository-selected configuration.
 
-**Gate:** build/test reproducibles, prueba de contrato en mock y `harness doctor` reporta dependencias.
+## Phase 4 acceptance
 
-## Fase 1 — MVP funcional de extremo a extremo (ACEPTACIÓN OBLIGATORIA)
-**Objetivo:** cumplir los 10 criterios seleccionados sin dashboard ni workers distribuidos.
+- Neutral and provider-native histories are separate; sessions are scoped to execution/task.
+- Call IDs and whole result batches are checked against the session's actual history.
+- Bounded requests, streamed bodies, output tokens, retained histories, turns and calls.
+- Cancellation/close prevents new work and aborts HTTP without promising rollback.
+- Fail closed on refusal, truncation, malformed/unknown calls, unsupported blocks and errors.
+- Deterministic HTTP fixtures, dispatcher/file/Git integration, existing regressions pass.
+- No privileged tools enabled, no live credentials in tests, no automatic retries/resume.
 
-- CLI `init`, `plan`, `run`, `status`, `resume`, `approve`, `doctor`.
-- SDD liviano/completo según riesgo, specs y tareas trazables.
-- Orquestador con al menos tres roles; scheduler inicialmente secuencial con DAG.
-- Dos adaptadores reales seleccionables; detección de capacidades y validación de contratos.
-- Herramientas Git, filesystem y shell mediadas por permisos; sandbox de ejecución soportado.
-- SQLite con log de eventos, checkpoint, auditoría y restauración real.
-- Quality gates con pruebas, reintentos acotados, evidencias y revisión.
-- OpenTelemetry básico o implementación compatible instrumentada desde el núcleo.
-- Ejemplo reproducible y documentación.
+Live API compatibility and remote CI are separate acceptance evidence; they are
+not established by local mocked-HTTP tests. See [verification](VERIFICATION.md).
 
-**Gate:** pasar los 10 escenarios de `ARCHITECTURE.md` §15 en CI y demo de interrupción/reanudación. 0 defectos críticos conocidos. Pruebas negativas de seguridad.
+## Proposed phases 5–8
 
-## Fase 2 — Aislamiento y extensibilidad
-- Agregar más roles y perfiles tecnológicos/versionados.
-- Plugins, skills, manifiestos y MCP; permisos granulares.
-- Git Worktrees, gestión de conflictos, colas, locks, ejecución paralela segura.
-- Resiliencia avanzada: circuit breakers, fallback autorizado, backoff, compensaciones, dead-letter.
-- Estándares, ADR, knowledge base, documentación automática.
+Phases 5–8 remain proposed, without an approved implementation specification.
+Execution isolation, transactional approvals/audit, recovery and broader
+orchestration are unresolved areas, not commitments or new acceptance criteria
+for Phase 4. Each expansion requires a separate specification and approval.
 
-**Gate:** ejecución paralela sin conflictos y suite de compatibilidad de plugins; recuperación de fallos inyectados.
-
-## Fase 3 — API, dashboard y gobierno operativo
-- API de administración versionada y CLI integrada.
-- Dashboard React/Next.js: tareas, agentes, aprobaciones, costos, checkpoints.
-- OpenTelemetry export a backends, redacción de datos.
-- FinOps jerárquico, presupuestos atómicos, cuotas, alertas y estimaciones.
-- Gestión de cambios con replanificación selectiva.
-
-**Gate:** aprobación segura desde UI, correlación end-to-end y límites de presupuesto bajo concurrencia.
-
-## Fase 4 — Colaboración y despliegue empresarial
-- PostgreSQL, autorización multi-tenant, OIDC/SSO, MFA vía IdP.
-- Docker Compose, workers distribuidos, Redis opcional, Kubernetes/cloud adapters.
-- CI/CD para GitHub Actions, GitLab CI y Azure DevOps; revisión PR y pipelines con aprobaciones.
-- Distribución npm + binarios; migración y rollback ensayados.
-
-**Gate:** pruebas de aislamiento entre organizaciones, deploy reproducible, tolerancia a reinicios.
-
-## Fase 5 — Optimización y evolución continua
-- Router avanzado local/cloud: privacidad, calidad, disponibilidad y costo.
-- Evaluaciones comparativas entre proveedores y regresión automatizada.
-- Escalado adaptativo según recursos, latencia y presupuesto.
-- Mantenimiento de plugins/adapters y actualizaciones con migración/rollback verificados.
-- Recuperación semántica opcional bajo controles de datos.
-
-**Gate:** SLO definidos y medidos, evaluaciones repetibles, actualizaciones no disruptivas demostradas.
-
-## Dependencias clave
-
-`Fundaciones -> MVP -> {aislamiento + extensibilidad} -> {dashboard + gobierno} -> {multiusuario + distribuido} -> {optimización avanzada}`.
-
-La seguridad base, trazabilidad y pruebas comienzan en Fase 0/1 y se amplían en todas las fases; nunca se posponen por completo.
-
-## Orden sugerido de implementación del MVP
-
-1. Monorepo, CI, esquema y CLI `init`.
-2. Modelo de estados, SQLite y event journal.
-3. Parser/generador SDD, analista + planificador + orquestador.
-4. Interfaz de proveedores + adapters reales y mock.
-5. Política de herramientas y ejecutor de Git/shell/filesystem.
-6. Agente implementador + QA + evidencias.
-7. Reanudación/errores/checkpoints/aprobación.
-8. Instrumentación y pruebas E2E de aceptación.
-
-## Primeras decisiones técnicas pendientes de validación
-
-- Versiones exactas de Node, TypeScript y pnpm; elegir al iniciar implementación y fijarlas.
-- Primeros dos proveedores reales: seleccionar según disponibilidad de credenciales y métodos de invocación documentados.
-- Política concreta de sandbox para macOS, Linux y Windows (capacidades diferentes).
-- Backend del dashboard: React SPA o Next.js; decidir antes de Fase 3.
-- Biblioteca de esquemas, CLI, ORM y tests tras spike técnico.
-
-No confundir alcance objetivo con capacidades ya implementadas.
+No production-readiness, distributed-runtime or exactly-once promise follows
+from completion of experimental Phase 4. Git publication and CI require a
+separate authorized publication workflow.

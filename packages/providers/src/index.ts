@@ -4,9 +4,20 @@ import type {
   ModelResponse,
 } from "@ai-harness/contracts";
 
+import { postJson, type TransportOptions } from "./transport.js";
+import { createProviderSession, oneShotToolTurn } from "./tool-session.js";
+import type {
+  ModelToolRequest,
+  ModelToolTurn,
+  ProviderToolCallingSession,
+  ToolCallingIdentity,
+  ToolCallingSessionOptions,
+  SessionToolCallingProviderAdapter,
+} from "@ai-harness/contracts";
+
 type HttpFetch = typeof fetch;
 
-export interface ProviderOptions {
+export interface ProviderOptions extends TransportOptions {
   apiKey?: string;
   model: string;
   fetcher?: HttpFetch;
@@ -20,31 +31,6 @@ function requireCredential(
     throw new Error(`Missing credential: ${variable}`);
   }
   return value;
-}
-
-async function postJson(
-  url: string,
-  headers: Record<string, string>,
-  body: unknown,
-  fetcher: HttpFetch,
-): Promise<unknown> {
-  const response = await fetcher(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...headers,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!response.ok) {
-    // Do not expose provider response bodies:
-    // they may contain sensitive data.
-    throw new Error(`Provider request failed with HTTP ${response.status}`);
-  }
-
-  return response.json();
 }
 
 export class FixtureProvider implements ModelProviderAdapter {
@@ -63,12 +49,25 @@ export class FixtureProvider implements ModelProviderAdapter {
   }
 }
 
-export class OpenAIProvider implements ModelProviderAdapter {
+export class OpenAIProvider
+  implements ModelProviderAdapter, SessionToolCallingProviderAdapter
+{
   readonly id = "openai";
   private readonly fetcher: HttpFetch;
 
   constructor(private readonly options: ProviderOptions) {
     this.fetcher = options.fetcher ?? fetch;
+  }
+
+  openSession(
+    identity: ToolCallingIdentity,
+    options: ToolCallingSessionOptions & { maxNativeStateBytes?: number } = {},
+  ): ProviderToolCallingSession {
+    return createProviderSession(this.id, this.options, identity, options);
+  }
+
+  completeWithTools(request: ModelToolRequest): Promise<ModelToolTurn> {
+    return oneShotToolTurn(this.id, this.options, request);
   }
 
   async complete(request: ModelRequest): Promise<ModelResponse> {
@@ -89,6 +88,8 @@ export class OpenAIProvider implements ModelProviderAdapter {
         store: false,
       },
       this.fetcher,
+      this.options,
+      request.signal,
     )) as {
       status?: string;
       output_text?: string;
@@ -130,12 +131,25 @@ export class OpenAIProvider implements ModelProviderAdapter {
   }
 }
 
-export class AnthropicProvider implements ModelProviderAdapter {
+export class AnthropicProvider
+  implements ModelProviderAdapter, SessionToolCallingProviderAdapter
+{
   readonly id = "anthropic";
   private readonly fetcher: HttpFetch;
 
   constructor(private readonly options: ProviderOptions) {
     this.fetcher = options.fetcher ?? fetch;
+  }
+
+  openSession(
+    identity: ToolCallingIdentity,
+    options: ToolCallingSessionOptions & { maxNativeStateBytes?: number } = {},
+  ): ProviderToolCallingSession {
+    return createProviderSession(this.id, this.options, identity, options);
+  }
+
+  completeWithTools(request: ModelToolRequest): Promise<ModelToolTurn> {
+    return oneShotToolTurn(this.id, this.options, request);
   }
 
   async complete(request: ModelRequest): Promise<ModelResponse> {
@@ -162,6 +176,8 @@ export class AnthropicProvider implements ModelProviderAdapter {
         ],
       },
       this.fetcher,
+      this.options,
+      request.signal,
     )) as {
       content?: Array<{
         type: string;
@@ -192,3 +208,6 @@ export class AnthropicProvider implements ModelProviderAdapter {
     };
   }
 }
+
+export { PROVIDER_LIMITS } from "./transport.js";
+export type { TransportOptions } from "./transport.js";

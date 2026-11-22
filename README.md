@@ -1,56 +1,49 @@
-# AI Harness — Phase 0 (foundation)
+# AI Harness
 
-Local-first, provider-agnostic TypeScript monorepo. This is a **working foundation**, not an AI agent runtime yet.
+Local-first, provider-agnostic TypeScript harness for role-based software tasks.
+Phases 1–4 are **experimental foundations**, not production-ready autonomous execution.
 
-## Requirements
+## Requirements and verification
 
-- Node.js >= 22
-- pnpm 10 (`corepack enable && corepack prepare pnpm@10.11.0 --activate`, or install pnpm separately)
-
-## Quick start
+- Node.js >= 22 (development and CI: Node 24).
+- pnpm **12.21.0**, pinned in `package.json`.
 
 ```bash
 pnpm install
 pnpm build
 pnpm test
 pnpm harness --help
-pnpm harness init --path ./examples/demo-project --name demo-project
-pnpm harness doctor --path ./examples/demo-project
-pnpm harness agents --path ./examples/demo-project
-pnpm harness config --path ./examples/demo-project
 ```
 
-> `pnpm install` requires access to the npm registry for dev dependencies. The ZIP excludes node_modules and compiled dist; build it after installation.
+## Implemented
 
-## Phase 0 working functionality
+- Versioned project configuration, safe initialization, 15 agent roles.
+- Sequential dependency-aware orchestration, five-stage SDD proposals, JSON checkpoints.
+- Default Deny tool dispatch, argument validation and scoped in-memory approvals.
+- Bounded tool-calling agent, conservative recovery inspection and restricted handlers.
+- OpenAI Responses and Anthropic Messages tool-calling adapters with isolated,
+  explicitly closed sessions, native ID correlation and bounded HTTP transport.
+- Explicit host API `createReadOnlyToolCallingAgent()` exposing `file.read` and,
+  only with a host-selected executable, `git.status`.
 
-- Four TypeScript workspace packages: contracts, config, core and CLI.
-- Versioned configuration schema and validation (JSON, no hidden defaults).
-- Safe, no-overwrite `.ai/` project initialization with dry-run.
-- 15 agent role declarations and a declarative SDD workflow.
-- Working `doctor`, `agents`, `config`, `help`, and `version` commands.
-- Node built-in test runner; GitHub Actions CI.
-
-## Intentionally not implemented in Phase 0
-
-- AI provider integrations, token calls or model routing.
-- Runtime agent execution, real SDD generation, task scheduling and retries.
-- Sandbox execution, persistent database, authentication or dashboard.
-- CI/CD deployment automation or production security guarantees.
-
-**Do not use this foundation as an autonomous executor or production authorization boundary.** Phase 0 policies are typed declarations, not a secure enforcement layer.
-
-## Design
-
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/REPOSITORY.md`](docs/REPOSITORY.md) and [`docs/PHASE-0.md`](docs/PHASE-0.md).
+The default CLI `run` continues to use the fixture provider and text-only SDD;
+it does not automatically execute model tools. Real-provider tool calling is
+programmatic and opt-in. See [Phase 4 usage and security](docs/phase4-security.md).
+No privileged handlers are registered by the read-only factory.
 
 ## Package layout
 
-```text
-apps/cli/            Executable commands
-packages/contracts/  Shared domain contracts
-packages/config/     Config types, defaults, validation
-packages/core/       Non-destructive project initializer and inspector
-```
+`packages/contracts`, `config`, `core`, `orchestrator`, `providers`, `agents`,
+`sdd`, `security`, `checkpointing`, `tools`; executable commands in `apps/cli`.
+TypeScript strict / NodeNext ESM, project references and `node:test`.
 
-The broader architecture directories will be added as implemented; they are not shipped as empty pretend-functional packages.
+## Current limits
+
+No automatic resume, durable exactly-once execution, arbitrary shell, Git-writing
+or deployment integration. Filesystem guards have TOCTOU limitations; approvals
+are in-memory; Docker isolation has only mock-runner verification. Tool outputs
+and model content remain untrusted. Unit tests do not establish production safety.
+
+[Roadmap](docs/ROADMAP.md) · [Verification](docs/VERIFICATION.md) ·
+[Phase 2 security](docs/phase2-security.md) · [Phase 3 security](docs/phase3-security.md) ·
+[Continuation contract](docs/phase4-security.md#continuation-contract)

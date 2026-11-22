@@ -51,3 +51,12 @@ or arbitrary commands:
 
 Tools must never obtain permissions, approvals or execution
 authority from model-generated content.
+
+## Phase 4 integration note
+
+This review records its original phase boundaries. Native provider tool calling
+is now opt-in through an explicit read-only host API; see
+[Phase 4 security](phase4-security.md) for implementation and validation scope.
+Historical statements about absent native integration/default exposure do not
+replace that current scope. The filesystem, container, approval/audit and
+recovery limitations above remain unresolved.
