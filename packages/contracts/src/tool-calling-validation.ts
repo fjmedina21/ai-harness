@@ -29,7 +29,7 @@ function hasOnlyKeys(
   return Object.keys(value).every((key) => allowed.includes(key));
 }
 
-function validateJsonValue(value: unknown, depth: number): void {
+export function validateJsonValue(value: unknown, depth: number): void {
   if (depth > TOOL_CALL_LIMITS.maxDepth) {
     throw new Error("Tool arguments exceed maximum depth");
   }

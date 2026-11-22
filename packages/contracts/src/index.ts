@@ -81,6 +81,7 @@ export interface ToolAdapter {
   execute(input: unknown, context: ToolContext): Promise<ToolResult>;
 }
 export interface ModelRequest {
+  signal?: AbortSignal;
   system: string;
   prompt: string;
   correlationId: string;
@@ -125,3 +126,8 @@ export {
 } from "./tool-calling-validation.js";
 export type * from "./approval-identity.js";
 export type * from "./recovery.js";
+export {
+  ToolCallingSession,
+  parseToolCallingContinuation,
+  TOOL_SESSION_LIMITS,
+} from "./tool-calling-session.js";

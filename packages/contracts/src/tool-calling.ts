@@ -47,8 +47,54 @@ export interface ModelToolResult {
   error?: string;
 }
 
+/** Host-owned identity; correlationId remains a per-request tracing identifier. */
+export interface ToolCallingIdentity {
+  executionId: string;
+  taskId: string;
+}
+
+export type ToolCallingHistoryEntry =
+  | { kind: "model"; turn: ModelToolTurn }
+  | { kind: "tool_results"; results: readonly ModelToolResult[] };
+
+/** Neutral history only. Provider-native content must stay in the adapter session. */
+export interface ToolCallingContinuation {
+  identity: Readonly<ToolCallingIdentity>;
+  history: readonly ToolCallingHistoryEntry[];
+}
+
+export interface ToolCallingSessionOptions {
+  signal?: AbortSignal;
+  limits?: Partial<{
+    maxHistoryBytes: number;
+    maxResultBytes: number;
+    maxTurns: number;
+    maxTotalCalls: number;
+  }>;
+}
+
+/** Future adapters own and bound native state separately, never in neutral history.
+ * close() must release that state; sessions must not be shared across identities.
+ */
+export interface ProviderToolCallingSession {
+  readonly identity: Readonly<ToolCallingIdentity>;
+  completeWithTools(request: ModelToolRequest): Promise<ModelToolTurn>;
+  close(): void;
+}
+
+export interface SessionToolCallingProviderAdapter extends ToolCallingProviderAdapter {
+  openSession(
+    identity: ToolCallingIdentity,
+    options?: ToolCallingSessionOptions & { maxNativeStateBytes?: number },
+  ): ProviderToolCallingSession;
+}
+
 export interface ModelToolRequest extends ModelRequest {
   tools: readonly ModelToolSpec[];
+
+  /** Opt-in continuation. Do not combine with legacy toolResults. */
+  continuation?: ToolCallingContinuation;
+  signal?: AbortSignal;
 
   /**
    * Results of previously dispatched tool calls.
