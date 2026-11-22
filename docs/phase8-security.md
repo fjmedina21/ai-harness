@@ -61,6 +61,9 @@ telemetry controls remain in force.
   prompts, tool arguments/results, file contents, provider responses, secrets
   and authorization identifiers. Telemetry failure is best effort and cannot
   change tool permission decisions.
+- Provider HTTP diagnostics retain only the numeric status and a fixed error
+  category from a bounded error envelope. Raw provider error bodies, messages
+  and unrecognized codes are discarded.
 - Private JSONL output and tariff files must be host-selected and private.
   Telemetry is not durable execution state and does not replace SQLite.
 - Existing local file-read TOCTOU limitations, trusted-host/filesystem

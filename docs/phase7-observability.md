@@ -44,6 +44,12 @@ partial usage stays explicit. Prices are supplied by the host per provider/model
 currency and rate version; no live tariffs are fetched and estimates are not
 billing.
 
+Provider HTTP failures may add a numeric status and one fixed low-cardinality
+error category (`rate_limit`, `quota_or_billing`, `authentication`,
+`permission`, `model_access`, `invalid_request`, or `unknown`). The adapter reads
+at most 4 KiB of an error envelope to map known codes; it never records the raw
+body, provider message, or unrecognized code.
+
 Telemetry is constructed explicitly and has no network exporter:
 
 ```ts

@@ -39,14 +39,21 @@ async function main(): Promise<number> {
     await initializeProject({ root, projectName: "provider-smoke-fixture" });
     await writeFile(path.join(root, "README.md"), "# Public smoke fixture\nOnly this fixed synthetic file is sent to the selected provider.\n", { mode: 0o600, flag: "wx" });
     let readCalls = 0;
+    const telemetrySink = new InMemoryTelemetrySink(512);
     const result = await runReadOnlyWorkflow({
       projectRoot: root,
       request: "Summarize the synthetic smoke fixture and state its limitations.",
       provider: { id: provider, model, paidCallConfirmed: true, maxOutputTokens, maxProviderRequests },
       timeoutMs: 60_000,
-      telemetrySink: new InMemoryTelemetrySink(512),
+      telemetrySink,
       onProgress: (event) => { if (event.kind === "tool" && event.toolId === "file.read" && event.toolStatus === "executed") readCalls++; },
     });
+    const providerHttpErrors = telemetrySink.events()
+      .filter((event) => event.name === "provider.http" && event.type === "span.end" && event.attributes.providerHttpStatus !== undefined)
+      .map((event) => ({
+        status: event.attributes.providerHttpStatus,
+        category: event.attributes.providerHttpErrorCategory ?? "unknown",
+      }));
     const tokens = result.telemetry?.metrics?.tokens;
     console.log(JSON.stringify({
       provider: result.provider,
@@ -56,6 +63,7 @@ async function main(): Promise<number> {
       completedTasks: result.completedTasks,
       totalTasks: result.totalTasks,
       providerRequests: result.providerRequests,
+      providerHttpErrors,
       readOnlyFileCalls: readCalls,
       reportedInputTokens: tokens?.availability === "reported" ? tokens.inputTokens : undefined,
       reportedOutputTokens: tokens?.availability === "reported" ? tokens.outputTokens : undefined,

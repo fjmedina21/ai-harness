@@ -10,7 +10,8 @@ separately authorized checks.
 ## Build and behavior
 
 - [x] `pnpm clean`, `pnpm build` and complete `pnpm test` pass locally on the
-  source commit; 417/417 tests passed.
+  finalization branch; 421/421 tests passed. The integrated `main` baseline
+  had 417/417 before the diagnostics follow-up.
 - [x] `pnpm harness --help`, `pnpm harness version` and
   `pnpm harness eval run --suite deterministic` pass; 19 scenarios and 42
   assertions passed.
@@ -19,7 +20,8 @@ separately authorized checks.
 - [x] SQLite persistence/reopen and fail-closed invalid-store coverage pass
   against the real local backend.
 - [x] Both provider adapters pass CLI integration with deterministic mocked
-  HTTP. Live provider smoke was not run; see `docs/VERIFICATION.md`.
+  HTTP. A live OpenAI smoke was attempted but failed with HTTP 429 before any
+  read; live-provider validation is not achieved. See `docs/VERIFICATION.md`.
 - [x] `git diff --check`, relative docs links, workspace package versions and
   local Git exclusions were verified.
 

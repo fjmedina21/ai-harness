@@ -1,8 +1,8 @@
 # Verification — Phase 8 source, version 0.8.0
 
-The current source is **0.8.0** at commit
+The integrated source is **0.8.0** at commit
 `d9ecbf49597c5c22784257d519a6a217c2c9e73f` on `main`. This is not a formal
-formal release announcement. The GitHub releases endpoint has no release
+release announcement. The GitHub releases endpoint has no release
 record for this commit; npm publication was not independently verified. Phase
 8 has both local validation and a successful standard GitHub Actions run for
 this exact commit.
@@ -24,22 +24,28 @@ Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
   assertions passed**; these are host-authored deterministic fixtures.
 - git diff --check: passed on the Phase 8 source tree before finalization.
 - `pnpm clean`, `pnpm build`, `pnpm test`, CLI help/version and deterministic
-  evaluation were rerun during finalization; all passed. The working diff in
-  this documentation audit is checked separately and does not change runtime.
+  evaluation were rerun during finalization; all passed on the integrated
+  source commit; that suite had 417 tests. The provider diagnostics follow-up
+  on `chore/phase8-final-validation` is a separate local change and passed
+  `pnpm clean`, `pnpm build` and the full suite with **421/421 tests**. The
+  four added tests cover safe category mapping, telemetry retention, unknown
+  codes and bounded error bodies. No live calls were part of that suite.
 
 The new E2E tests use temporary local projects and the actual filesystem and
 SQLite journal, including reopen/persistence, invalid-journal rejection,
 cancellation, telemetry, and CLI status. OpenAI and Anthropic adapters run
 through mocked HTTP only. The real OpenAI smoke was attempted with
 `gpt-6-luna`, the synthetic fixture, a 128-token output ceiling and a six-call
-request budget. The run failed on its first request before a file read or task
-completed. Two single-request diagnostics also failed with HTTP-class errors;
-the last returned HTTP 429. The response body was not inspected, so the cause
-(rate limit, account/project usage limit, or spend limit) is unresolved. No
-token usage or cost estimate was returned. Three network requests were made in
-total; no further retries were made. See OpenAI's
+request budget. It failed on its first request before a file read or task
+completed. Two one-request diagnostics also failed with HTTP-class errors; the
+last returned HTTP 429. The error body was not captured, so the cause remains
+unknown. No token usage or cost estimate was returned. Three network requests
+were made in total; no further retries were made. This was a failed live
+provider attempt, not provider validation. See OpenAI's
 [error guidance](https://developers.openai.com/api/docs/guides/error-codes).
-This is a failed live-provider attempt, not provider validation. Phase 8 does
+The local follow-up on `chore/phase8-final-validation` adds bounded
+allowlisted error-category capture for a future diagnosis; it does not change
+retries or authorization. Phase 8 does
 not change Podman or its isolation policy, so the real Podman isolation suite
 was not run for this candidate. Standard hosted GitHub Actions CI run
 [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502)

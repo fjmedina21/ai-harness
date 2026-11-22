@@ -25,6 +25,8 @@ The OpenAI and Anthropic CLI cases use mocked HTTP responses, but run the actual
 provider adapters, native response translation, application service,
 orchestrator, dispatcher, filesystem handler and CLI result path. They assert
 the total call budget is enforced. They do not establish live API compatibility.
+Provider transport tests also exercise bounded, allowlisted HTTP error
+classification with mocked responses; they never send requests to a real API.
 
 Run the focused integration suites after building:
 
@@ -64,7 +66,9 @@ exact dollar cap is promised. An authorized `gpt-6-luna` smoke using this
 synthetic fixture failed on the first request; a one-request diagnostic
 returned HTTP 429. No file read, token usage or cost estimate was recorded, and
 the smoke is not validated. The response body was not inspected, so the cause
-is unresolved. See [VERIFICATION.md](VERIFICATION.md).
+for that attempt is unresolved. The follow-up now reports a bounded allowlisted
+HTTP error category without logging upstream text; the previous failed response
+cannot be reclassified. See [VERIFICATION.md](VERIFICATION.md).
 
 ## Isolation and hosted CI
 

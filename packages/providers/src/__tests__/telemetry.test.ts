@@ -169,6 +169,22 @@ test("HTTP error classification is fixed and never leaks upstream body or except
   }
 });
 
+test("provider telemetry records HTTP status and fixed error category without upstream text", async () => {
+  const { events, binding } = capture();
+  const provider = new OpenAIProvider({
+    model: "fixture-model", apiKey: "test-only",
+    fetcher: async () => Response.json({ error: {
+      code: "insufficient_quota", type: "invalid_request_error", message: "PRIVATE account detail",
+    } }, { status: 429 }),
+  });
+  await assert.rejects(provider.complete({ ...request, telemetry: binding }), /HTTP 429$/);
+  const httpEnd = events.find((event) => event.name === "provider.http" && event.type === "end");
+  assert.equal(httpEnd?.outcome?.errorClass, "http");
+  assert.equal(httpEnd?.outcome?.providerHttpStatus, 429);
+  assert.equal(httpEnd?.outcome?.providerHttpErrorCategory, "quota_or_billing");
+  assert.doesNotMatch(JSON.stringify(events), /PRIVATE|insufficient_quota|invalid_request_error/);
+});
+
 test("transport deadline and host cancellation have distinct classifications", async () => {
   const timed = capture();
   const timeoutProvider = new OpenAIProvider({

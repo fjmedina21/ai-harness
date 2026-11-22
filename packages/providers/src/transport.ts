@@ -1,4 +1,9 @@
-import { beginTelemetry, endTelemetry, type TelemetryBinding } from "@ai-harness/contracts";
+import {
+  beginTelemetry,
+  endTelemetry,
+  type ProviderHttpErrorCategory,
+  type TelemetryBinding,
+} from "@ai-harness/contracts";
 import { ProviderTransportError, providerFailure } from "./telemetry.js";
 
 export interface TransportOptions {
@@ -14,6 +19,79 @@ export const PROVIDER_LIMITS = {
   maxRequestBytes: 1_048_576,
   maxOutputTokens: 4096,
 } as const;
+
+const MAX_PROVIDER_ERROR_BODY_BYTES = 4096;
+
+function providerHttpErrorCategory(code: unknown, type: unknown): ProviderHttpErrorCategory {
+  const categories: Record<string, ProviderHttpErrorCategory> = {
+    rate_limit_exceeded: "rate_limit",
+    rate_limit_error: "rate_limit",
+    slow_down: "rate_limit",
+    insufficient_quota: "quota_or_billing",
+    billing_hard_limit_reached: "quota_or_billing",
+    organization_spend_limit_exceeded: "quota_or_billing",
+    project_spend_limit_exceeded: "quota_or_billing",
+    organization_usage_limit_exceeded: "quota_or_billing",
+    usage_limit_exceeded: "quota_or_billing",
+    invalid_api_key: "authentication",
+    invalid_authentication: "authentication",
+    authentication_error: "authentication",
+    permission_denied: "permission",
+    insufficient_permissions: "permission",
+    model_not_found: "model_access",
+    model_access_denied: "model_access",
+    invalid_request_error: "invalid_request",
+    invalid_request: "invalid_request",
+  };
+  for (const value of [code, type]) {
+    if (typeof value === "string") {
+      const category = categories[value.toLowerCase()];
+      if (category) return category;
+    }
+  }
+  return "unknown";
+}
+
+/** Reads only a tiny bounded error envelope and maps known codes to fixed labels. */
+async function readProviderHttpErrorCategory(
+  response: Response,
+  aborted: Promise<never>,
+): Promise<ProviderHttpErrorCategory> {
+  const declared = response.headers.get("content-length");
+  if (
+    declared !== null &&
+    (!/^\d+$/.test(declared) || Number(declared) > MAX_PROVIDER_ERROR_BODY_BYTES)
+  ) return "unknown";
+  if (!response.body) return "unknown";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let complete = false;
+  try {
+    while (true) {
+      const chunk = await Promise.race([reader.read(), aborted]);
+      if (chunk.done) {
+        complete = true;
+        break;
+      }
+      total += chunk.value.byteLength;
+      if (total > MAX_PROVIDER_ERROR_BODY_BYTES) return "unknown";
+      chunks.push(chunk.value);
+    }
+    const body: unknown = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)),
+    );
+    if (typeof body !== "object" || body === null || Array.isArray(body)) return "unknown";
+    const error = (body as Record<string, unknown>).error;
+    if (typeof error !== "object" || error === null || Array.isArray(error)) return "unknown";
+    const fields = error as Record<string, unknown>;
+    return providerHttpErrorCategory(fields.code, fields.type);
+  } catch {
+    return "unknown";
+  } finally {
+    if (!complete) void reader.cancel().catch(() => {});
+  }
+}
 
 export function boundedOption(
   value: number | undefined,
@@ -85,8 +163,12 @@ export async function postJson(
     response = await Promise.race([fetching, aborted]);
     if (combined.aborted)
       throw new Error("Provider request cancelled or timed out");
-    if (!response.ok)
-      throw new ProviderTransportError(`Provider request failed with HTTP ${response.status}`, "http");
+    if (!response.ok) {
+      const category = await readProviderHttpErrorCategory(response, aborted);
+      if (combined.aborted)
+        throw new Error("Provider request cancelled or timed out");
+      throw new ProviderTransportError(`Provider request failed with HTTP ${response.status}`, "http", response.status, category);
+    }
     const declared = response.headers.get("content-length");
     if (
       declared !== null &&

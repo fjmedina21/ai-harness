@@ -3,13 +3,19 @@ import {
   endTelemetry,
   type TelemetryBinding,
   type TelemetryErrorClass,
+  type ProviderHttpErrorCategory,
   type TelemetryStatus,
   type TokenUsage,
 } from "@ai-harness/contracts";
 
 /** Safe fixed classification, never an upstream error message or payload. */
 export class ProviderTransportError extends Error {
-  constructor(message: string, readonly classification: TelemetryErrorClass) {
+  constructor(
+    message: string,
+    readonly classification: TelemetryErrorClass,
+    readonly httpStatus?: number,
+    readonly httpErrorCategory?: ProviderHttpErrorCategory,
+  ) {
     super(message);
     this.name = "ProviderTransportError";
   }
@@ -68,12 +74,19 @@ export function normalizeTokenUsage(vendor: "openai" | "anthropic", raw: unknown
 export function providerFailure(error: unknown, signal?: AbortSignal): {
   status: TelemetryStatus;
   errorClass: TelemetryErrorClass;
+  providerHttpStatus?: number;
+  providerHttpErrorCategory?: ProviderHttpErrorCategory;
 } {
   const errorClass = signal?.aborted ? "cancelled" :
     error instanceof ProviderTransportError ? error.classification : "invalid_response";
+  const diagnostics = error instanceof ProviderTransportError ? {
+    ...(error.httpStatus !== undefined ? { providerHttpStatus: error.httpStatus } : {}),
+    ...(error.httpErrorCategory ? { providerHttpErrorCategory: error.httpErrorCategory } : {}),
+  } : {};
   return {
     status: errorClass === "cancelled" ? "cancelled" : errorClass === "timeout" ? "timeout" : "error",
     errorClass,
+    ...diagnostics,
   };
 }
 

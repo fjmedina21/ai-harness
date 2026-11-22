@@ -1,6 +1,8 @@
 /** Diagnostic metadata only. None of these identifiers or callbacks grant authority. */
 export type TelemetryStatus = "ok" | "error" | "cancelled" | "timeout" | "denied" | "blocked" | "uncertain";
 export type TelemetryErrorClass = "cancelled" | "timeout" | "invalid_response" | "limit" | "policy" | "approval" | "storage" | "tool" | "dependency" | "runtime" | "http" | "invalid_input";
+/** Fixed, low-cardinality classification. Never contains upstream error text. */
+export type ProviderHttpErrorCategory = "rate_limit" | "quota_or_billing" | "authentication" | "permission" | "model_access" | "invalid_request" | "unknown";
 export type TelemetrySpanName = "execution" | "task" | "agent" | "model.turn" | "provider.request" | "provider.http" | "tool.dispatch" | "tool.handler";
 export type TelemetryEventName = "task.blocked" | "agent.tools_requested" | "agent.tools_rejected" | "agent.limit" | "tool.validation" | "tool.policy" | "tool.authorization";
 export interface TraceContext {
@@ -34,6 +36,8 @@ export interface TelemetryAttributes {
   accepted?: boolean;
   approvalRequired?: boolean;
   errorClass?: TelemetryErrorClass;
+  providerHttpStatus?: number;
+  providerHttpErrorCategory?: ProviderHttpErrorCategory;
 }
 export interface SpanOutcome extends TelemetryAttributes {
   status: TelemetryStatus;

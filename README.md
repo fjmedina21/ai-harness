@@ -124,8 +124,12 @@ pnpm smoke:real-provider
 ```
 
 Set `HARNESS_REAL_PROVIDER=anthropic` for Anthropic. This command can incur
-charges and was not run as part of offline validation. Its budget limits output
-tokens and request count; it does not guarantee a dollar ceiling.
+charges. An OpenAI smoke was attempted with `gpt-6-luna` but failed with HTTP
+429 before reading the synthetic fixture; live-provider validation is not
+achieved. See [verification](docs/VERIFICATION.md). The smoke command reads
+credentials from the process environment; `.env.local` is not loaded
+automatically. Its budget limits output tokens and request count; it does not
+guarantee a dollar ceiling.
 
 ## Documentation
 
