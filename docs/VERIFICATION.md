@@ -1,7 +1,12 @@
-# Verification — Phase 7 candidate, version 0.7.0
+# Verification — Phase 7, version 0.7.0
 
-Local candidate on `feat/phase7-observability-evaluations`; not published.
-`pnpm clean`, `pnpm build`, `pnpm test`: passed; 401/401 tests. CLI help and
+Phase 7 was merged and pushed to `main` at `c390459609d262b66023deeb7ec3e594fe1ca693`.
+The hosted GitHub Actions CI run [45035585620](https://github.com/fjmedina21/ai-harness/actions/runs/45035585620)
+completed successfully for that exact commit; install, build, test and CLI smoke
+steps passed.
+
+Local validation on `feat/phase7-observability-evaluations` before publication:
+`pnpm clean`, `pnpm build`, `pnpm test` passed; 401/401 tests. CLI help and
 deterministic evaluation passed: 19/19 scenarios, 42/42 assertions.
 `git diff --check` passed. Logs are under excluded
 `harness-development/phase7/`.
