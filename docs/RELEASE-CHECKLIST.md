@@ -48,8 +48,9 @@ separately authorized checks.
 
 ## Separate validation gates
 
-- [ ] Live OpenAI smoke: requires explicit owner authorization and host-supplied
-  credentials, model, request budget and output-token budget.
+- [ ] Live OpenAI smoke passed. An authorized attempt using `gpt-6-luna` and a
+  synthetic fixture failed with HTTP 429 before any file read; the cause was
+  not resolved and the smoke is not validated. See `docs/VERIFICATION.md`.
 - [ ] Live Anthropic smoke: requires the same explicit authorization and
   host-supplied bounded inputs.
 - [ ] Real Podman isolation: not rerun for Phase 8 because its controls were not

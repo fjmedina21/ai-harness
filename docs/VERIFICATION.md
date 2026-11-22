@@ -30,9 +30,18 @@ Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
 The new E2E tests use temporary local projects and the actual filesystem and
 SQLite journal, including reopen/persistence, invalid-journal rejection,
 cancellation, telemetry, and CLI status. OpenAI and Anthropic adapters run
-through mocked HTTP only. No paid/live provider smoke was run. Phase 8 does not
-change Podman or its isolation policy, so the real Podman isolation suite was
-not run for this candidate. Standard hosted GitHub Actions CI run
+through mocked HTTP only. The real OpenAI smoke was attempted with
+`gpt-6-luna`, the synthetic fixture, a 128-token output ceiling and a six-call
+request budget. The run failed on its first request before a file read or task
+completed. Two single-request diagnostics also failed with HTTP-class errors;
+the last returned HTTP 429. The response body was not inspected, so the cause
+(rate limit, account/project usage limit, or spend limit) is unresolved. No
+token usage or cost estimate was returned. Three network requests were made in
+total; no further retries were made. See OpenAI's
+[error guidance](https://developers.openai.com/api/docs/guides/error-codes).
+This is a failed live-provider attempt, not provider validation. Phase 8 does
+not change Podman or its isolation policy, so the real Podman isolation suite
+was not run for this candidate. Standard hosted GitHub Actions CI run
 [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502)
 completed successfully for commit `d9ecbf49597c5c22784257d519a6a217c2c9e73f`
 (install, build, test and CLI smoke). This does not validate live provider

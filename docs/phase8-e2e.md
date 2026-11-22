@@ -60,8 +60,11 @@ response text, and removes its temporary fixture afterward. A successful run
 requires three completed tasks and three successful `file.read` calls. The
 maximum generated output budget is the output-token ceiling multiplied by the
 request count; input-token spend still depends on each model and request. No
-exact dollar cap is promised. The smoke was not run for the Phase 8 source
-validation recorded in [VERIFICATION.md](VERIFICATION.md).
+exact dollar cap is promised. An authorized `gpt-6-luna` smoke using this
+synthetic fixture failed on the first request; a one-request diagnostic
+returned HTTP 429. No file read, token usage or cost estimate was recorded, and
+the smoke is not validated. The response body was not inspected, so the cause
+is unresolved. See [VERIFICATION.md](VERIFICATION.md).
 
 ## Isolation and hosted CI
 
