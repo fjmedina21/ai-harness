@@ -195,3 +195,6 @@ export type { GitStatusOptions } from "./git-tools.js";
 export { registerControlledWorkspaceTools } from "./controlled-workspace-tools.js";
 
 export { ProcessExecutionError } from "./process-runner.js";
+
+export { ContainerExecutionError } from "./container-executor.js";
+export type { ContainerSecurityProfile, ContainerPreflight } from "./container-executor.js";
