@@ -16,7 +16,8 @@ export function validatePodmanOptions(options: PodmanExecutionOptions): void {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,29}$/.test(options.machineName)) throw new Error("Invalid Podman machine name");
   if (!/^[a-z0-9][a-z0-9.:-]*\/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$/.test(options.image)) throw new Error("Podman requires a qualified image pinned by digest");
 }
-export function podmanMachineIdentity(name: string, created: string): string {
+/** Stable correlation of machine name and creation time; not remote attestation. */
+export function computePodmanMachineFingerprint(name: string, created: string): string {
   return createHash("sha256").update(name).update("\0").update(created).digest("hex");
 }
 export async function preflightPodman(options: PodmanExecutionOptions, runner: ProcessRunner, signal?: AbortSignal): Promise<ContainerPreflight> {
@@ -31,7 +32,7 @@ export async function preflightPodman(options: PodmanExecutionOptions, runner: P
   const machine = record(JSON.parse(await query(runner, options.podmanExecutable,
     ["machine", "inspect", options.machineName, "--format", template({ name: ".Name", created: ".Created", rootful: ".Rootful", state: ".State", socket: ".ConnectionInfo.PodmanSocket.Path" })], signal)));
   if (machine.name !== options.machineName || typeof machine.created !== "string" || !Number.isFinite(Date.parse(machine.created))
-    || podmanMachineIdentity(options.machineName, machine.created) !== p.daemonId || machine.rootful !== false || machine.state !== "running"
+    || computePodmanMachineFingerprint(options.machineName, machine.created) !== p.daemonId || machine.rootful !== false || machine.state !== "running"
     || `unix://${machine.socket}` !== p.endpoint) throw new Error("Podman machine does not match profile");
   // Machine inspect has no Mounts field. Query the guest's actual mount table
   // with one fixed read-only command; never run caller/model-supplied shell text.

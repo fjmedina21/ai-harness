@@ -1,11 +1,11 @@
 import type { ProcessResult, ProcessRunOptions } from "@ai-harness/contracts";
 import { ContainerFixture, OPTIONS } from "./container-fixture.js";
-import { podmanMachineIdentity, type PodmanExecutionOptions } from "../podman-profile.js";
+import { computePodmanMachineFingerprint, type PodmanExecutionOptions } from "../podman-profile.js";
 export const CREATED = "2026-11-21T20:00:00Z";
 export const PODMAN_OPTIONS: PodmanExecutionOptions = {
   backend: "podman", podmanExecutable: "/usr/local/bin/podman", machineName: "harness-phase5",
   image: "docker.io/library/node@sha256:" + "a".repeat(64),
-  securityProfile: { ...OPTIONS.securityProfile, daemonId: podmanMachineIdentity("harness-phase5", CREATED) },
+  securityProfile: { ...OPTIONS.securityProfile, daemonId: computePodmanMachineFingerprint("harness-phase5", CREATED) },
 };
 export class PodmanFixture extends ContainerFixture {
   guestMounts: unknown[] = [];
