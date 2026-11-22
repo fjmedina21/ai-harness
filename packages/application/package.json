@@ -1,0 +1,24 @@
+{
+  "name": "@ai-harness/application",
+  "version": "0.8.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@ai-harness/contracts": "workspace:*",
+    "@ai-harness/core": "workspace:*",
+    "@ai-harness/providers": "workspace:*",
+    "@ai-harness/agents": "workspace:*",
+    "@ai-harness/orchestrator": "workspace:*",
+    "@ai-harness/tools": "workspace:*",
+    "@ai-harness/checkpointing": "workspace:*",
+    "@ai-harness/observability": "workspace:*"
+  }
+}

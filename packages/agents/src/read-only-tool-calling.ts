@@ -12,9 +12,13 @@ import {
   createGitStatusHandler,
   type GitStatusOptions,
 } from "@ai-harness/tools";
-import { ToolCallingAgent } from "./tool-calling-agent.js";
+import { ToolCallingAgent, type AgentToolActivity } from "./tool-calling-agent.js";
 
 export interface ReadOnlyToolCallingOptions {
+  maxModelTurns?: number;
+  maxTotalToolCalls?: number;
+  minimumSuccessfulToolCalls?: number;
+  onToolActivity?: (activity: Readonly<AgentToolActivity>) => void;
   durableOperations?: DurableDispatchBinding;
   requireAtomicFilesystem?: boolean;
   role: AgentRole;

@@ -184,6 +184,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@ai-harness/application':
+        specifier: workspace:*
+        version: link:../../packages/application
       '@ai-harness/checkpointing':
         specifier: workspace:*
         version: link:../../packages/checkpointing
@@ -233,6 +236,33 @@ importers:
       '@ai-harness/orchestrator':
         specifier: workspace:*
         version: link:../orchestrator
+
+  packages/application:
+    dependencies:
+      '@ai-harness/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@ai-harness/checkpointing':
+        specifier: workspace:*
+        version: link:../checkpointing
+      '@ai-harness/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-harness/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ai-harness/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@ai-harness/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
+      '@ai-harness/providers':
+        specifier: workspace:*
+        version: link:../providers
+      '@ai-harness/tools':
+        specifier: workspace:*
+        version: link:../tools
 
   packages/checkpointing:
     dependencies:

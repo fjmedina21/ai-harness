@@ -1,8 +1,9 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Version 0.7.0 contains experimental foundations through Phase 7; it is **not a
-production-ready autonomous agent**.
+Version 0.8.0 integrates a bounded read-only engineering review workflow into
+the CLI. The project remains experimental and is **not a production-ready
+autonomous agent**.
 
 ## Quick start
 
@@ -15,18 +16,24 @@ pnpm build
 pnpm harness --help
 pnpm harness init --path ./my-project
 pnpm harness run --path ./my-project --request "Review the project"
+pnpm harness run --workflow inspect --path ./my-project \
+  --request "Review API validation" --provider fixture --fixture-file README.md
 pnpm test
 ```
 
-The default CLI uses the fixture provider. It does not call paid model APIs or
-automatically dispatch model-requested tools.
+The existing default `run` command continues to use the fixture-backed SDD
+proposal workflow. The explicit `--workflow inspect` command runs three
+sequential roles (planner, code reviewer and validator), requires each to use a
+bounded read-only file operation, and writes an internal execution checkpoint
+under `.ai/state`. It does not write source files, run tests or claim that work
+was implemented.
 
 ## What is implemented
 
 | Area | Current behavior |
 |---|---|
-| Workflow | Sequential dependency-aware orchestration, five-stage SDD proposals and JSON checkpoints |
-| Providers | Fixture by default; opt-in OpenAI Responses and Anthropic Messages adapters |
+| Workflow | Sequential dependency-aware SDD proposals and a bounded read-only CLI inspection workflow |
+| Providers | Fixture offline mode; explicitly selected OpenAI Responses and Anthropic Messages for inspection |
 | Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
 | Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
 | Isolation | Explicit rootless Podman Machine profile; Docker runtime execution was removed in 0.6.0 |
@@ -34,9 +41,45 @@ automatically dispatch model-requested tools.
 | Evaluations | 19 deterministic host-fixture scenarios and 42 assertions; known scenarios only |
 
 Real provider calls and tool calling are programmatic and opt-in through host
-APIs. Mandatory tests use fixtures or mocked HTTP and no live credentials.
+APIs and the explicit inspection CLI mode. No provider is selected from
+repository configuration. Mandatory tests use fixtures or mocked HTTP and no
+live credentials.
 `createReadOnlyToolCallingAgent()` exposes `file.read` and, with a host-selected
 executable, `git.status`; it registers no privileged handlers.
+
+## CLI inspection workflow
+
+```sh
+pnpm harness init --path ./my-project
+pnpm harness run --workflow inspect --path ./my-project \
+  --request "Review API validation" --provider fixture --fixture-file README.md
+pnpm harness status --path ./my-project --id EXECUTION_ID
+```
+
+The fixture provider makes no network calls and reads only the host-selected
+`--fixture-file` (default `README.md`). Real providers require an explicit model,
+confirmation, finite output-token budget and finite provider-request budget; for
+example:
+
+```sh
+pnpm harness run --workflow inspect --path ./my-project \
+  --request "Review API validation" --provider openai --model HOST_SELECTED_MODEL \
+  --max-output-tokens 256 --max-provider-requests 6 --confirm-provider-call
+```
+
+Provide `OPENAI_API_KEY` through the host's secure environment/configuration
+before running the command; do not put its value in shell history or project
+configuration.
+
+Anthropic uses `ANTHROPIC_API_KEY` and `--provider anthropic`. The CLI does not
+print or persist credentials. The token limit bounds output tokens per provider
+request and the request limit caps requests per execution; neither is an exact
+dollar cap because input-token pricing and provider rates vary. A host can
+provide a private tariff JSON with `--rates FILE`. To opt into durable operation
+records, `--journal` must point to a file in an existing private `0700`
+directory. `--telemetry-dir` has the same private-directory requirement. The
+`status --journal FILE` option reports operation metadata without arguments or
+results.
 
 Durable approvals and telemetry are not enabled by the default CLI. Cancellation
 does not roll back external effects. Uncertain operations require host inspection
@@ -65,13 +108,31 @@ pnpm harness eval report --input ./private-report.json
 These commands are explicit and local. Telemetry is best-effort diagnostics and
 cannot grant authority or modify journal state.
 
+An optional live-provider smoke test is separate from `pnpm test` and requires
+explicit host environment selection and confirmation. It uses a generated
+synthetic fixture and has a strict output-token/request budget:
+
+```sh
+HARNESS_REAL_PROVIDER=openai \
+HARNESS_REAL_PROVIDER_CONFIRM=YES \
+HARNESS_REAL_MODEL=HOST_SELECTED_MODEL \
+HARNESS_REAL_OUTPUT_TOKEN_BUDGET=128 \
+HARNESS_REAL_REQUEST_BUDGET=6 \
+pnpm smoke:real-provider
+```
+
+Set `HARNESS_REAL_PROVIDER=anthropic` for Anthropic. This command can incur
+charges and was not run as part of offline validation. Its budget limits output
+tokens and request count; it does not guarantee a dollar ceiling.
+
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) — long-term design; proposals are labeled
+- [Architecture](docs/ARCHITECTURE.md) — implemented foundations and target design
 - [Repository map](docs/REPOSITORY.md) — implemented workspace packages
-- [Roadmap](docs/ROADMAP.md) — status through Phase 7; Phase 8 pending
+- [Roadmap](docs/ROADMAP.md) — status through Phase 8 in development
 - [Verification](docs/VERIFICATION.md) — local evidence, hosted CI and isolation status
 - [Versioning](docs/VERSIONING.md) — pre-1.0 policy
+- [Phase 8 integration](docs/phase8-integration.md) · [security](docs/phase8-security.md) · [E2E](docs/phase8-e2e.md) · [release checklist](docs/RELEASE-CHECKLIST.md)
 - [Phase 4 providers](docs/phase4-security.md) · [Phase 5 Podman](docs/phase5-security.md)
 - [Phase 6 durable operations](docs/phase6-durable-execution.md) · [Phase 6 security](docs/phase6-security.md)
 - [Phase 7 observability](docs/phase7-observability.md) · [evaluations](docs/phase7-evaluations.md) · [security](docs/phase7-security.md)

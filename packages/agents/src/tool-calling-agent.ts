@@ -14,6 +14,8 @@ import type {
   ToolCallingProviderAdapter,
   SessionToolCallingProviderAdapter,
   ProviderToolCallingSession,
+  OperationState,
+  ToolDispatchStatus,
 } from "@ai-harness/contracts";
 
 import { beginTelemetry, endTelemetry, emitTelemetry, parseModelToolTurn, ToolCallingSession } from "@ai-harness/contracts";
@@ -25,6 +27,11 @@ const MAX_TOTAL_TOOL_CALLS = 16;
 const MAX_TOOL_RESULT_BYTES = 16_384;
 
 export interface ToolCallingAgentOptions {
+  /** Lower host-selected limits; values can never exceed the existing hard ceilings. */
+  maxModelTurns?: number;
+  maxTotalToolCalls?: number;
+  minimumSuccessfulToolCalls?: number;
+  onToolActivity?: (activity: Readonly<AgentToolActivity>) => void;
   requireAtomicFilesystem?: boolean;
   role: AgentRole;
   systemPrompt: string;
@@ -44,12 +51,22 @@ export interface ToolCallingAgentOptions {
   requireApprovalFor: readonly Permission[];
 }
 
+export interface AgentToolActivity {
+  toolId: string;
+  status: ToolDispatchStatus;
+  operationId?: string;
+  operationState?: OperationState;
+}
+
 export class ToolCallingAgent implements Agent {
   readonly role: AgentRole;
 
   private readonly options: ToolCallingAgentOptions;
   private readonly tools: readonly ModelToolSpec[];
   private readonly allowedIds: ReadonlySet<string>;
+  private readonly maxModelTurns: number;
+  private readonly maxTotalToolCalls: number;
+  private readonly minimumSuccessfulToolCalls: number;
 
   constructor(options: ToolCallingAgentOptions) {
     if (!options.systemPrompt.trim()) {
@@ -60,6 +77,14 @@ export class ToolCallingAgent implements Agent {
       new Set(options.allowedToolIds).size !== options.allowedToolIds.length
     ) {
       throw new Error("Duplicate allowed tool IDs");
+    }
+
+    this.maxModelTurns = this.limit(options.maxModelTurns, MAX_MODEL_TURNS);
+    this.maxTotalToolCalls = this.limit(options.maxTotalToolCalls, MAX_TOTAL_TOOL_CALLS);
+    this.minimumSuccessfulToolCalls = options.minimumSuccessfulToolCalls ?? 0;
+    if (!Number.isSafeInteger(this.minimumSuccessfulToolCalls) ||
+        this.minimumSuccessfulToolCalls < 0 || this.minimumSuccessfulToolCalls > this.maxTotalToolCalls) {
+      throw new Error("Invalid minimum tool call count");
     }
 
     const specs: ModelToolSpec[] = [];
@@ -89,6 +114,13 @@ export class ToolCallingAgent implements Agent {
     };
 
     this.tools = specs;
+  }
+
+  private limit(value: number | undefined, maximum: number): number {
+    const result = value ?? maximum;
+    if (!Number.isSafeInteger(result) || result < 1 || result > maximum)
+      throw new Error("Invalid tool-calling agent limit");
+    return result;
   }
 
   async execute(
@@ -165,7 +197,7 @@ export class ToolCallingAgent implements Agent {
     const seenCallIds = new Set<string>();
     let totalCalls = 0;
 
-    for (let turnIndex = 0; turnIndex < MAX_MODEL_TURNS; turnIndex++) {
+    for (let turnIndex = 0; turnIndex < this.maxModelTurns; turnIndex++) {
       if (context.signal?.aborted) {
         return this.failure("Execution cancelled");
       }
@@ -200,7 +232,7 @@ export class ToolCallingAgent implements Agent {
 
         turn = parseModelToolTurn(raw);
         if (neutral && turn.kind === "tool_calls" &&
-            (turnIndex === MAX_MODEL_TURNS - 1 || totalCalls + turn.calls.length > MAX_TOTAL_TOOL_CALLS)) {
+            (turnIndex === this.maxModelTurns - 1 || totalCalls + turn.calls.length > this.maxTotalToolCalls)) {
           modelFailure = "limit";
           emitTelemetry(context.telemetry, "agent.tools_requested", { toolCalls: turn.calls.length, accepted: false });
           emitTelemetry(context.telemetry, "agent.limit", { errorClass: "limit", toolCalls: turn.calls.length });
@@ -223,6 +255,9 @@ export class ToolCallingAgent implements Agent {
       }
 
       if (turn.kind === "message") {
+        if (totalCalls < this.minimumSuccessfulToolCalls) {
+          return this.failure("Required read-only tool activity did not occur");
+        }
         return {
           success: true,
           summary: turn.text,
@@ -232,13 +267,13 @@ export class ToolCallingAgent implements Agent {
 
       // Do not dispatch new operations if there is no
       // remaining model turn to process their results.
-      if (turnIndex === MAX_MODEL_TURNS - 1) {
+      if (turnIndex === this.maxModelTurns - 1) {
         emitTelemetry(context.telemetry, "agent.tools_requested", { toolCalls: turn.calls.length, accepted: false });
         emitTelemetry(context.telemetry, "agent.limit", { errorClass: "limit", toolCalls: turn.calls.length });
         return this.failure("Model turn limit exceeded");
       }
 
-      if (totalCalls + turn.calls.length > MAX_TOTAL_TOOL_CALLS) {
+      if (totalCalls + turn.calls.length > this.maxTotalToolCalls) {
         emitTelemetry(context.telemetry, "agent.tools_requested", { toolCalls: turn.calls.length, accepted: false });
         emitTelemetry(context.telemetry, "agent.limit", { errorClass: "limit", toolCalls: turn.calls.length });
         return this.failure("Tool call limit exceeded");
@@ -282,6 +317,16 @@ export class ToolCallingAgent implements Agent {
         }
 
         const outcome = await this.dispatch(call, { ...dispatchContext, operation: { taskId: task.id, requestId: call.id, toolCallId: call.id } });
+        try {
+          this.options.onToolActivity?.(Object.freeze({
+            toolId: outcome.toolId,
+            status: outcome.status,
+            ...(outcome.operationId ? { operationId: outcome.operationId } : {}),
+            ...(outcome.operationState ? { operationState: outcome.operationState } : {}),
+          }));
+        } catch {
+          // Host progress observers cannot change dispatch authorization or outcome.
+        }
         // Cancellation prevents subsequent work, but cannot undo this invocation.
         if (context.signal?.aborted) return this.failure("Execution cancelled");
 

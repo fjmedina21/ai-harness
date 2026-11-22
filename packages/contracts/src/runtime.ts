@@ -101,6 +101,17 @@ export interface ExecutionResult {
   artifacts: readonly string[];
 }
 
+/** Safe lifecycle metadata for hosts that need progress without model text. */
+export interface ExecutionProgressEvent {
+  executionId: string;
+  type: ExecutionEventType;
+  timestamp: string;
+  executionState: ExecutionState;
+  taskId?: string;
+  agentRole?: AgentRole;
+  taskState?: TaskState;
+}
+
 export interface ExecutionPolicy {
   maxRetries: number;
   maxConcurrentTasks: number;

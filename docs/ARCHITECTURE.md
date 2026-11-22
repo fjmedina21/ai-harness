@@ -8,11 +8,26 @@
 > Podman Machine y observabilidad opt-in. Dashboard, PostgreSQL/Redis y ejecución
 > distribuida siguen siendo propuestas, no servicios disponibles.
 
-- Estado: **Diseño aprobado / no implementado**
+- Estado: **Arquitectura objetivo parcialmente implementada**
 - Versión documental: **1.0.0**
 - Fecha: **2026-11-21**
 - Alcance: plataforma full stack agnóstica de proveedores de IA
 - Metodología: SDD + ejecución iterativa + paralelismo seguro
+
+### Estado de implementación
+
+- **Implementado, todavía experimental:** monorepo TypeScript y CLI, flujo SDD,
+  orquestación secuencial, adaptadores OpenAI/Anthropic, dispatcher con Default
+  Deny, herramientas controladas, journal SQLite opt-in, recuperación conservadora,
+  aislamiento explícito con Podman Machine y observabilidad/evaluaciones opt-in.
+- **Fase 8 en desarrollo:** `@ai-harness/application` compone una inspección
+  secuencial de tres roles en la CLI, con herramientas de solo lectura,
+  checkpoints, journal opcional y telemetría opt-in. No implementa escritura de
+  código, ejecución de pruebas ni continuación de sesiones interrumpidas.
+- **Planificado o no implementado:** dashboard, API administrativa, ejecución
+  distribuida, paralelismo seguro general, SSO y automatización amplia de
+  despliegues. Las decisiones siguientes describen objetivos y restricciones;
+  no certifican que cada capacidad exista.
 
 ## 1. Propósito y límites
 

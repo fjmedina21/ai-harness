@@ -86,6 +86,7 @@ export type { ToolAugmentedAgentOptions } from "./tool-augmented-agent.js";
 export { ToolCallingAgent } from "./tool-calling-agent.js";
 
 export type { ToolCallingAgentOptions } from "./tool-calling-agent.js";
+export type { AgentToolActivity } from "./tool-calling-agent.js";
 
 export { createReadOnlyToolCallingAgent } from "./read-only-tool-calling.js";
 export type { ReadOnlyToolCallingOptions } from "./read-only-tool-calling.js";

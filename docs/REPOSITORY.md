@@ -1,4 +1,4 @@
-# Repository map — version 0.7.0
+# Repository map — Phase 8 candidate, version 0.8.0
 
 This map describes packages present in the current TypeScript workspace.
 Architecture proposals are maintained separately and do not imply that an
@@ -7,6 +7,7 @@ unlisted service exists.
 | Path | Current responsibility |
 |---|---|
 | `apps/cli` | `harness` project commands and explicit diagnostics/evaluation commands |
+| `packages/application` | Host-owned composition of the bounded read-only inspection workflow |
 | `packages/contracts` | Shared runtime, provider, tools, durable operation and telemetry contracts |
 | `packages/config` | Project configuration validation and defaults |
 | `packages/core` | Project initialization and inspection |

@@ -19,12 +19,15 @@ The workspace follows a pre-1.0 SemVer policy:
 - Use `1.0.0` only after the project has approved stable public contracts,
   supported runtime profiles, security acceptance and release procedures.
 
-The current workspace version is `0.7.0`, the pre-1.0 milestone containing
-Phase 7 observability and evaluations. The package manifests are private; this
-number identifies the source tree and CLI build, not an npm publication.
+The Phase 8 candidate uses workspace version `0.8.0`, a pre-1.0 capability
+milestone for the bounded read-only application workflow and CLI integration.
+This aligns the root, CLI and all private workspace manifests under the policy
+above; it is not an npm publication or a claim of production readiness. The
+published baseline remains `0.7.0` until this branch is reviewed and released.
 
 The current code requires Node.js `>=22.0.0`; the local durable SQLite path
 requires Node.js 22.13 or newer (or Node 24). CI uses Node 24. The repository
 pins pnpm 12.21.0. The root scripts are `build`, `clean`, `check`, `test`,
-`test:isolation`, `harness` and `dev`; the default test script builds before
-running Node's test runner.
+`test:isolation`, `smoke:real-provider`, `harness` and `dev`; the default test
+script builds before running Node's test runner. The real-provider smoke script
+is opt-in and may incur charges.

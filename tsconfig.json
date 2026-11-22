@@ -38,6 +38,9 @@
       "path": "./packages/observability"
     },
     {
+      "path": "./packages/application"
+    },
+    {
       "path": "./packages/evaluations"
     }
   ]

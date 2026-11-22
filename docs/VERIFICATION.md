@@ -1,4 +1,35 @@
-# Verification — Phase 7, version 0.7.0
+# Verification — Phase 8 candidate, version 0.8.0
+
+The published baseline remains **0.7.0** (Phase 7). The current source
+candidate is on feat/phase8-e2e-cli-integration; this is local validation, not
+a release or hosted CI result.
+
+## Phase 8 candidate — local evidence
+
+Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
+
+- pnpm clean: passed.
+- pnpm build: passed.
+- pnpm test: passed, **417/417 tests**, zero failed, cancelled or skipped.
+  This includes 16 new offline application/CLI integration tests; provider
+  protocol coverage uses mocked HTTP and no live credentials.
+- pnpm harness --help: passed and lists the inspection workflow and opt-in
+  controls.
+- pnpm harness version: reports **ai-harness 0.8.0 (experimental)**.
+- pnpm harness eval run --suite deterministic: **19/19 scenarios and 42/42
+  assertions passed**; these are host-authored deterministic fixtures.
+- git diff --check: passed after the local candidate changes.
+
+The new E2E tests use temporary local projects and the actual filesystem and
+SQLite journal, including reopen/persistence, invalid-journal rejection,
+cancellation, telemetry, and CLI status. OpenAI and Anthropic adapters run
+through mocked HTTP only. No paid/live provider smoke was run. Phase 8 does not
+change Podman or its isolation policy, so the real Podman isolation suite was
+not run for this candidate. No Phase 8 hosted GitHub Actions run exists yet;
+that remains a post-publication gate. No reproducible performance benchmark was
+run, so this candidate makes no runtime performance-improvement claim.
+
+## Published Phase 7 baseline — historical evidence
 
 Phase 7 was merged and pushed to `main` at `c390459609d262b66023deeb7ec3e594fe1ca693`.
 The hosted GitHub Actions CI run [45035585620](https://github.com/fjmedina21/ai-harness/actions/runs/45035585620)

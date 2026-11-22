@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../contracts" },
+    { "path": "../config" },
+    { "path": "../core" },
+    { "path": "../providers" },
+    { "path": "../agents" },
+    { "path": "../orchestrator" },
+    { "path": "../tools" },
+    { "path": "../checkpointing" },
+    { "path": "../observability" }
+  ]
+}

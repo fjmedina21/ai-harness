@@ -7,6 +7,7 @@ import type {
   AgentExecutionResult,
   AgentRole,
   ExecutionEvent,
+  ExecutionProgressEvent,
   ExecutionResult,
   ExecutionState,
   ModelProviderAdapter,
@@ -22,6 +23,8 @@ import type {
 import { beginTelemetry, endTelemetry, emitTelemetry, traceTelemetry } from "@ai-harness/contracts";
 
 export interface OrchestratorInput {
+  executionId?: string;
+  onProgress?: (event: Readonly<ExecutionProgressEvent>) => void;
   telemetry?: TelemetryObserver;
   signal?: AbortSignal;
   durableOperations?: DurableDispatchBinding;
@@ -51,6 +54,9 @@ export class Orchestrator {
 
   async run(input: OrchestratorInput): Promise<OrchestratorOutput> {
     this.validateTasks(input.tasks);
+    if (input.executionId !== undefined && !/^[A-Za-z0-9_-]{1,128}$/.test(input.executionId)) {
+      throw new Error("Invalid execution ID");
+    }
 
     for (const task of input.tasks) {
       if (!this.agents.has(task.assignedRole)) {
@@ -61,7 +67,7 @@ export class Orchestrator {
     const now = new Date().toISOString();
 
     const execution: RuntimeExecution = {
-      id: randomUUID(),
+      id: input.executionId ?? randomUUID(),
       request: input.request,
       projectRoot: input.projectRoot,
       state: "pending",
@@ -85,6 +91,7 @@ export class Orchestrator {
       const completedOutputs = new Map<string, string>();
 
       this.transition(execution, "running", "execution.started");
+      this.progress(input.onProgress, execution, "execution.started");
       await input.checkpointStore?.save(structuredClone(execution));
 
       const context: AgentExecutionContext = {
@@ -140,6 +147,7 @@ export class Orchestrator {
           `Started: ${task.definition.title}`,
           task.definition.id,
         );
+        this.progress(input.onProgress, execution, "task.started", task);
 
         let outcome: AgentExecutionResult;
 
@@ -212,6 +220,7 @@ export class Orchestrator {
           }
 
           this.addEvent(execution, input.signal?.aborted ? "task.cancelled" : "task.failed", task.error, task.definition.id);
+          this.progress(input.onProgress, execution, input.signal?.aborted ? "task.cancelled" : "task.failed", task);
 
           this.transition(
             execution,
@@ -219,6 +228,7 @@ export class Orchestrator {
             input.signal?.aborted ? "execution.cancelled" : "execution.failed",
             `Task failed: ${task.definition.id}`,
           );
+          this.progress(input.onProgress, execution, input.signal?.aborted ? "execution.cancelled" : "execution.failed");
 
           await input.checkpointStore?.save(structuredClone(execution));
 
@@ -236,6 +246,7 @@ export class Orchestrator {
           outcome.summary,
           task.definition.id,
         );
+        this.progress(input.onProgress, execution, "task.completed", task);
 
         await input.checkpointStore?.save(structuredClone(execution));
       }
@@ -245,6 +256,7 @@ export class Orchestrator {
         execution.tasks.every((task) => task.state === "completed")
       ) {
         this.transition(execution, "completed", "execution.completed");
+        this.progress(input.onProgress, execution, "execution.completed");
       }
 
       await input.checkpointStore?.save(structuredClone(execution));
@@ -319,6 +331,30 @@ export class Orchestrator {
 
     for (const task of tasks) {
       visit(task.id);
+    }
+  }
+
+  private progress(
+    callback: OrchestratorInput["onProgress"],
+    execution: RuntimeExecution,
+    type: ExecutionProgressEvent["type"],
+    task?: RuntimeTask,
+  ): void {
+    if (!callback) return;
+    try {
+      callback(Object.freeze({
+        executionId: execution.id,
+        type,
+        timestamp: new Date().toISOString(),
+        executionState: execution.state,
+        ...(task ? {
+          taskId: task.definition.id,
+          agentRole: task.definition.assignedRole,
+          taskState: task.state,
+        } : {}),
+      }));
+    } catch {
+      // Progress observers are diagnostic only and cannot alter execution.
     }
   }
 
