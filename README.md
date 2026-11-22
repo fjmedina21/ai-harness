@@ -1,9 +1,9 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Version 0.8.0 integrates a bounded read-only engineering review workflow into
-the CLI. The project remains experimental and is **not a production-ready
-autonomous agent**.
+The Phase 8 candidate targets version 0.8.0 and integrates a bounded read-only
+engineering review workflow into the CLI. The published baseline remains 0.7.0.
+The project is experimental and is **not a production-ready autonomous agent**.
 
 ## Quick start
 
