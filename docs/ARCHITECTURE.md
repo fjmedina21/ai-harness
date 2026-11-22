@@ -1,5 +1,13 @@
 # AI Harness — Especificación maestra de arquitectura
 
+> **Alcance:** este documento conserva decisiones y objetivos de arquitectura
+> de largo plazo; no todas las capacidades enumeradas están implementadas.
+> Para el estado vigente, use [roadmap](ROADMAP.md), [verificación](VERIFICATION.md)
+> y [mapa del repositorio](REPOSITORY.md). La implementación actual es el
+> monorepo TypeScript con CLI, proveedores, agentes, dispatcher, SQLite opt-in,
+> Podman Machine y observabilidad opt-in. Dashboard, PostgreSQL/Redis y ejecución
+> distribuida siguen siendo propuestas, no servicios disponibles.
+
 - Estado: **Diseño aprobado / no implementado**
 - Versión documental: **1.0.0**
 - Fecha: **2026-11-21**

@@ -11,8 +11,10 @@ deterministic evaluation passed: 19/19 scenarios, 42/42 assertions.
 `git diff --check` passed. Logs are under excluded
 `harness-development/phase7/`.
 
-No hosted CI, live provider calls or live tariff checks are claimed. Podman
-controls were unchanged and not retested. The local microbenchmark measured
+No live provider calls or live tariff checks were part of validation. Podman
+controls were unchanged and not retested. The standard hosted CI above passed;
+the separate dedicated remote Podman isolation workflow has no passing run
+recorded in this report. The local microbenchmark measured
 memory sink 3.47 μs median, JSONL sink 141.31 μs, SQLite list-100 787.77 μs
 and unique registration 31.29 μs (9×2,500, Node 24.18.0/macOS arm64).
 These environment-specific figures did not justify optimization. Evaluations cover
@@ -24,9 +26,14 @@ phase7-evaluations.md and phase7-security.md.
 
 # Historical local verification — Podman-only runtime
 
+The following sections are preserved snapshots from their named phase/candidate.
+Statements about publication or CI below describe only that snapshot and do not
+override the current Phase 7 status above.
+
 Owner-directed local change on feat/phase6-durable-execution-recovery.
 Docker daemon/context execution and implicit backend selection have been removed.
-This candidate is not published; remote CI has not been run for this change.
+At that snapshot, this candidate had not been published and remote CI had not
+been run for the change.
 Older sections below preserve historical evidence from earlier implementations.
 
 ## Local checks after Docker removal
@@ -140,10 +147,11 @@ to explicit orchestrator durable opt-in. Final baseline regressions pass.
 
 ## Publication, user changes and limits
 
-This candidate has not been pushed, merged, released or remotely validated.
-No GitHub Actions result for Phase 6 exists as part of this work. Standard CI
-must pass after authorized publication. Version remains 0.5.0 pending release
-review/alignment; do not treat this as published version 0.6.0.
+At the Phase 6 candidate snapshot, it had not yet been pushed or merged; the
+workspace was then 0.5.0 pending release alignment. Phase 6 was subsequently
+integrated as part of 0.6.0. The Phase 7 standard CI run validates the final
+combined `main` tree; it is not retroactive CI evidence for the earlier Phase 6
+candidate commit.
 
 The owner concurrently edited CLI help formatting, the Podman fixture machine
 name/formatting and the historical Podman machine name below. Those changes are

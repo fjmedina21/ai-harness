@@ -1,83 +1,26 @@
-# Estructura inicial del monorepo
+# Repository map — version 0.7.0
 
-```text
-ai-harness/
-├── README.md
-├── ARCHITECTURE.md
-├── ROADMAP.md
-├── REPOSITORY.md
-├── pnpm-workspace.yaml
-├── package.json
-├── .gitignore
-├── .github/workflows/            # Pipeline al implementar
-├── apps/
-│   ├── cli/                       # harness init/plan/run/approve/resume
-│   ├── api/                       # API administrativa; fase 3
-│   └── dashboard/                 # Next.js o React; fase 3
-├── packages/
-│   ├── contracts/                 # Tipos, schemas, eventos y puertos
-│   ├── core/                      # Casos de uso / dominio
-│   ├── orchestrator/              # DAG, scheduler, transiciones
-│   ├── sdd/                       # Specs, criterios, traceabilidad
-│   ├── agent-runtime/             # Roles y ejecución de agentes
-│   ├── provider-sdk/              # Interfaz común y capacidades
-│   ├── tool-runtime/              # Herramientas con enforcement
-│   ├── policy-engine/             # Autorización / aprobación
-│   ├── checkpointing/             # Recovery / idempotencia
-│   ├── storage-sqlite/            # Estado local
-│   ├── storage-postgres/          # Estado compartido, fase 4
-│   ├── telemetry/                 # OTel + evidencia
-│   ├── finops/                    # Presupuestos, fase 3
-│   └── plugin-sdk/                # Extensiones, fase 2
-├── adapters/
-│   ├── providers/                 # Proveedores concretos a elegir
-│   ├── tools/                     # fs, shell, git, Podman, browser, MCP
-│   └── infrastructure/            # Workers, cloud y storage
-├── agents/                        # 15 manifiestos de roles
-├── skills/                        # Capacidades compartidas por dominio
-├── standards/                     # Globales / perfiles tecnológicos
-├── workflows/                     # SDD, feature, bugfix, review
-├── templates/
-│   └── project-ai/                # Template de carpeta .ai/
-├── examples/
-│   └── demo-project/              # Fixture e2e
-├── tests/
-│   ├── contracts/
-│   ├── integration/
-│   ├── e2e/
-│   ├── security/
-│   └── resilience/
-├── docs/
-│   ├── adr/
-│   ├── architecture/
-│   └── operations/
-└── infra/
-    ├── containers/
-    └── kubernetes/
-```
+This map describes packages present in the current TypeScript workspace.
+Architecture proposals are maintained separately and do not imply that an
+unlisted service exists.
 
-## Convenciones
+| Path | Current responsibility |
+|---|---|
+| `apps/cli` | `harness` project commands and explicit diagnostics/evaluation commands |
+| `packages/contracts` | Shared runtime, provider, tools, durable operation and telemetry contracts |
+| `packages/config` | Project configuration validation and defaults |
+| `packages/core` | Project initialization and inspection |
+| `packages/orchestrator` | Sequential dependency-aware task coordination and checkpoints |
+| `packages/providers` | Fixture, OpenAI Responses and Anthropic Messages adapters |
+| `packages/agents` | Prompt, tool-augmented and tool-calling agents |
+| `packages/sdd` | Requirements/specification/planning/implementation/validation proposal workflow |
+| `packages/security` | Default Deny policy and trusted-host approval identity helpers |
+| `packages/checkpointing` | File checkpoints, SQLite durable operation journal and recovery inspection |
+| `packages/tools` | Registry, dispatcher, approval handling, controlled tools and Podman runtime |
+| `packages/observability` | Bounded telemetry sessions, sinks, traces and aggregate metrics |
+| `packages/evaluations` | Deterministic host-authored evaluation scenarios and reports |
 
-- `apps` son entry points; `packages` contienen dominio/servicios reutilizables; `adapters` implementan puertos; `agents` y `workflows` son definiciones versionables.
-- `.ai/` vive dentro de cada proyecto administrado y jamás contiene credenciales.
-- Archivos fuente de verdad en Git; estados operativos e historiales extensos fuera del repositorio.
-- Separar APIs públicas y contratos de implementación; contratos semánticamente versionados.
-- El scaffold adjunto es **estructura documental**, no CLI o motor operativo. Los directorios vacíos son placeholders.
-
-## Plantilla `.ai/` por proyecto
-
-```text
-.ai/
-├── config.yaml
-├── agents/
-├── specs/
-├── tasks/
-├── workflows/
-├── standards/
-├── knowledge/
-│   └── adr/
-└── memory/
-    └── README.md
-```
-
-Los checkpoints locales reales deberían ubicarse en almacenamiento privado (`.ai-runtime/` ignorado por Git o almacén adaptador), manteniendo solo referencias y metadatos no sensibles en documentación versionada.
+The root `tsconfig.json` references these workspace projects. All packages use
+TypeScript, NodeNext ESM and Node's built-in test runner. See [architecture](ARCHITECTURE.md)
+for the long-term design (some of which remains aspirational), [roadmap](ROADMAP.md)
+for phase status and [verification](VERIFICATION.md) for test evidence.

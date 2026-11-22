@@ -1,5 +1,10 @@
 # Phase 0 — Implementation and acceptance evidence
 
+> Historical implementation snapshot. Its statements about absent providers,
+> orchestration and execution describe Phase 0 only; later phases superseded
+> those gaps. See [roadmap](ROADMAP.md) and [verification](VERIFICATION.md)
+> for the current state.
+
 ## Scope
 
 The operational core is deliberately limited to project initialization and validation. No LLM/provider calls or code execution exist yet. The 10 chosen MVP acceptance criteria are **Phase 1 goals**, not Phase 0 completion claims.
@@ -25,6 +30,8 @@ The operational core is deliberately limited to project initialization and valid
 - Phase 0 security config is descriptive only; enforcement comes with the execution runtime.
 - No source maps, build artifacts or dependencies are distributed in the source ZIP.
 
-## Next increment
+## Subsequent phases
 
-Phase 1 should add a dry-run orchestrator with deterministic mock provider, real provider adapter(s) behind safe permission checks, task state transitions, persisted checkpoints and end-to-end acceptance tests.
+The planned orchestration, provider, task-state and checkpoint capabilities were
+implemented incrementally in later phases. This section preserves the original
+Phase 0 plan; it is not a current roadmap.

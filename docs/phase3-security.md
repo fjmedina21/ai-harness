@@ -3,10 +3,12 @@
 
 ## Current runtime migration
 
-This file preserves the historical Phase 3 review. The current owner-directed
-candidate removes Docker execution entirely and uses Podman Machine only.
-Historical Docker verification work items below are superseded by
-[the current runtime/security profile](phase5-security.md).
+This file preserves the Phase 3 review snapshot. Later phases replaced the
+container backend with explicit Podman Machine profiles, added provider
+tool-calling adapters, durable operation approvals and observability. The
+historical Docker verification work items below are superseded by
+[the current runtime/security profile](phase5-security.md) and later phase
+documents. Read this review as evidence of the earlier implementation only.
 
 ## Status
 

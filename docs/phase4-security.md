@@ -1,5 +1,11 @@
 # Phase 4 — tool calling, continuation and security
 
+> Historical Phase 4 review. Phase 6 later added the opt-in SQLite operation
+> journal and transactional approvals; Phase 7 added opt-in telemetry and
+> deterministic evaluations. Statements below about missing capabilities and
+> remote CI describe the Phase 4 snapshot. Current evidence is in
+> [verification](VERIFICATION.md).
+
 ## Scope and evidence
 
 Experimental implementation of OpenAI Responses and Anthropic Messages client
@@ -161,10 +167,11 @@ already started. It does not forcibly stop an existing file/Git handler; no new
 operation starts after cancellation is observed. Approval-required execution
 stops as a failed agent result; no approval resumption is implemented.
 
-No durable native sessions, automatic recovery, operation journal, transactional
-audit, exactly-once semantics or authenticated result provenance. The Phase 2/3
-filesystem TOCTOU, identity and legacy in-memory approval limitations still
-apply. Live API tests require a separate explicit credential/cost decision;
-remote CI can only be verified after authorized publication.
+No durable native provider sessions, automatic task recovery, exactly-once
+semantics or authenticated result provenance. The Phase 2/3 filesystem TOCTOU,
+identity and legacy in-memory approval limitations still apply to those paths.
+Live API tests require a separate explicit credential/cost decision. At this
+Phase 4 candidate snapshot, remote CI was pending authorized publication; the
+later Phase 7 standard CI result does not establish live-provider compatibility.
 
 Current container execution is Podman-only; see [runtime migration](phase5-security.md).

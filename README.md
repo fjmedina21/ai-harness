@@ -1,89 +1,78 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Phases 1–7 are **experimental foundations**, not production-ready autonomous execution.
+Version 0.7.0 contains experimental foundations through Phase 7; it is **not a
+production-ready autonomous agent**.
 
-## Requirements and verification
+## Quick start
 
-- Node.js >= 22 (development and CI: Node 24); durable opt-in needs Node 22.13+.
-- pnpm **12.21.0**, pinned in `package.json`.
+Requirements: Node.js >=22 (CI uses Node 24), pnpm 12.21.0. Durable SQLite mode
+requires Node 22.13+ or Node 24.
 
-```bash
+```sh
 pnpm install
 pnpm build
-pnpm test
 pnpm harness --help
+pnpm harness init --path ./my-project
+pnpm harness run --path ./my-project --request "Review the project"
+pnpm test
 ```
 
-## Implemented
+The default CLI uses the fixture provider. It does not call paid model APIs or
+automatically dispatch model-requested tools.
 
-- Versioned project configuration, safe initialization, 15 agent roles.
-- Sequential dependency-aware orchestration, five-stage SDD proposals, JSON checkpoints.
-- Default Deny tool dispatch, argument validation and scoped in-memory approvals.
-- Bounded tool-calling agent, conservative recovery inspection and restricted handlers.
-- OpenAI Responses and Anthropic Messages tool-calling adapters with isolated,
-  explicitly closed sessions, native ID correlation and bounded HTTP transport.
-- Explicit host API `createReadOnlyToolCallingAgent()` exposing `file.read` and,
-  only with a host-selected executable, `git.status`.
+## What is implemented
 
-The default CLI `run` continues to use the fixture provider and text-only SDD;
-it does not automatically execute model tools. Real-provider tool calling is
-programmatic and opt-in. See [Phase 4 usage and security](docs/phase4-security.md).
-No privileged handlers are registered by the read-only factory.
+| Area | Current behavior |
+|---|---|
+| Workflow | Sequential dependency-aware orchestration, five-stage SDD proposals and JSON checkpoints |
+| Providers | Fixture by default; opt-in OpenAI Responses and Anthropic Messages adapters |
+| Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
+| Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
+| Isolation | Explicit rootless Podman Machine profile; Docker runtime execution was removed in 0.6.0 |
+| Observability | Opt-in bounded telemetry, in-memory/private rotating JSONL sinks, traces and metrics |
+| Evaluations | 19 deterministic host-fixture scenarios and 42 assertions; known scenarios only |
 
-## Package layout
+Real provider calls and tool calling are programmatic and opt-in through host
+APIs. Mandatory tests use fixtures or mocked HTTP and no live credentials.
+`createReadOnlyToolCallingAgent()` exposes `file.read` and, with a host-selected
+executable, `git.status`; it registers no privileged handlers.
 
-`packages/contracts`, `config`, `core`, `orchestrator`, `providers`, `agents`,
-`sdd`, `security`, `checkpointing`, `tools`; executable commands in `apps/cli`.
-TypeScript strict / NodeNext ESM, project references and `node:test`.
+Durable approvals and telemetry are not enabled by the default CLI. Cancellation
+does not roll back external effects. Uncertain operations require host inspection
+and reconciliation; provider sessions are not durably resumed, and no external
+exactly-once guarantee exists. Evaluation results characterize only the listed
+fixtures. Cost estimates use host-supplied rates and are not invoices.
 
-## Phase 5 — execution isolation
+## Isolation and verification
 
-Phase 5 was merged and pushed to `main` as `fdd5c3b`. It adds host cancellation,
-runtime preflight, owned-resource cleanup and incremental file reads. The real
-isolation suite **passed on a dedicated rootless Podman Machine**, including
-effective limits, running cancellation, timeout and confirmed cleanup. The
-default CLI/SDD stays unchanged. `pnpm test:isolation` fails closed without an
-explicit private host profile. No runtime installation is automatic. Former Docker callers must migrate to
-an explicitly approved Podman profile; the host Docker installation is unaffected.
+The supported container backend is explicit Podman Machine with a private host
+profile. `pnpm test:isolation` fails closed without an approved profile. Local
+real Podman evidence and the state of the separate dedicated remote isolation
+workflow are recorded in [verification](docs/VERIFICATION.md). Docker Hub image
+references identify OCI image provenance; they do not indicate Docker runtime
+support. See [Phase 5 security and migration](docs/phase5-security.md).
 
-The regular GitHub Actions workflow runs build and deterministic tests. A
-separate manual workflow targets a dedicated isolation runner; it is not evidence
-until that runner and its approved profile are configured and the job passes.
-The current runtime supports only explicit Podman Machine profiles; Docker
-execution and implicit backend selection are rejected. See [verification](docs/VERIFICATION.md)
-and [Phase 5 security](docs/phase5-security.md).
+## Diagnostics and evaluations
 
-## Phase 6 — durable execution (0.6.0, experimental)
+```sh
+pnpm harness trace --input ./private-telemetry.jsonl --id EXECUTION_ID
+pnpm harness metrics --input ./private-telemetry.jsonl --id EXECUTION_ID
+pnpm harness eval run --suite deterministic
+pnpm harness eval report --input ./private-report.json
+```
 
-Optional SQLite journal with stable operation/request/call identities, validated
-state transitions, transactional single-use approvals and versioned host
-reconciliation. Approval consumption and Prepared commit together; Running is
-durable before a handler begins. Reopening never reuses a previous store-session
-grant or preparation. No automatic replay/resume is introduced.
+These commands are explicit and local. Telemetry is best-effort diagnostics and
+cannot grant authority or modify journal state.
 
-The host opts in through ToolDispatcher, the read-only factory or Orchestrator.
-The default CLI/SDD remain unchanged; no privileged tools are enabled.
-Actual SQLite tests cover interprocess races, abrupt SIGKILL/reopen, rollback,
-corruption, lock failures and SQLITE_FULL. Local verification is distinct from
-hosted CI, whose per-commit result is available in the
-[standard workflow](https://github.com/fjmedina21/ai-harness/actions/workflows/ci.yml).
-See [architecture, schema and recovery runbook](docs/phase6-durable-execution.md),
-[security](docs/phase6-security.md) and [verification](docs/VERIFICATION.md).
+## Documentation
 
-## Current limits
-
-No automatic resume, durable exactly-once execution, arbitrary shell, Git-writing
-or deployment integration. Filesystem guards have TOCTOU limitations; approvals
-remain in-memory on the legacy path; durable mode needs a trusted private local
-SQLite store and host identity verifier. Tool outputs
-and model content remain untrusted. Unit tests do not establish production safety.
-
-[Roadmap](docs/ROADMAP.md) · [Verification](docs/VERIFICATION.md) ·
-[Phase 2 security](docs/phase2-security.md) · [Phase 3 security](docs/phase3-security.md) ·
-[Continuation contract](docs/phase4-security.md#continuation-contract) ·
-[Versioning policy](docs/VERSIONING.md)
-
-## Phase 7 — observability and evaluations (0.7.0, experimental)
-
-Host-opt-in telemetry correlates execution, task, agent, provider and tool spans. Bounded memory and private rotating JSONL sinks support traces, aggregated metrics and host-supplied token cost estimates. Offline diagnostics include trace, metrics and eval commands. The deterministic suite has 19 scenarios and 42 assertions. Telemetry is best effort and cannot authorize or recover operations. See docs/phase7-observability.md, docs/phase7-evaluations.md, docs/phase7-security.md and docs/VERIFICATION.md.
+- [Architecture](docs/ARCHITECTURE.md) — long-term design; proposals are labeled
+- [Repository map](docs/REPOSITORY.md) — implemented workspace packages
+- [Roadmap](docs/ROADMAP.md) — status through Phase 7; Phase 8 pending
+- [Verification](docs/VERIFICATION.md) — local evidence, hosted CI and isolation status
+- [Versioning](docs/VERSIONING.md) — pre-1.0 policy
+- [Phase 4 providers](docs/phase4-security.md) · [Phase 5 Podman](docs/phase5-security.md)
+- [Phase 6 durable operations](docs/phase6-durable-execution.md) · [Phase 6 security](docs/phase6-security.md)
+- [Phase 7 observability](docs/phase7-observability.md) · [evaluations](docs/phase7-evaluations.md) · [security](docs/phase7-security.md)
+- [Phase 2 security history](docs/phase2-security.md) · [Phase 3 security history](docs/phase3-security.md)

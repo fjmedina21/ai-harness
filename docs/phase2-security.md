@@ -1,6 +1,13 @@
 
 # Phase 2 — Tool Execution Security
 
+> Historical phase review. It records the controls and gaps at the Phase 2
+> snapshot, not the complete current system. Later additions include tool
+> calling (Phase 3/4), Podman-only isolation (Phase 5), durable transactional
+> operations (Phase 6), and opt-in telemetry/evaluations (Phase 7). Current
+> guarantees and limits are summarized in [Phase 7 security](phase7-security.md)
+> and [verification](VERIFICATION.md).
+
 ## Status
 
 Experimental implementation. Not a production security boundary.

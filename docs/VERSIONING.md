@@ -22,3 +22,9 @@ The workspace follows a pre-1.0 SemVer policy:
 The current workspace version is `0.7.0`, the pre-1.0 milestone containing
 Phase 7 observability and evaluations. The package manifests are private; this
 number identifies the source tree and CLI build, not an npm publication.
+
+The current code requires Node.js `>=22.0.0`; the local durable SQLite path
+requires Node.js 22.13 or newer (or Node 24). CI uses Node 24. The repository
+pins pnpm 12.21.0. The root scripts are `build`, `clean`, `check`, `test`,
+`test:isolation`, `harness` and `dev`; the default test script builds before
+running Node's test runner.
