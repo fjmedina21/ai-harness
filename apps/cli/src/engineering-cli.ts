@@ -36,7 +36,7 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
     const request = options.get("--request"), files = options.get("--files")?.split(",");
     if (!request?.trim() || Buffer.byteLength(request) > 8192 || !files?.length || files.length > 16) fail("invalid_scope", "A bounded request and explicit file allowlist (at most 16 files) are required");
     const level = autonomy === "propose" ? 1 : 2;
-    const timeoutMs = integer(options.get("--timeout-ms"), 60_000, 120_000);
+    const timeoutMs = integer(options.get("--timeout-ms"), 60_000, 160_000);
     const iterations = integer(options.get("--max-iterations"), 3, 8);
     let policy: EngineeringPolicy, budget: EngineeringBudget;
     if (provider === "fixture") {

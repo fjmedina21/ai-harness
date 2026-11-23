@@ -106,6 +106,16 @@ test("timeout bounds a provider port that ignores cancellation", async t => {
   const f = await setup(t), result = await runEngineeringWorkflow({ ...f.options, level: 1, budget: { ...f.options.budget, timeoutMs: 30 }, agent: { ...f.options.agent, execute: () => new Promise(() => {}) } });
   assert.equal(result.termination, "timeout"); assert.equal(result.patches.length, 0);
 });
+test("engineering accepts the host-selected 160 second ceiling and rejects larger deadlines before agent calls", async t => {
+  const f = await setup(t); let calls = 0;
+  const agent: EngineeringAgentPort = { ...f.options.agent, async execute(input) { calls++; return f.options.agent.execute(input); } };
+  const options = { ...f.options, level: 1 as const, agent };
+  await assert.rejects(runEngineeringWorkflow({ ...options, budget: { ...options.budget, timeoutMs: 160001 } }), /Invalid engineering limit/);
+  assert.equal(calls, 0); assert.deepEqual(await readdir(f.workspaces), []);
+  const result = await runEngineeringWorkflow({ ...options, budget: { ...options.budget, timeoutMs: 160000 } });
+  assert.equal(result.termination, "proposed"); assert.ok(calls > 0);
+  assert.equal(await readFile(path.join(f.source, "value.ts"), "utf8"), "export const value = 1;\n");
+});
 test("validation cancellation leaves uncertainty rather than replaying effects", async t => {
   const f = await setup(t), abort = new AbortController();
   const result = await runEngineeringWorkflow({ ...f.options, level: 3, signal: abort.signal, validation: { kind: "fixture", async validate() { abort.abort(); return new Promise(() => {}); } } });
