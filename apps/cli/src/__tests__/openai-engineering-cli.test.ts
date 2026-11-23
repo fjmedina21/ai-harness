@@ -55,7 +55,7 @@ for (const [flag, valued, code] of [["--model", true, "missing_model"], ["--conf
 test("CLI missing environment credential does not load the project's .env", async t => {
   const f = await fixture(t), p = await f.run({ credential: false }); assert.equal(p.code, 1); assert.equal(JSON.parse(p.stdout).error.code, "missing_credential"); assert.doesNotMatch(p.stdout + p.stderr, /PRIVATE_LOCAL_ENV/);
 });
-for (const [flag, value] of [["--max-provider-requests", "0"], ["--max-output-tokens", "Infinity"], ["--max-total-tokens", "0"], ["--max-context-tokens", "0"], ["--max-agent-turns", "33"], ["--timeout-ms", "120001"]]) test(`CLI rejects invalid ${flag} budget`, async t => {
+for (const [flag, value] of [["--max-provider-requests", "0"], ["--max-output-tokens", "Infinity"], ["--max-total-tokens", "0"], ["--max-context-tokens", "0"], ["--max-agent-turns", "33"], ["--timeout-ms", "900001"]]) test(`CLI rejects invalid ${flag} budget`, async t => {
   const f = await fixture(t), args = f.args.includes(flag!) ? replace(f.args, flag!, value!) : [...f.args, flag!, value!];
   const p = await f.run({ args: [...args, "--json"] }); assert.equal(p.code, 1); assert.equal(JSON.parse(p.stdout).error.code, "invalid_budget");
 });
@@ -81,15 +81,28 @@ test("new full-workflow live smoke is opt-in and tested offline as an actual pro
   const run = (scenario: string, confirmed = true, timeoutMs = "5000") => new Promise<{ code: number | null; text: string }>((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", preload, smoke], { cwd: f.source, env: { PATH: process.env.PATH, OPENAI_API_KEY: "fixture-not-real", HARNESS_TEST_OPENAI_SCENARIO: scenario,
       ...(confirmed ? { HARNESS_ENGINEERING_REAL_CONFIRM: "YES", HARNESS_ENGINEERING_ALLOW_UNCERTAIN_COST: "YES" } : {}),
-      HARNESS_ENGINEERING_REAL_MODEL: "fixture-model", HARNESS_ENGINEERING_REAL_REQUEST_BUDGET: "6", HARNESS_ENGINEERING_REAL_OUTPUT_TOKEN_BUDGET: "512", HARNESS_ENGINEERING_REAL_TIMEOUT_MS: timeoutMs }, stdio: ["ignore", "pipe", "pipe"] });
+      HARNESS_ENGINEERING_REAL_MODEL: "fixture-model", HARNESS_ENGINEERING_REAL_REQUEST_BUDGET: "6", HARNESS_ENGINEERING_REAL_OUTPUT_TOKEN_BUDGET: "512", HARNESS_ENGINEERING_REAL_REQUEST_TIMEOUT_MS: "5000", HARNESS_ENGINEERING_REAL_ROLE_TIMEOUT_MS: "5000", HARNESS_ENGINEERING_REAL_TIMEOUT_MS: timeoutMs }, stdio: ["ignore", "pipe", "pipe"] });
     let text = ""; const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("Smoke fixture deadline")); }, 10000);
     child.stdout.on("data", chunk => { text += String(chunk); }); child.on("error", error => { clearTimeout(timer); reject(error); }); child.on("close", code => { clearTimeout(timer); resolve({ code, text }); });
   });
   const skipped = await run("valid", false); assert.equal(skipped.code, 2); assert.match(skipped.text, /Skipped/);
   const success = await run("valid", true, "120000"); assert.equal(success.code, 0, success.text); const r = JSON.parse(success.text);
   assert.equal(r.smokePassed, true); assert.equal(r.sourceUnchanged, true); assert.equal(r.cleanup, "confirmed"); assert.equal(r.requests, 4); assert.equal(r.patchApplied, false);
+  assert.equal(r.expectedChangeValid, true); assert.equal(r.reviewerCompleted, true); assert.equal(r.httpRequests.length, 4); assert.equal(r.providerRequests.length, 4);
+  assert.ok(r.httpRequests.every((entry: { httpStatus: number }) => entry.httpStatus === 200));
   assert.doesNotMatch(success.text, /export const|fixture-not-real|PRIVATE_LOCAL_ENV/);
-  const invalidTimeout = await run("valid", true, "120001");
+  const invalidTimeout = await run("valid", true, "900001");
   assert.equal(invalidTimeout.code, 1); assert.equal(JSON.parse(invalidTimeout.text).requests, 0);
   const wrong = await run("wrong_semantics"); assert.equal(wrong.code, 1); assert.equal(JSON.parse(wrong.text).smokePassed, false);
+});
+
+for (const [flag, max] of [["--timeout-ms", 900000], ["--request-timeout-ms", 300000], ["--role-timeout-ms", 300000], ["--finalization-timeout-ms", 5000]] as const) test(`CLI independently enforces ${flag} bounds`, async t => {
+  const f = await fixture(t);
+  for (const value of ["1", String(max)]) {
+    const p = await f.run({ args: [...f.args, flag, value, "--json"] });
+    assert.notEqual(JSON.parse(p.stdout).error?.code, "invalid_budget");
+  }
+  for (const value of ["0", String(max + 1)]) {
+    const p = await f.run({ args: [...f.args, flag, value, "--json"] }); assert.equal(p.code, 1); assert.equal(JSON.parse(p.stdout).error.code, "invalid_budget");
+  }
 });

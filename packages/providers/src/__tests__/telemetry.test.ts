@@ -55,16 +55,21 @@ test("OpenAI request and HTTP spans nest and record input/cache/reasoning withou
   });
   const result = await provider.complete({ ...request, telemetry: binding });
   assert.equal(result.text, "PRIVATE RESPONSE");
-  assert.deepEqual(events.map((event) => [event.type, event.name]), [
+  const core = events.filter(event => event.name !== "engineering.phase");
+  assert.deepEqual(core.map((event) => [event.type, event.name]), [
     ["start", "provider.request"], ["start", "provider.http"],
     ["end", "provider.http"], ["end", "provider.request"],
   ]);
-  assert.equal(events[1]!.context.parentSpanId, events[0]!.context.spanId);
+  assert.equal(core[1]!.context.parentSpanId, core[0]!.context.spanId);
+  const serialization = events.find(e => e.type === "start" && e.attributes?.phase === "request.serialize")!;
+  const parsing = events.find(e => e.type === "start" && e.attributes?.phase === "transport.parse")!;
+  assert.equal(serialization.context.parentSpanId, core[0]!.context.spanId);
+  assert.equal(parsing.context.parentSpanId, core[1]!.context.spanId);
   assert.deepEqual(requestEnd(events)[0]!.outcome?.usage, {
     availability: "reported", inputTokens: 100, outputTokens: 20,
     cacheReadTokens: 30, cacheWriteTokens: 10, reasoningTokens: 5,
   });
-  assert.equal(events[2]!.outcome?.usage, undefined);
+  assert.equal(core[2]!.outcome?.usage, undefined);
   assert.doesNotMatch(JSON.stringify(events), /PRIVATE|authorization|correlationId|prompt|output_text/);
 });
 

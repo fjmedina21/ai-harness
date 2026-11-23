@@ -3,7 +3,7 @@ export type TelemetryStatus = "ok" | "error" | "cancelled" | "timeout" | "denied
 export type TelemetryErrorClass = "cancelled" | "timeout" | "invalid_response" | "limit" | "policy" | "approval" | "storage" | "tool" | "dependency" | "runtime" | "http" | "invalid_input";
 /** Fixed, low-cardinality classification. Never contains upstream error text. */
 export type ProviderHttpErrorCategory = "rate_limit" | "quota_or_billing" | "authentication" | "permission" | "model_access" | "invalid_request" | "unknown";
-export type TelemetrySpanName = "execution" | "task" | "agent" | "model.turn" | "provider.request" | "provider.http" | "tool.dispatch" | "tool.handler";
+export type TelemetrySpanName = "engineering.phase" | "execution" | "task" | "agent" | "model.turn" | "provider.request" | "provider.http" | "tool.dispatch" | "tool.handler";
 export type TelemetryEventName = "engineering.context" | "engineering.budget" | "engineering.proposal_validation" | "engineering.state" | "engineering.workspace" | "engineering.patch" | "engineering.approval" | "engineering.validation" | "engineering.repair" | "engineering.review" | "engineering.completion" | "task.blocked" | "agent.tools_requested" | "agent.tools_rejected" | "agent.limit" | "tool.validation" | "tool.policy" | "tool.authorization";
 export interface TraceContext {
   traceId: string;
@@ -24,6 +24,12 @@ export interface TokenUsage {
   reasoningTokens?: number;
 }
 export interface TelemetryAttributes {
+  phase?: import("./engineering.js").EngineeringPhase;
+  requestIndex?: number;
+  remainingMs?: number;
+  contextBytes?: number;
+  termination?: "proposed" | "approval_required" | "review_pending" | "completed" | "budget" | "no_progress" | "regression" | "failed" | "cancelled" | "timeout" | "uncertain" | "sandbox_blocked";
+  timeoutScope?: import("./engineering.js").EngineeringTimeoutScope;
   patchDigest?: string;
   engineeringState?: import("./engineering.js").EngineeringState;
   iteration?: number;

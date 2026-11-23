@@ -1,3 +1,4 @@
+import { measureEngineeringPhase } from "./engineering-timing.js";
 import { beginTelemetry, emitTelemetry, endTelemetry, EngineeringProviderError,
   type CostEstimate, type CostRate, type ModelProviderAdapter, type TokenUsage } from "@ai-harness/contracts";
 import { OpenAIProvider, ProviderTransportError, type ProviderOptions } from "@ai-harness/providers";
@@ -48,12 +49,12 @@ export class ModelEngineeringAgent implements EngineeringAgentPort {
     this.executionId = identity.executionId;
     if (this.requests >= this.options.maxRequests) throw new EngineeringProviderError({ category: "limit" });
     input.signal.throwIfAborted();
-    const prompt = JSON.stringify({ identity, role: input.role, request: input.request, snapshot: input.snapshot,
+    const prompt = measureEngineeringPhase(input.telemetry, "context.serialize", () => JSON.stringify({ identity, role: input.role, request: input.request, snapshot: input.snapshot,
       untrustedFiles: input.files, hostPolicy: input.policy, advisoryRequirements: input.requirements ?? [], advisoryPlan: input.plan ?? [],
-      diffForReview: input.diff ?? "", hostValidationEvidence: input.validationEvidence ?? [], previousFailure: input.previousFailure ?? null });
+      diffForReview: input.diff ?? "", hostValidationEvidence: input.validationEvidence ?? [], previousFailure: input.previousFailure ?? null }));
     const contextBytes = Buffer.byteLength(SYSTEM) + Buffer.byteLength(prompt);
     if (contextBytes > this.options.maxContextBytes || contextBytes + 512 > this.options.maxContextTokens || input.files.length > 16) throw new EngineeringProviderError({ category: "limit" });
-    emitTelemetry(input.telemetry, "engineering.context", { accepted: true, agentRole: input.role });
+    emitTelemetry(input.telemetry, "engineering.context", { accepted: true, agentRole: input.role, requestIndex: identity.turn, contextBytes });
     this.running = true; this.requests++;
     const agentSpan = beginTelemetry(input.telemetry, "agent", { taskId: identity.taskId, agentRole: input.role, provider: this.id, model: this.model });
     const span = beginTelemetry(agentSpan?.binding ?? input.telemetry, "model.turn", { provider: this.id, model: this.model });
@@ -68,7 +69,7 @@ export class ModelEngineeringAgent implements EngineeringAgentPort {
       cost = estimateCost(usage, this.id, this.model, this.options.rates ?? []);
       if (usage.outputTokens! > this.options.maxOutputTokens || usage.inputTokens! + usage.outputTokens! > this.maxTokensPerRequest || (cost.status === "estimated" && cost.amount > this.maxEstimatedCostUsdPerRequest)) throw new EngineeringProviderError({ category: "limit" }, usage, cost);
       let parsed: ReturnType<typeof parseEngineeringModelOutput>;
-      try { parsed = parseEngineeringModelOutput(response.text, input.role === "backend-developer"); }
+      try { parsed = measureEngineeringPhase(input.telemetry, "response.parse", () => parseEngineeringModelOutput(response.text, input.role === "backend-developer")); }
       catch { throw new EngineeringProviderError({ category: "invalid_output" }, usage, cost); }
       endTelemetry(span, { status: "ok", usage }); endTelemetry(agentSpan, { status: "ok" });
       return { ...parsed, reportedUsage: usage, cost, usage: { tokens: usage.inputTokens! + usage.outputTokens!, estimatedCostUsd: cost.status === "estimated" ? cost.amount : null } };

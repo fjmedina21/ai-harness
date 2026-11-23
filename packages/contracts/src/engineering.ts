@@ -112,3 +112,24 @@ export class EngineeringProviderError extends Error {
     super("Engineering provider request rejected"); this.name = "EngineeringProviderError";
   }
 }
+
+/** Host-selected finite deadlines; never model inputs or authorization credentials. */
+export const ENGINEERING_TIME_LIMITS = Object.freeze({ workflowMaxMs: 900_000, roleDefaultMs: 120_000, roleMaxMs: 300_000,
+  requestDefaultMs: 30_000, requestMaxMs: 300_000, finalizationDefaultMs: 1000, finalizationMaxMs: 5000 });
+export interface EngineeringTimingPolicy {
+  roleTimeoutMs?: number;
+  roleTimeouts?: Partial<Record<import("./index.js").AgentRole, number>>;
+  /** Host epoch milliseconds. Can shorten, never extend, the global budget. */
+  deadlineAt?: number;
+  finalizationTimeoutMs?: number;
+}
+export type EngineeringTimeoutScope = "workflow" | "absolute" | "role" | "request" | "persistence";
+export type EngineeringPhase = "role" | "context.read" | "context.serialize" | "request.serialize" | "transport.parse" | "response.parse" | "patch.validate" | "checkpoint.persist" | "report.prepare";
+export interface EngineeringTimingReport {
+  startedAt: string;
+  deadlineAt: string;
+  elapsedMs: number;
+  remainingMs: number;
+  finalizationAllowanceMs: number;
+  timeoutScope?: EngineeringTimeoutScope;
+}

@@ -13,6 +13,7 @@
     "check": "tsc -b --pretty false",
     "test": "pnpm run build && node --test packages/*/dist/__tests__/*.test.js apps/*/dist/__tests__/*.test.js",
     "test:isolation": "pnpm run build && node packages/tools/dist/integration/isolation.js",
+    "bench:engineering": "pnpm run build && node packages/application/dist/engineering-benchmark.js",
     "smoke:engineering-openai": "pnpm run build && node apps/cli/dist/engineering-provider-smoke.js",
     "smoke:real-provider": "pnpm run build && node apps/cli/dist/real-provider-smoke.js",
     "harness": "node apps/cli/dist/index.js",

@@ -1,7 +1,8 @@
+import { EngineeringDeadline, measureEngineeringPhase, measureEngineeringPhaseAsync } from "./engineering-timing.js";
 import { randomUUID } from "node:crypto";
 import type { AgentRole, DurableOperation, DurableDispatchBinding, EngineeringBudget, EngineeringCheckpoint, EngineeringPolicy, EngineeringState, StructuredPatch, TelemetryBinding, ValidationEvidence, WorkspaceSnapshot } from "@ai-harness/contracts";
 import { createEngineeringTaskPlan } from "@ai-harness/orchestrator";
-import { EngineeringProviderError, assertEngineeringStateTransition, emitTelemetry, traceTelemetry } from "@ai-harness/contracts";
+import { ENGINEERING_TIME_LIMITS, beginTelemetry, endTelemetry, EngineeringProviderError, assertEngineeringStateTransition, emitTelemetry, traceTelemetry } from "@ai-harness/contracts";
 import { EngineeringPatchEngine, EngineeringWorkspace, EngineeringWorkspaceUncertain, createEngineeringTools, engineeringHash, engineeringLimit, openEngineeringSource, patchInvocation, type EngineeringView } from "@ai-harness/tools";
 
 export interface EngineeringAgentInput {
@@ -41,6 +42,7 @@ export interface EngineeringOptions {
   level: 1 | 2 | 3;
   policy: EngineeringPolicy;
   budget: EngineeringBudget;
+  timing?: import("@ai-harness/contracts").EngineeringTimingPolicy;
   agent: EngineeringAgentPort;
   /** Explicit host adapter authorization, never read from repository files. */
   modelAdapterAuthorized?: true;
@@ -58,6 +60,7 @@ export interface EngineeringOptions {
   sensitive?: boolean;
 }
 export interface EngineeringResult {
+  timing: import("@ai-harness/contracts").EngineeringTimingReport;
   executionId: string;
   request: string;
   state: EngineeringState;
@@ -102,7 +105,7 @@ const defaultRisks = ["Experimental private local filesystem boundary; same-UID 
 function validateOptions(o: EngineeringOptions): void {
   if (![1, 2, 3].includes(o.level) || !o.request.trim() || Buffer.byteLength(o.request) > 8192 || !o.files.length) throw new Error("Invalid engineering request");
   engineeringLimit(o.budget.maxIterations, 8); engineeringLimit(o.budget.maxRequests, 32); engineeringLimit(o.budget.maxTokens, 100_000);
-  engineeringLimit(o.budget.timeoutMs, 120_000); engineeringLimit(o.budget.maxFiles, 16); engineeringLimit(o.budget.maxBytes, 65536);
+  engineeringLimit(o.budget.timeoutMs, ENGINEERING_TIME_LIMITS.workflowMaxMs); engineeringLimit(o.budget.maxFiles, 16); engineeringLimit(o.budget.maxBytes, 65536);
   if (!Number.isFinite(o.budget.maxEstimatedCostUsd) || o.budget.maxEstimatedCostUsd < 0 || o.budget.maxEstimatedCostUsd > 10 ||
       !/^[a-zA-Z0-9._-]{1,64}$/.test(o.agent.id) || !["fixture", "host_model_adapter"].includes(o.agent.mode) ||
       (o.agent.mode === "host_model_adapter" && (o.modelAdapterAuthorized !== true || o.allowUncertainCost !== true || o.level === 3)) ||
@@ -114,45 +117,53 @@ function validateOptions(o: EngineeringOptions): void {
 class Stop extends Error { constructor(readonly reason: EngineeringResult["termination"]) { super(reason); } }
 export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<EngineeringResult> {
   // Freeze authority-bearing data before yielding to any untrusted adapter.
-  const o: EngineeringOptions = { ...raw, files: [...raw.files], policy: structuredClone(raw.policy), budget: { ...raw.budget },
+  const o: EngineeringOptions = { ...raw, files: [...raw.files], policy: structuredClone(raw.policy), budget: { ...raw.budget }, timing: raw.timing ? structuredClone(raw.timing) : undefined,
     agent: { id: raw.agent.id, model: raw.agent.model, close: raw.agent.close?.bind(raw.agent), mode: raw.agent.mode, maxTokensPerRequest: raw.agent.maxTokensPerRequest,
       maxEstimatedCostUsdPerRequest: raw.agent.maxEstimatedCostUsdPerRequest, execute: raw.agent.execute.bind(raw.agent) },
     ...(raw.workspace ? { workspace: { ...raw.workspace, binding: { ...raw.workspace.binding, requester: { ...raw.workspace.binding.requester } } } } : {}) };
   validateOptions(o);
-  const deadline = new AbortController();
-  const deadlineTimer = setTimeout(() => deadline.abort(), o.budget.timeoutMs);
-  const signal = AbortSignal.any([deadline.signal, ...(o.signal ? [o.signal] : [])]);
+  const deadline = new EngineeringDeadline(o.budget.timeoutMs, o.timing, o.signal);
+  const signal = deadline.signal;
   const executionId = randomUUID();
-  const executionTelemetry = traceTelemetry(o.telemetry?.observer, executionId);
+  const trace = traceTelemetry(o.telemetry?.observer, executionId);
+  const executionSpan = beginTelemetry(trace, "execution", { provider: o.agent.id, model: o.agent.model, remainingMs: deadline.remainingMs() });
+  const executionTelemetry = executionSpan?.binding ?? trace;
   let view: EngineeringView | undefined, engine: EngineeringPatchEngine | undefined;
-  const result: EngineeringResult = { executionId, request: o.request, state: "Proposed", levelRequested: o.level, levelAvailable: o.level === 1 ? 1 : 2,
+  const result: EngineeringResult = { timing: { startedAt: new Date(deadline.policy.startedAt).toISOString(), deadlineAt: new Date(deadline.policy.deadlineAt).toISOString(), elapsedMs: 0, remainingMs: deadline.remainingMs(), finalizationAllowanceMs: deadline.policy.finalizationTimeoutMs }, executionId, request: o.request, state: "Proposed", levelRequested: o.level, levelAvailable: o.level === 1 ? 1 : 2,
     provider: o.agent.id, model: o.agent.model, analyzedFiles: [], proposals: [], proposalValidation: "not_run", reviews: [], reportedUsage: { availability: "unavailable" }, cost: { status: "unknown", reason: "missing_usage" }, baseRevision: "", snapshotDigest: "", plan: [], requirements: [], participants: [], patches: [], filesCreated: [], filesModified: [], filesDeleted: [], diff: "", diffScope: "proposed", validations: [], repairAttempts: 0,
     usageComplete: true, usage: { requests: 0, tokens: 0, estimatedCostUsd: o.agent.mode === "host_model_adapter" ? null : 0 }, pendingApprovals: [], events: [], termination: "proposed", originalProject: "unchanged", integrated: false, reviewed: false,
     validationScope: o.validation ? "fixture" : "none", l3Gate: "blocked", risks: [...defaultRisks] };
   const deliver = () => {
-    clearTimeout(deadlineTimer);
+    deadline.close();
     try { o.agent.close?.(); } catch { /* Host lifecycle faults never authorize more calls. */ }
-    emitTelemetry(executionTelemetry, "engineering.completion", { engineeringState: result.state, accepted: result.state === "Completed" });
-    return result;
+    result.timing.elapsedMs = deadline.elapsedMs(); result.timing.remainingMs = deadline.remainingMs();
+    emitTelemetry(executionTelemetry, "engineering.completion", { engineeringState: result.state, accepted: result.termination === "proposed" || result.state === "Completed", termination: result.termination, timeoutScope: result.timing.timeoutScope, remainingMs: result.timing.remainingMs });
+    const copy = measureEngineeringPhase(executionTelemetry, "report.prepare", () => structuredClone(result));
+    copy.timing.elapsedMs = deadline.elapsedMs();
+    endTelemetry(executionSpan, { status: result.termination === "timeout" ? "timeout" : result.termination === "cancelled" ? "cancelled" : result.termination === "uncertain" ? "uncertain" : result.state === "Failed" ? "error" : "ok", termination: result.termination, timeoutScope: result.timing.timeoutScope });
+    return copy;
   };
-  const boundedWait = async <T>(promise: Promise<T>): Promise<T> => {
+  const finalWait = async <T>(action: () => Promise<T>): Promise<T> => {
+    const remaining = deadline.finalizationRemaining();
+    if (!remaining) { result.timing.timeoutScope = "persistence"; throw new Error("Engineering finalization uncertain"); }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try { return await Promise.race([action(), new Promise<never>((_, reject) => { timer = setTimeout(() => { result.timing.timeoutScope = "persistence"; reject(new Error("Engineering finalization uncertain")); }, remaining); })]); }
+    finally { clearTimeout(timer); }
+  };
+  const boundedWait = async <T>(promise: Promise<T>, waitSignal = signal): Promise<T> => {
     let listener: (() => void) | undefined;
-    try { return await Promise.race([promise, new Promise<never>((_, reject) => { listener = () => reject(new Stop(o.signal?.aborted ? "cancelled" : "timeout")); signal.addEventListener("abort", listener, { once: true }); if (signal.aborted) listener(); })]); }
-    finally { if (listener) signal.removeEventListener("abort", listener); }
+    try { return await Promise.race([promise, new Promise<never>((_, reject) => { listener = () => reject(new Stop(o.signal?.aborted ? "cancelled" : "timeout")); waitSignal.addEventListener("abort", listener, { once: true }); if (waitSignal.aborted) listener(); })]); }
+    finally { if (listener) waitSignal.removeEventListener("abort", listener); }
   };
   const state = async (next: EngineeringState) => {
     assertEngineeringStateTransition(result.state, next);
     result.state = next; result.events = [...result.events, next];
     emitTelemetry(executionTelemetry, "engineering.state", { engineeringState: next, iteration: result.repairAttempts });
     if (o.checkpoint && view instanceof EngineeringWorkspace) {
-      const saving = o.checkpoint.save({ executionId, workspaceId: view.receipt.workspaceId, state: next, snapshotDigest: result.snapshotDigest,
-        iteration: result.repairAttempts, requests: result.usage.requests, tokens: result.usage.tokens, estimatedCostUsd: result.usage.estimatedCostUsd ?? 0 });
-      if (["Failed", "Cancelled", "Uncertain"].includes(next)) {
-        // Independent bounded finalization must not inherit an already-aborted run.
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        try { await Promise.race([saving, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Checkpoint finalization uncertain")), 1000); })]); }
-        finally { clearTimeout(timer); }
-      } else await boundedWait(saving);
+      const saving = () => measureEngineeringPhaseAsync(executionTelemetry, "checkpoint.persist", () => o.checkpoint!.save({ executionId, workspaceId: view!.receipt.workspaceId, state: next, snapshotDigest: result.snapshotDigest,
+        iteration: result.repairAttempts, requests: result.usage.requests, tokens: result.usage.tokens, estimatedCostUsd: result.usage.estimatedCostUsd ?? 0 }));
+      if (["Failed", "Cancelled", "Uncertain"].includes(next)) await finalWait(saving);
+      else await boundedWait(saving());
     }
   };
   let knownEstimatedCost = 0, unknownEstimatedCost = false;
@@ -179,45 +190,64 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
     else if (cost) result.cost = cost;
   };
   const act = async (role: AgentRole, failure?: EngineeringAgentInput["previousFailure"]) => {
-    signal.throwIfAborted();
-    if (result.usage.requests >= o.budget.maxRequests || result.usage.tokens + o.agent.maxTokensPerRequest > o.budget.maxTokens ||
-        (result.usage.estimatedCostUsd ?? 0) + o.agent.maxEstimatedCostUsdPerRequest > o.budget.maxEstimatedCostUsd) throw new Stop("budget");
-    const snapshot = await view!.inspect(signal);
-    const files: { path: string; content: string }[] = []; let bytes = 0;
-    for (const f of snapshot.files) {
-      const content = await view!.read(f.path, signal); bytes += Buffer.byteLength(content);
-      if (bytes > 8192) throw new Stop("budget");
-      if (engineeringHash(content) !== f.hash) throw new Stop("failed");
-      files.push({ path: f.path, content });
-    }
-    result.usage.requests++; result.usageComplete = false;
-    result.participants = [...new Set([...result.participants, role])];
-    let output: Awaited<ReturnType<EngineeringAgentPort["execute"]>>;
-    try { output = await boundedWait(o.agent.execute({ role, request: o.request, snapshot: structuredClone(snapshot), files, previousFailure: failure, diff: result.diff, validationEvidence: structuredClone(result.validations), requirements: [...result.requirements], plan: [...result.plan], policy: structuredClone(o.policy),
-      identity: { executionId, workspaceId: view!.receipt.workspaceId, taskId: role, turn: result.usage.requests },
-      telemetry: executionTelemetry,
-      allowance: { tokens: o.agent.maxTokensPerRequest, estimatedCostUsd: o.agent.maxEstimatedCostUsdPerRequest }, signal })); }
-    catch (error) {
-      if (error instanceof EngineeringProviderError) {
-        result.providerFailure = { ...error.failure };
-        if (error.usage) {
-          account(error.usage, error.cost);
-          result.usageComplete = error.usage.availability === "reported" && Number.isSafeInteger(error.usage.inputTokens) && Number.isSafeInteger(error.usage.outputTokens);
-        }
+    const window = deadline.role(role);
+    const roleSpan = beginTelemetry(executionTelemetry, "engineering.phase", { phase: "role", taskId: role, agentRole: role, requestIndex: result.usage.requests + 1, remainingMs: deadline.remainingMs() });
+    const roleBinding = roleSpan?.binding ?? executionTelemetry;
+    const run = async () => {
+      const signal = window.signal;
+      window.check();
+      if (result.usage.requests >= o.budget.maxRequests || result.usage.tokens + o.agent.maxTokensPerRequest > o.budget.maxTokens ||
+          (result.usage.estimatedCostUsd ?? 0) + o.agent.maxEstimatedCostUsdPerRequest > o.budget.maxEstimatedCostUsd) throw new Stop("budget");
+      const { snapshot, files } = await measureEngineeringPhaseAsync(roleBinding, "context.read", async () => {
+      const snapshot = await view!.inspect(signal);
+      const files: { path: string; content: string }[] = []; let bytes = 0;
+      for (const f of snapshot.files) {
+        const content = await view!.read(f.path, signal); bytes += Buffer.byteLength(content);
+        if (bytes > 8192) throw new Stop("budget");
+        if (engineeringHash(content) !== f.hash) throw new Stop("failed");
+        files.push({ path: f.path, content });
       }
+      return { snapshot, files };
+      });
+      window.check();
+      result.usage.requests++; result.usageComplete = false;
+      result.participants = [...new Set([...result.participants, role])];
+      let output: Awaited<ReturnType<EngineeringAgentPort["execute"]>>;
+      try { output = await boundedWait(o.agent.execute({ role, request: o.request, snapshot: structuredClone(snapshot), files, previousFailure: failure, diff: result.diff, validationEvidence: structuredClone(result.validations), requirements: [...result.requirements], plan: [...result.plan], policy: structuredClone(o.policy),
+        identity: { executionId, workspaceId: view!.receipt.workspaceId, taskId: role, turn: result.usage.requests },
+        telemetry: roleBinding,
+        allowance: { tokens: o.agent.maxTokensPerRequest, estimatedCostUsd: o.agent.maxEstimatedCostUsdPerRequest }, signal }), signal); }
+      catch (error) {
+        if (error instanceof EngineeringProviderError) {
+          result.providerFailure = { ...error.failure };
+          if (error.usage) {
+            account(error.usage, error.cost);
+            result.usageComplete = error.usage.availability === "reported" && Number.isSafeInteger(error.usage.inputTokens) && Number.isSafeInteger(error.usage.outputTokens);
+          }
+        }
+        throw error;
+      }
+      window.check();
+      if (!output || typeof output.summary !== "string" || Buffer.byteLength(output.summary) > 2048 || !output.usage ||
+          !Number.isSafeInteger(output.usage.tokens) || output.usage.tokens < 0 || output.usage.tokens > o.agent.maxTokensPerRequest ||
+          (output.usage.estimatedCostUsd === null ? o.allowUncertainCost !== true : !Number.isFinite(output.usage.estimatedCostUsd) || output.usage.estimatedCostUsd < 0 || output.usage.estimatedCostUsd > o.agent.maxEstimatedCostUsdPerRequest)) throw new Stop("budget");
+      result.usageComplete = true;
+      result.usage.tokens += output.usage.tokens;
+      if (output.usage.estimatedCostUsd === null) unknownEstimatedCost = true; else knownEstimatedCost += output.usage.estimatedCostUsd;
+      result.usage.estimatedCostUsd = unknownEstimatedCost ? null : knownEstimatedCost;
+      if (output.reportedUsage) account(output.reportedUsage, output.cost, false);
+      if (["code-reviewer", "validator", "security-specialist"].includes(role)) result.reviews = [...result.reviews, { role, summary: output.summary }];
+      window.check();
+      return output;
+    };
+    try { const output = await boundedWait(run(), window.signal); endTelemetry(roleSpan, { status: "ok", remainingMs: deadline.remainingMs() }); return output; }
+    catch (error) {
+      if (!o.signal?.aborted && (window.signal.aborted || error instanceof EngineeringProviderError && error.failure.category === "timeout"))
+        result.timing.timeoutScope = signal.aborted ? deadline.policy.scope : window.signal.aborted ? "role" : "request";
+      endTelemetry(roleSpan, { status: o.signal?.aborted ? "cancelled" : result.timing.timeoutScope ? "timeout" : "error", timeoutScope: result.timing.timeoutScope, remainingMs: deadline.remainingMs() });
+      if (window.signal.aborted) throw new Stop(o.signal?.aborted ? "cancelled" : "timeout");
       throw error;
-    }
-    signal.throwIfAborted();
-    if (!output || typeof output.summary !== "string" || Buffer.byteLength(output.summary) > 2048 || !output.usage ||
-        !Number.isSafeInteger(output.usage.tokens) || output.usage.tokens < 0 || output.usage.tokens > o.agent.maxTokensPerRequest ||
-        (output.usage.estimatedCostUsd === null ? o.allowUncertainCost !== true : !Number.isFinite(output.usage.estimatedCostUsd) || output.usage.estimatedCostUsd < 0 || output.usage.estimatedCostUsd > o.agent.maxEstimatedCostUsdPerRequest)) throw new Stop("budget");
-    result.usageComplete = true;
-    result.usage.tokens += output.usage.tokens;
-    if (output.usage.estimatedCostUsd === null) unknownEstimatedCost = true; else knownEstimatedCost += output.usage.estimatedCostUsd;
-    result.usage.estimatedCostUsd = unknownEstimatedCost ? null : knownEstimatedCost;
-    if (output.reportedUsage) account(output.reportedUsage, output.cost, false);
-    if (["code-reviewer", "validator", "security-specialist"].includes(role)) result.reviews = [...result.reviews, { role, summary: output.summary }];
-    return output;
+    } finally { window.close(); }
   };
   let applying = false, validating = false;
   let validationOperation: DurableOperation | undefined;
@@ -266,7 +296,9 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       if (iteration) { result.repairAttempts++; await state("Repairing"); emitTelemetry(executionTelemetry, "engineering.repair", { iteration, accepted: true }); }
       const output = await act(role("implement"), failure);
       checkingProposal = true;
-      const patch = await engine.propose(output.proposal, signal), diff = await engine.diff(patch.digest, signal);
+      const { patch, diff } = await measureEngineeringPhaseAsync(executionTelemetry, "patch.validate", async () => {
+        const patch = await engine!.propose(output.proposal, signal); return { patch, diff: await engine!.diff(patch.digest, signal) };
+      });
       await state("Proposed");
       emitTelemetry(executionTelemetry, "engineering.patch", { accepted: true, patchDigest: patch.digest });
       emitTelemetry(executionTelemetry, "engineering.proposal_validation", { accepted: true, patchDigest: patch.digest });
@@ -284,7 +316,7 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       if (o.agent.mode === "host_model_adapter") await act(role("review"));
       await finishDiff(patch);
       const tools = createEngineeringTools(engine, o.workspace!.binding), identity = { taskId: "engineering", requestId: "patch-" + iteration }, invocation = patchInvocation(patch);
-      const waiting = await tools.dispatch(invocation, identity, undefined, signal);
+      const waiting = await tools.dispatch(invocation, identity, undefined, signal, executionTelemetry);
       if (waiting.status !== "approval_required" || !waiting.approvalId) throw new Stop(waiting.operationState === "Uncertain" ? "uncertain" : "failed");
       result.pendingApprovals = [waiting.approvalId];
       emitTelemetry(executionTelemetry, "engineering.approval", { approvalRequired: true, accepted: false });
@@ -292,7 +324,7 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       if (!approved) { result.termination = "approval_required"; await state("ReviewPending"); return deliver(); }
       if (approved !== waiting.approvalId || o.workspace!.binding.store.approval(approved)?.status !== "approved") throw new Stop("failed");
       await state("Authorized"); await state("Applying"); applying = true;
-      const applied = await tools.dispatch(invocation, identity, approved, signal);
+      const applied = await tools.dispatch(invocation, identity, approved, signal, executionTelemetry);
       if (applied.operationState === "Uncertain") throw new Stop("uncertain");
       applying = false;
       if (applied.status !== "executed") throw new Stop("failed");
@@ -342,10 +374,11 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
     if (error instanceof EngineeringProviderError) result.providerFailure = { ...error.failure };
     if (error instanceof Stop && error.reason === "budget") emitTelemetry(executionTelemetry, "engineering.budget", { accepted: false, errorClass: "limit" });
     result.termination = applying || validating || why === "uncertain" ? "uncertain" : why;
+    if (result.termination === "timeout" && !result.timing.timeoutScope) result.timing.timeoutScope = deadline.policy.scope;
     try { await state(result.termination === "uncertain" ? "Uncertain" : result.termination === "cancelled" ? "Cancelled" : "Failed"); }
     catch { result.state = "Uncertain"; result.termination = "uncertain"; }
   }
-  try { if (o.level > 1) await finishDiff(); } catch { result.state = "Uncertain"; result.termination = "uncertain"; }
+  try { if (o.level > 1) { if (signal.aborted) await finalWait(() => finishDiff()); else await boundedWait(finishDiff()); } } catch { result.state = "Uncertain"; result.termination = "uncertain"; }
   return deliver();
 }
 function validateEvidence(e: ValidationEvidence, snapshot: WorkspaceSnapshot, workspaceId: string): void {

@@ -20,7 +20,7 @@ export const PROVIDER_LIMITS = {
   maxOutputTokens: 4096,
 } as const;
 
-export const PROVIDER_TIMEOUT_CEILING_MS = 120_000;
+export const PROVIDER_TIMEOUT_CEILING_MS = 300_000;
 
 const MAX_PROVIDER_ERROR_BODY_BYTES = 4096;
 
@@ -125,7 +125,10 @@ export async function postJson(
     options.maxRequestBytes,
     PROVIDER_LIMITS.maxRequestBytes,
   );
-  const serialized = JSON.stringify(body);
+  const serialization = beginTelemetry(observation?.binding, "engineering.phase", { phase: "request.serialize" });
+  let serialized: string;
+  try { serialized = JSON.stringify(body); endTelemetry(serialization, { status: "ok" }); }
+  catch (error) { endTelemetry(serialization, { status: "error" }); throw error; }
   if (Buffer.byteLength(serialized, "utf8") > maxRequestBytes)
     throw new ProviderTransportError("Provider request size limit exceeded", "limit");
   const deadline = new AbortController();
@@ -192,10 +195,11 @@ export async function postJson(
         throw new ProviderTransportError("Provider response size limit exceeded", "limit");
       chunks.push(chunk.value);
     }
-    const result: unknown = JSON.parse(
-      new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)),
-    );
-    endTelemetry(span, { status: "ok" });
+    const parsing = beginTelemetry(span?.binding ?? observation?.binding, "engineering.phase", { phase: "transport.parse" });
+    let result: unknown;
+    try { result = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks))); endTelemetry(parsing, { status: "ok" }); }
+    catch (error) { endTelemetry(parsing, { status: "error" }); throw error; }
+    endTelemetry(span, { status: "ok", providerHttpStatus: response.status });
     return result;
   } catch (error) {
     const classified = combined.aborted

@@ -200,9 +200,9 @@ export function createEngineeringTools(engine: EngineeringPatchEngine, binding: 
     return { digest: patch.digest, valid: true };
   });
   return { registry, dispatcher,
-    dispatch(invocation: ToolInvocation, identity: { taskId: string; requestId: string }, approvalId?: string, signal?: AbortSignal) {
+    dispatch(invocation: ToolInvocation, identity: { taskId: string; requestId: string }, approvalId?: string, signal?: AbortSignal, telemetry?: import("@ai-harness/contracts").TelemetryBinding) {
       return dispatcher.dispatch(invocation, { executionId: engine.view.receipt.executionId, projectRoot: engine.view.receipt.root, defaultDeny: true,
-        grantedPermissions: engine.view instanceof EngineeringWorkspace ? ["files:read", "files:write"] : ["files:read"], requireApprovalFor: ["files:write"], operation: identity, signal }, approvalId);
+        grantedPermissions: engine.view instanceof EngineeringWorkspace ? ["files:read", "files:write"] : ["files:read"], requireApprovalFor: ["files:write"], operation: identity, signal, telemetry }, approvalId);
     } };
 }
 export function patchInvocation(patch: StructuredPatch): ToolInvocation {

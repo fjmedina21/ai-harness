@@ -293,7 +293,7 @@ function help(): string {
 
   \n  inspect supports only host-authorized read-only file access; it does not edit files or run tests.
   \nReal-provider calls can incur charges and require --confirm-provider-call, --model, an output/request budget and a host environment credential.
-  \nImplement supports fixture recipes or OpenAI with --model, --max-provider-requests, --max-output-tokens, --confirm-provider-call and --allow-uncertain-cost. Optional --max-total-tokens, --max-context-tokens, --max-context-bytes, --max-agent-turns, --allowed-paths and --operations narrow host limits. Isolated mode stops pending approval; real Podman validation is blocked.\nNot exposed by the CLI: resume, approval decisions, deployment, Git writes, shell, real isolated execution, dashboard.`;
+  \nImplement supports fixture recipes or OpenAI with --model, --max-provider-requests, --max-output-tokens, --confirm-provider-call and --allow-uncertain-cost. Independent --timeout-ms (global), --request-timeout-ms, --role-timeout-ms and --finalization-timeout-ms select finite host deadlines. Optional --max-total-tokens, --max-context-tokens, --max-context-bytes, --max-agent-turns, --allowed-paths and --operations narrow host limits. Isolated mode stops pending approval; real Podman validation is blocked.\nNot exposed by the CLI: resume, approval decisions, deployment, Git writes, shell, real isolated execution, dashboard.`;
 }
 
 function limitOutput(value: string): string {

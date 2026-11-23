@@ -6,7 +6,7 @@ import { EngineeringCheckpointStore, openSqliteOperationJournal } from "@ai-harn
 import type { DurableOperationStore, EngineeringBudget, EngineeringPolicy } from "@ai-harness/contracts";
 import { readPrivateCostRates } from "./rates.js";
 const valued = ["--workflow", "--path", "--request", "--provider", "--autonomy", "--files", "--fixture-file", "--fixture-content", "--workspace-dir", "--journal", "--checkpoint-dir", "--max-iterations", "--timeout-ms",
-  "--model", "--allowed-paths", "--operations", "--max-provider-requests", "--max-output-tokens", "--max-total-tokens", "--max-agent-turns", "--max-context-bytes", "--max-context-tokens", "--rates", "--max-cost-usd"];
+  "--request-timeout-ms", "--role-timeout-ms", "--finalization-timeout-ms", "--model", "--allowed-paths", "--operations", "--max-provider-requests", "--max-output-tokens", "--max-total-tokens", "--max-agent-turns", "--max-context-bytes", "--max-context-tokens", "--rates", "--max-cost-usd"];
 const flags = ["--json", "--authorize-workspace", "--confirm-provider-call", "--allow-uncertain-cost", "--sensitive"];
 class CliError extends Error { constructor(readonly code: string, message: string) { super(message); } }
 function fail(code: string, message: string): never { throw new CliError(code, message); }
@@ -36,13 +36,15 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
     const request = options.get("--request"), files = options.get("--files")?.split(",");
     if (!request?.trim() || Buffer.byteLength(request) > 8192 || !files?.length || files.length > 16) fail("invalid_scope", "A bounded request and explicit file allowlist (at most 16 files) are required");
     const level = autonomy === "propose" ? 1 : 2;
-    const timeoutMs = integer(options.get("--timeout-ms"), 60_000, 120_000);
+    const timeoutMs = integer(options.get("--timeout-ms"), provider === "openai" ? 120_000 : 60_000, 900_000);
+    const roleTimeoutMs = integer(options.get("--role-timeout-ms"), Math.min(timeoutMs, 120_000), 300_000);
+    const finalizationTimeoutMs = integer(options.get("--finalization-timeout-ms"), 1000, 5000);
     const iterations = integer(options.get("--max-iterations"), 3, 8);
     let policy: EngineeringPolicy, budget: EngineeringBudget;
     if (provider === "fixture") {
       const target = options.get("--fixture-file"), content = options.get("--fixture-content");
       if (!target || content === undefined) fail("fixture_arguments", "Fixture requires fixture-file and fixture-content");
-      for (const key of ["--model", "--confirm-provider-call", "--allow-uncertain-cost", "--max-provider-requests", "--max-output-tokens", "--max-total-tokens", "--max-agent-turns", "--max-context-bytes", "--max-context-tokens", "--rates", "--max-cost-usd", "--allowed-paths", "--operations"])
+      for (const key of ["--request-timeout-ms", "--model", "--confirm-provider-call", "--allow-uncertain-cost", "--max-provider-requests", "--max-output-tokens", "--max-total-tokens", "--max-agent-turns", "--max-context-bytes", "--max-context-tokens", "--rates", "--max-cost-usd", "--allowed-paths", "--operations"])
         if (options.has(key)) fail("fixture_arguments", "Real-provider options cannot be used with fixture mode");
       agent = new FixtureEngineeringAgent(target, content);
       policy = { version: "cli-fixture-v1", allowedPaths: [target], allowedOperations: ["create", "replace"], maxFiles: 1, maxBytes: 8192 };
@@ -67,8 +69,9 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
       const maxCost = Number(options.get("--max-cost-usd") ?? 0);
       if (!Number.isFinite(maxCost) || maxCost < 0 || maxCost > 10) fail("invalid_budget", "Estimated USD ceiling must be finite and between zero and ten");
       if (!process.env.OPENAI_API_KEY?.trim()) fail("missing_credential", "Set OPENAI_API_KEY in the host environment; repository .env files are never loaded automatically");
+      const requestTimeoutMs = integer(options.get("--request-timeout-ms"), Math.min(timeoutMs, 30_000), 300_000);
       agent = createOpenAIEngineeringAgent({ model, maxRequests, maxOutputTokens, maxContextBytes, maxContextTokens, allowUncertainCost: true,
-        paidCallConfirmed: true, timeoutMs, ...(rates ? { rates } : {}) });
+        paidCallConfirmed: true, timeoutMs: requestTimeoutMs, ...(rates ? { rates } : {}) });
       policy = { version: "cli-openai-v1", allowedPaths, allowedOperations: allowedOperations as EngineeringPolicy["allowedOperations"], maxFiles: 16, maxBytes: 8192 };
       budget = { maxIterations: iterations, maxRequests: Math.min(maxRequests, maxTurns), maxTokens, maxEstimatedCostUsd: maxCost, timeoutMs, maxFiles: 16, maxBytes: 8192 };
     }
@@ -87,13 +90,13 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
       workspace = { directory, binding: { store, requester: { issuer: "cli-host", subject: "engineering-requester" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 3_600_000 };
       checkpoint = new EngineeringCheckpointStore(checkpoints);
     }
-    const result = await runEngineeringWorkflow({ projectRoot, request, files, level, budget, policy, agent, workspace, checkpoint, signal,
+    const result = await runEngineeringWorkflow({ projectRoot, request, files, level, budget, policy, agent, workspace, checkpoint, signal, timing: { roleTimeoutMs, finalizationTimeoutMs },
       ...(provider === "openai" ? { modelAdapterAuthorized: true, allowUncertainCost: true } : {}), sensitive: options.has("--sensitive") });
     if (json) output(JSON.stringify(result, null, 2));
     else {
       const safe = (text: string) => stripVTControlCharacters(text).replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, "");
       output(`Execution: ${result.executionId}\nProvider: ${result.provider}\nModel: ${result.model ?? "fixture"}\nAutonomy: ${autonomy}\nWorkspace: ${result.workspace?.root ?? "none; source read-only"}`);
-      output(`Permissions: ${level === 1 ? "read selected files; propose only" : "private copy; application requires independent durable approval"}\nBudget: ${JSON.stringify(budget)}`);
+      output(`Permissions: ${level === 1 ? "read selected files; propose only" : "private copy; application requires independent durable approval"}\nBudget: ${JSON.stringify(budget)}\nTiming: ${JSON.stringify(result.timing)}`);
       output(`Plan: ${safe(result.plan.join("\n"))}\nStates: ${result.events.join(" -> ")}\nStatus: ${result.state} (${result.termination})\nPatch validation: ${result.proposalValidation}`);
       output(`Diff:\nScope: ${result.diffScope}\n${safe(result.diff)}\nValidations executed: ${result.validations.length}; L3 gate: blocked`);
       output(`Requests: ${result.usage.requests}; known tokens: ${result.usage.tokens}; usage complete: ${result.usageComplete}\nEstimated cost: ${result.cost.status === "estimated" ? result.cost.amount + " " + result.cost.currency : "unknown"}`);
