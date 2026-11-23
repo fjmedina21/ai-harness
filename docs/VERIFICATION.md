@@ -1,16 +1,75 @@
 # Verification — current source version 0.8.0
 
 
+## Phase 9A evidence audit
+
+Audit date: **2026-11-23**. Starting `main` and `origin/main` were clean and equal
+at **9ce59e8b4b6b97757a3104aaed4684c91cbbeef5** after fetch/ff-only synchronization.
+Branch: **docs/phase9a-openai-live-validation**. Version: **0.8.0**. Phase 9
+implementation 0aca4039abf2 / documentation 463b3255390e and OpenAI 9A implementation
+2cfc4a92aadc / documentation 9ce59e8b4b6b are integrated in that main snapshot.
+Temporary long-deadline profiles were separately owner-authorized during this
+audit; the maximum has now been restored to **120000 ms**.
+
+| Check / evidence | Observed result and exact scope |
+| --- | --- |
+| Baseline local build/test | Passed on 9ce59e8b4b6b; **568/568**, zero failed/cancelled/skipped |
+| Baseline hosted CI | [45205140383](https://github.com/fjmedina21/ai-harness/actions/runs/45205140383), exact SHA 9ce59e8b4b6b97757a3104aaed4684c91cbbeef5; build-test job 137798700393 succeeded 2026-11-23T15:26:36Z; decoded logs confirm **568/568** |
+| Earlier Phase 9 CI | [45174956424](https://github.com/fjmedina21/ai-harness/actions/runs/45174956424), SHA 463b3255390eab90cdb06d6f07adb9a35e3575f8; success, created 2026-11-23T12:30:27Z; separate earlier source |
+| Historical direct OpenAI smoke | Recorded pass, gpt-5.5-pro HTTP 200 and valid patch/diff; missing independent retained report and source-binding limitations are explicit in the ledger |
+| Full live workflow, 120s | Source 9ce59e8b4b6b; timeout after **120046 ms**, 2 requests, first HTTP 200 then cancellation; no patch; source unchanged and cleanup confirmed |
+| Full live workflow, 160s | Source **11c3738e42ccb9603cc198a434e3ce635c2efda1**; timeout after **160058 ms**, 3 HTTP 200s and a host-validated proposal, then reviewer cancellation; source unchanged and cleanup confirmed |
+| Full live workflow, temporary 600s profile | Source **1c3755a494895d071937c8f12f9c1da6e8cf2fb0**; **PASSED**, 4 HTTP 200s, **240770 ms**, proposed, valid expected proposal/diff and completed advisory review; source unchanged and cleanup confirmed |
+| Successful run usage | Reported **2132 input / 874 output**; **598 reasoning included in output**; cost unknown, no host rates. Earlier cancelled requests have unknown usage/cost |
+| Local temporary-profile checks | Both 160s and 600s revisions passed build, **570/570** full tests and **63/63** focused runtime/CLI/transport cases before their real runs |
+| Final restored build/test | **570/570** after restoring 120000 ms; zero failed/cancelled/skipped |
+| Final focused checks | **63/63**; 120000 ms acceptance and 120001 ms rejection, mocked actual CLI/smoke processes, existing cancellation/timeout tests |
+| Documentation / private files | 65 relative links/anchors verified, git diff --check clean; no new key/path patterns found; excluded private-file metadata unchanged |
+| New hosted CI | Not run for the local audit/restoration changes; baseline CI does not certify them |
+| L2 / L3 | L2 actual filesystem/SQLite with mocked provider HTTP and independent approvals; no live-provider approved application. L3 blocked; no Podman run |
+
+The synthetic four-role OpenAI workflow is **live verified under the temporary
+600-second profile**. It is not a pass under the restored **120-second** profile:
+the complete trace took 240.77 seconds and one request took 140.56 seconds.
+Successful live acceptance within the restored deadline remains pending. An
+HTTP 200 alone, a valid patch without finished review, or an offline mock is not
+substitute evidence. The smoke returned exit 0, smokePassed=true, proposed and
+proposalValidated=true, with no patch application or generated-code execution.
+Its completed review is model advice, not independent human authorization.
+
+The original no-call scope was changed only by later owner authorization for real
+execution, uncertain cost, the 160-second extension, and a long attempt followed
+by restoration. The long attempt used a disclosed finite 600-second window and
+the existing 6-request / 512-output-token-per-request budget. No unlimited loop,
+automatic fallback, Anthropic, L3, push, merge, tag or release was performed.
+Runtime source files again match 9ce59e8b4b6b; additional boundary tests remain.
+
+See the classification matrix, HTTP/timing/token records, digests, source/cleanup
+assertions and limitations in the [live ledger](phase9-live-smoke.md). The existing
+smoke does not emit date/commit/duration/HTTP observations itself; current attempts
+used its exported entry point with a host metadata wrapper around real native fetch.
+This validates the application workflow, not a live interactive CLI subprocess;
+actual CLI subprocess E2E remains mocked HTTP. No private prompt, response body,
+credential, approval ID, source code or host path is published.
+
+The audit reviewed non-secret local reports without changing or publishing them.
+No independent older Phase 9A live JSON/log was found. Historical direct-smoke
+numbers below are preserved documentary observations, not reconstructed usage.
+The following sections are dated closure snapshots; their branch/count/publication
+statements belong to those dates. Historical clean/help/evaluation checks were
+not rerun in this audit's build/test sequence.
+
 ## Phase 9A OpenAI local closure
 
 Date: **2026-11-23**. Starting commit **463b3255390eab90cdb06d6f07adb9a35e3575f8**.
 Branch: **feat/phase9-real-provider-engineering**. Node **24.18.0**, pnpm
 **12.21.0**, source version **0.8.0**. Owner scope is OpenAI only; Anthropic
-engineering is deferred. No new phase, release, push or merge is included.
+engineering is deferred. This historical section records the original local closure;
+subsequent main integration/CI are verified in the audit above.
 Implementation commit: **2cfc4a92aadcd16f6ae75b96e283a183b04f7113**;
 the documentation commit contains this final report.
 
-| Check | Current observed result |
+| Check | Historical closure result |
 | --- | --- |
 | Baseline build and full tests | Passed, **512/512** |
 | Final pnpm clean / build / test | Passed, **568/568**; zero failed/cancelled/skipped |
@@ -21,10 +80,10 @@ the documentation commit contains this final report.
 | Real adapters + mocked HTTP | New OpenAI L1/L2, JSON/protocol, budgets, failure/usage/timeout/cancellation and no-fallback tests passed |
 | Real filesystem + SQLite | Selected context, original unchanged, exact independent pending/approved application tested |
 | Actual CLI processes | JSON/text, fixture compatibility, no implicit .env load, L2 pending, cancellation 130 and timeout 124 tested |
-| New full-workflow smoke | Opt-in script implemented; subprocess/semantic/cleanup acceptance tested with mocked HTTP; **live not executed** |
+| New full-workflow smoke at original closure | Opt-in script and mocked subprocess/semantic/cleanup checks passed; live was not executed then. Current real attempts are recorded above |
 | Prior direct live smoke | gpt-5.5-pro HTTP 200, valid patch/diff, source unchanged; **separate baseline evidence**, not new CLI validation |
 | Real Podman / L3 | **Not executed / blocked** |
-| Hosted CI for this branch | **Not run**; no publication authorized |
+| Hosted CI at original local delivery | Not yet run at that moment; subsequently passed for integrated 9ce59e8b4b6b, as verified above |
 
 Tests detected and corrected the legacy OpenAI text adapter's omitted
 max_output_tokens wire field, telemetry binding registration, explicit invalid
@@ -49,7 +108,7 @@ Starting commit: **fdcb1130e91ac37212e41253103b7b01f6415040**, on clean main
 synchronized with origin after fetch/ff-only verification. Development branch:
 **feat/phase9-autonomous-engineering-runtime**. Version remains **0.8.0**.
 
-| Required check | Observed current result |
+| Required check | Historical closure result |
 | --- | --- |
 | Baseline build/test | Passed, 427/427 |
 | pnpm clean | Passed |
@@ -75,8 +134,8 @@ executing any synthetic-project code. No exactly-once or power-loss guarantee.
 
 See [full report](phase9-e2e.md), [level matrix](phase9-autonomy-levels.md),
 [threat model](phase9-security.md) and [blocked real sandbox gate](phase9-sandbox-validation.md).
-The new branch is experimental and Phase 9 is incomplete. Implementation commit: **0aca4039abf2837b9ae68533b2ae196102bc6091**.
-The documentation commit contains this report; final IDs are supplied at delivery; no push, merge, tag or release is performed.
+This historical Phase 9 source is now integrated; Phase 9 is still incomplete. Implementation commit: **0aca4039abf2837b9ae68533b2ae196102bc6091**.
+The report was recorded by 463b3255390e, now integrated in the audited main. The earlier no-push/no-merge statement described original local delivery, not current publication status.
 
 ## Historical Phase 8 evidence
 

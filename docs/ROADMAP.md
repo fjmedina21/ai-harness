@@ -5,22 +5,28 @@ are targets, not evidence that those capabilities were delivered.
 
 ## Current source state
 
-The starting `main` is version **0.8.0** at **fdcb1130e91a**, verified clean and
-synchronized with origin before creating the Phase 9 branch. Phases 0–8 are
-integrated experimental foundations; baseline build/tests passed 427/427 locally.
-Phase 9 is partially implemented on its feature branch, with **512/512** current
-local tests. No hosted CI was run for the new branch. Earlier c87d22f / PR #3 and
-Phase 8 closure CI/results remain historical evidence for their respective SHAs.
+Audited `main` is version **0.8.0** at **9ce59e8b4b6b**, including experimental
+Phases 0–8, partial Phase 9 L1/L2 and the OpenAI 9A engineering integration.
+[Standard CI](https://github.com/fjmedina21/ai-harness/actions/runs/45205140383)
+passed for that exact SHA on 2026-11-23 with **568/568** tests.
+This audit branch records temporary 160/600-second profiles, restores the maximum
+to **120 seconds**, and adds boundary regressions; **570/570** local tests passed.
+There is no hosted CI/publication claim for the new changes.
 
-Live providers: **Deferred — live provider interoperability validation**.
-Remote Podman: **Deferred — dedicated remote infrastructure validation**.
-The remote workflow has no run in the verified 18-run Actions history; see
-[its runner runbook](DEDICATED-PODMAN-RUNNER.md). These are acceptance limitations,
-not passed gates. They do not block the offline Phase 8 scope because inspection
-does not execute agent code in containers. The remote gate remains required
-before future untrusted-code execution, with its own risk review. No GitHub
-Release was found; npm publication was not independently verified. `0.8.0`
-remains an experimental source milestone.
+Live evidence is separated into mocked HTTP, historical direct API-to-patch smoke,
+and full engineering workflow. The four-role synthetic OpenAI workflow passed
+with gpt-5.5-pro under temporary profile 1c3755a49489 in **240770 ms**, with a
+validated expected proposal/diff, completed advisory review and confirmed cleanup.
+The 120s/160s attempts timed out. Full live acceptance within the restored 120-second
+profile remains pending; Anthropic engineering is deferred and L3 remains blocked.
+See the [evidence ledger](phase9-live-smoke.md).
+
+Remote Podman remains **Deferred — dedicated remote infrastructure validation**.
+The earlier 18-run Actions inventory is historical, not a current inventory claim.
+No new isolation evidence is supplied by standard CI or this audit. The remote gate
+and an independent risk review remain required before untrusted-code execution
+outside a dedicated controlled local environment. No release or publication is part
+of this work; 0.8.0 remains experimental.
 
 | Phase | Implemented scope | Status |
 |---|---|---|
@@ -33,7 +39,7 @@ remains an experimental source milestone.
 | 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Implemented and integrated; experimental foundations; real local SQLite tests passed |
 | 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Implemented and integrated; experimental foundations; historical CI/evaluations retained |
 | 8 | Read-only CLI, three-agent integration, explicit providers, authorized tools, optional persistence/diagnostics, offline E2E, standard CI and documented security | **Implemented — offline E2E validated; external validation gates deferred** |
-| 9 | Private workspaces, controlled patches/approvals, bounded fixture repair and opt-in CLI | **Partial — L1/L2 local evidence; L3 real gate blocked** |
+| 9 | Private workspaces, controlled patches/approvals, bounded fixture repair and fixture/OpenAI CLI | **Integrated partial L1/L2, offline tested; synthetic OpenAI live pass under temporary long profile; L3 blocked** |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
@@ -134,7 +140,7 @@ in this Phase 8 closure.
 
 ## Phase 9 implementation — partial, Gate C blocked
 
-Based on fdcb1130e91a, the feature branch adds experimental local L1/L2, durable
+Integrated through 463b3255390e into `main`, Phase 9 adds experimental local L1/L2, durable
 exact patch approvals, private workspace lifecycle, sequential existing roles,
 bounded fixture repair, separate implement CLI and offline evaluations. Keep 0.8.0.
 No new phase is started. [Gate matrix](phase9-autonomy-levels.md),
@@ -150,6 +156,12 @@ actual usage, unknown-cost policy, independent L2 approvals, optional telemetry,
 actual CLI subprocess tests and separate opt-in smoke are implemented. Anthropic
 engineering is deferred by the owner; previous inspect support is preserved.
 The earlier direct gpt-5.5-pro smoke is real but does not certify the new full
-composition. New workflow live smoke remains separately opt-in/unexecuted.
-This is not full Phase 9 or real L3 closure, hosted CI, release, merge or push.
+composition. The full workflow then passed live with a synthetic fixture in
+240.77 seconds under an explicitly authorized temporary long profile. Earlier
+120s/160s attempts timed out. The maximum was subsequently restored to 120 seconds,
+whose successful live acceptance remains pending. Independent L2 approvals and L3
+isolation gates remain separate.
+Implementation 2cfc4a92aadc and documentation 9ce59e8b4b6b are already in the
+audited `main`; its standard CI passed. Later audit-branch changes are local only.
+This is not full Phase 9, real L3 or release closure.
 See [scope/acceptance](phase9-provider-integration.md) and [live evidence](phase9-live-smoke.md).

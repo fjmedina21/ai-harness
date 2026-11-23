@@ -267,9 +267,8 @@ test("HTTP error categories ignore inherited object properties and still check t
 });
 
 
-test("host may explicitly choose a bounded 600 second deadline without changing the default", async () => {
+test("host may explicitly choose a bounded 120 second deadline without changing the default", async () => {
   assert.equal(PROVIDER_LIMITS.timeoutMs, 30000);
   assert.deepEqual(await send(async () => Response.json({ accepted: true }), { timeoutMs: 120000 }), { accepted: true });
-  assert.deepEqual(await send(async () => Response.json({ accepted: true }), { timeoutMs: 600000 }), { accepted: true });
-  await assert.rejects(send(async () => Response.json({}), { timeoutMs: 600001 }), /Invalid provider limit/);
+  await assert.rejects(send(async () => Response.json({}), { timeoutMs: 120001 }), /Invalid provider limit/);
 });

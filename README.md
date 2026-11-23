@@ -1,19 +1,18 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-The source on `main` is version 0.8.0 and integrates a bounded read-only
-engineering review workflow into the CLI. This is an experimental source
-milestone, not a formal release announcement. The hosted GitHub release API
-has no release record for this commit; npm publication has not been verified.
-The project is experimental and is **not a production-ready autonomous agent**.
-
-Phase 8 is integrated on the starting `main` at **fdcb1130e91a**; its current
-local baseline passed 427/427 tests before this work. This feature branch adds
-Phase 9 as **partial experimental implementation — L1/L2 local fixtures validated;
-L3 blocked**. Historical CI evidence belongs to its exact baseline commits and
-does not certify this branch. Live provider engineering and remote Podman gates
-remain unvalidated. See the [capability matrix](docs/phase9-autonomy-levels.md)
-and [verification](docs/VERIFICATION.md#phase-9-local-verification).
+Version **0.8.0** is an experimental source milestone. Audited `main` at
+**9ce59e8b4b6b** includes Phase 9A OpenAI engineering, with **568/568** tests
+confirmed by its [standard CI](https://github.com/fjmedina21/ai-harness/actions/runs/45205140383).
+This audit branch preserves the **120-second maximum** after a temporary long
+smoke and adds boundary regressions, with **570/570** local tests. Those later
+changes have not been published or checked by hosted CI.
+The project is **not a production-ready autonomous agent**. L1/L2 have offline
+filesystem/SQLite evidence. A real OpenAI four-role synthetic workflow passed in
+**240.77 seconds** under a temporary 600-second profile; the restored 120-second
+profile has no successful real full-workflow evidence. Real L3 remains blocked.
+See the [capability matrix](docs/phase9-autonomy-levels.md)
+and [verification](docs/VERIFICATION.md#phase-9a-evidence-audit).
 
 ## Phase 9 opt-in engineering
 
@@ -22,7 +21,7 @@ The original `run --workflow implement` fixture recipe remains available:
 `--autonomy isolated` creates a private external copy and pauses for independent
 SQLite approval. A trusted host API can apply approved changes and exercise the
 bounded repair loop with fixture validation. The original project stays unchanged.
-OpenAI engineering is now implemented and offline E2E tested on the 9A branch.
+OpenAI engineering is integrated in the audited `main` and offline E2E tested.
 Anthropic engineering is deferred; real sandbox validation and Gate C remain
 unavailable. Existing inspection provider support is unchanged.
 No arbitrary request implementation or production autonomy is established by fixtures.
@@ -47,10 +46,14 @@ reported tokens and optional host-rate estimates. Unknown cost is null/unknown,
 not zero; --allow-uncertain-cost explicitly acknowledges billing uncertainty.
 No automatic fallback, retry, original-project write or generated-code execution.
 
-The prior gpt-5.5-pro direct provider-to-patch-engine smoke succeeded. The new
-multi-role CLI is verified with mocked HTTP, filesystem and SQLite; its separate
-live smoke is prepared but not executed. See [integration](docs/phase9-provider-integration.md),
-[live scope/runbook](docs/phase9-live-smoke.md) and [verification](docs/VERIFICATION.md#phase-9a-openai-local-closure).
+The historical gpt-5.5-pro direct smoke is recorded separately from the new
+four-role workflow. That full synthetic workflow passed live on 2026-11-23 with
+four requests, valid expected proposal/diff, completed advisory review, unchanged
+source and confirmed cleanup. It took 240.77 seconds under a temporary long
+profile; attempts at 120 and 160 seconds timed out. The configurable maximum is
+restored to **120 seconds**, so that successful long trace is not validation of
+the current deadline profile. See [integration](docs/phase9-provider-integration.md),
+[live evidence](docs/phase9-live-smoke.md) and [verification](docs/VERIFICATION.md#phase-9a-evidence-audit).
 Version remains 0.8.0; Anthropic engineering is deferred and L3 is blocked.
 
 ## Quick start
@@ -80,7 +83,7 @@ was implemented.
 
 | Area | Current behavior |
 |---|---|
-| Workflow | Existing SDD/inspection plus separate opt-in fixture engineering; private L2 application through trusted host approvals |
+| Workflow | Existing SDD/inspection plus opt-in fixture/OpenAI engineering; private L2 application through trusted host approvals |
 | Providers | Fixture offline mode; explicit OpenAI engineering/inspection; Anthropic Messages inspection retained |
 | Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
 | Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
@@ -89,7 +92,7 @@ was implemented.
 | Evaluations | Existing deterministic suite plus independent phase9 offline filesystem/SQLite/repair scenarios; known fixtures only |
 
 Real provider calls and tool calling are programmatic and opt-in through host
-APIs and the explicit inspection CLI mode. No provider is selected from
+APIs and explicit inspection/OpenAI engineering CLI modes. No provider is selected from
 repository configuration. Mandatory tests use fixtures or mocked HTTP and no
 live credentials.
 `createReadOnlyToolCallingAgent()` exposes `file.read` and, with a host-selected
@@ -171,9 +174,10 @@ pnpm smoke:real-provider
 ```
 
 Set `HARNESS_REAL_PROVIDER=anthropic` for Anthropic. This command can incur
-charges. An OpenAI smoke was attempted with `gpt-6-luna` but failed with HTTP
-429 before reading the synthetic fixture; live-provider validation is not
-achieved. See [verification](docs/VERIFICATION.md). The smoke command reads
+charges. The historical Phase 8 inspection smoke with `gpt-6-luna` failed with
+HTTP 429 before reading the synthetic fixture; that inspection workflow was not
+live-validated. Its evidence is separate from Phase 9A direct and full-workflow
+engineering smokes. See [verification](docs/VERIFICATION.md). The smoke command reads
 credentials from the process environment; `.env.local` is not loaded
 automatically. Its budget limits output tokens and request count; it does not
 guarantee a dollar ceiling.

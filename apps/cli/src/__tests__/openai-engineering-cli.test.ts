@@ -34,8 +34,8 @@ test("actual CLI subprocess produces an OpenAI L1 proposal through mocked real R
   assert.match(r.diff, /value = 2/); assert.equal(r.proposals.length, 1); assert.equal(r.usage.estimatedCostUsd, null); assert.equal(r.reportedUsage.inputTokens, 400); assert.equal(r.integrated, false);
   assert.deepEqual(await readdir(f.source), [".env", "value.ts"]); assert.equal(await readFile(path.join(f.source, "value.ts"), "utf8"), "export const value = 1;\n");
 });
-test("actual CLI accepts a host-selected 600 second engineering deadline", async t => {
-  const f = await fixture(t), p = await f.run({ args: [...f.args, "--timeout-ms", "600000", "--json"] });
+test("actual CLI accepts a host-selected 120 second engineering deadline", async t => {
+  const f = await fixture(t), p = await f.run({ args: [...f.args, "--timeout-ms", "120000", "--json"] });
   assert.equal(p.code, 0, p.stdout + p.stderr); assert.equal(JSON.parse(p.stdout).termination, "proposed");
   assert.equal(await readFile(path.join(f.source, "value.ts"), "utf8"), "export const value = 1;\n");
 });
@@ -55,7 +55,7 @@ for (const [flag, valued, code] of [["--model", true, "missing_model"], ["--conf
 test("CLI missing environment credential does not load the project's .env", async t => {
   const f = await fixture(t), p = await f.run({ credential: false }); assert.equal(p.code, 1); assert.equal(JSON.parse(p.stdout).error.code, "missing_credential"); assert.doesNotMatch(p.stdout + p.stderr, /PRIVATE_LOCAL_ENV/);
 });
-for (const [flag, value] of [["--max-provider-requests", "0"], ["--max-output-tokens", "Infinity"], ["--max-total-tokens", "0"], ["--max-context-tokens", "0"], ["--max-agent-turns", "33"], ["--timeout-ms", "600001"]]) test(`CLI rejects invalid ${flag} budget`, async t => {
+for (const [flag, value] of [["--max-provider-requests", "0"], ["--max-output-tokens", "Infinity"], ["--max-total-tokens", "0"], ["--max-context-tokens", "0"], ["--max-agent-turns", "33"], ["--timeout-ms", "120001"]]) test(`CLI rejects invalid ${flag} budget`, async t => {
   const f = await fixture(t), args = f.args.includes(flag!) ? replace(f.args, flag!, value!) : [...f.args, flag!, value!];
   const p = await f.run({ args: [...args, "--json"] }); assert.equal(p.code, 1); assert.equal(JSON.parse(p.stdout).error.code, "invalid_budget");
 });
@@ -86,10 +86,10 @@ test("new full-workflow live smoke is opt-in and tested offline as an actual pro
     child.stdout.on("data", chunk => { text += String(chunk); }); child.on("error", error => { clearTimeout(timer); reject(error); }); child.on("close", code => { clearTimeout(timer); resolve({ code, text }); });
   });
   const skipped = await run("valid", false); assert.equal(skipped.code, 2); assert.match(skipped.text, /Skipped/);
-  const success = await run("valid", true, "600000"); assert.equal(success.code, 0, success.text); const r = JSON.parse(success.text);
+  const success = await run("valid", true, "120000"); assert.equal(success.code, 0, success.text); const r = JSON.parse(success.text);
   assert.equal(r.smokePassed, true); assert.equal(r.sourceUnchanged, true); assert.equal(r.cleanup, "confirmed"); assert.equal(r.requests, 4); assert.equal(r.patchApplied, false);
   assert.doesNotMatch(success.text, /export const|fixture-not-real|PRIVATE_LOCAL_ENV/);
-  const invalidTimeout = await run("valid", true, "600001");
+  const invalidTimeout = await run("valid", true, "120001");
   assert.equal(invalidTimeout.code, 1); assert.equal(JSON.parse(invalidTimeout.text).requests, 0);
   const wrong = await run("wrong_semantics"); assert.equal(wrong.code, 1); assert.equal(JSON.parse(wrong.text).smokePassed, false);
 });

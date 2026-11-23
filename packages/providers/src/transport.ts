@@ -20,7 +20,7 @@ export const PROVIDER_LIMITS = {
   maxOutputTokens: 4096,
 } as const;
 
-export const PROVIDER_TIMEOUT_CEILING_MS = 600_000;
+export const PROVIDER_TIMEOUT_CEILING_MS = 120_000;
 
 const MAX_PROVIDER_ERROR_BODY_BYTES = 4096;
 

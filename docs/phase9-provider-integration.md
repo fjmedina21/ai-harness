@@ -1,7 +1,8 @@
 # Phase 9A provider integration — OpenAI scope
 
 Design recorded before implementation; OpenAI composition, CLI and offline E2E
-are now implemented. Version remains 0.8.0. Current owner scope
+are integrated in audited `main` at **9ce59e8b4b6b97757a3104aaed4684c91cbbeef5**.
+Version remains 0.8.0. Current owner scope
 is OpenAI only; Anthropic engineering is deferred, while existing inspection
 support remains unchanged. Real L3 remains disabled.
 
@@ -81,9 +82,10 @@ an explicit host operation selection. Both remain subject to the patch engine.
 `--max-total-tokens` defaults to the request count times per-turn token allowance,
 capped at 100000. `--max-agent-turns` can lower the request ceiling because each
 role makes exactly one request. `--max-context-bytes`, `--max-context-tokens`,
-`--timeout-ms` and `--sensitive` configure bounded host behavior. Global timeout
-is at most 120000 ms. Provider default remains 30000 ms; explicit deadlines can
-now reach 120000 ms. No automatic retry, repair of malformed output or live L3
+`--timeout-ms` and `--sensitive` configure bounded host behavior. Global engineering timeout
+is at most **120000 ms** in the restored code. Temporary local 160/600-second
+profiles were used only for the specifically authorized evidence runs. Provider
+default remains 30000 ms. No automatic retry, malformed-output repair or real L3
 repair loop is enabled. Native tool calls/refusals are not treated as patches.
 
 Host private tariffs use existing `--rates FILE` plus `--max-cost-usd N` (0..10,
@@ -134,12 +136,14 @@ mocked HTTP, including semantic acceptance beyond an HTTP success.
 
 See [verification](VERIFICATION.md#phase-9a-openai-local-closure) for final counts
 and [live evidence](phase9-live-smoke.md) for the narrower real API result. This
-closes only the owner-approved OpenAI/offline integration scope. It does not close
-Anthropic engineering, full Phase 9, real L3, production acceptance or hosted CI.
-No dependency/runtime/package-manager change, key write, source-project mutation,
-container workload, push, merge, release or version bump is included.
+records the owner-approved OpenAI/offline integration scope. Standard CI for
+9ce59e8b4b6b subsequently passed; see [the current audit](VERIFICATION.md#phase-9a-evidence-audit).
+It does not close Anthropic engineering, full Phase 9, real L3 or production acceptance.
+The audit branch restores the 120-second maximum after temporary live-run profiles
+and retains boundary regressions, with 570/570 local tests; its hosted CI is pending. No key write,
+container workload, push, merge, release or version bump is included in this audit.
 
-## Final scoped delivery report
+## Historical implementation delivery report — 2026-11-23
 
 | Item | Result |
 | --- | --- |
@@ -156,16 +160,39 @@ container workload, push, merge, release or version bump is included.
 | Security verification | Filesystem/SQLite and protocol/E2E tests; model has no keys/approval/store authority; no fallback, replay, host shell or L3 |
 | Token/cost behavior | Requests/turns/context/output/total actual usage bounded; unknown usage stops; cost nullable, optional host tariffs/reservations, uncertainty explicit |
 | Automated tests | 568/568 full tests; 69/69 focused; original eval 19/19 and phase9 eval 10/10 |
-| Real-provider evidence | Prior one-call gpt-5.5-pro direct smoke passed; new full workflow remains live-unverified |
+| Real-provider evidence at original closure | Direct smoke pass was recorded; full workflow had not run then. Later real attempts and long-profile pass are recorded below |
 | Known limits | Same-UID TOCTOU, partial multi-file effects, no exact billing guarantee, no independent approval CLI/resume, no general semantic/model or production proof |
 | Source files changed | application/engineering-provider.ts and engineering.ts; tools/engineering-model-output.ts; contracts; existing provider/transport/telemetry; CLI engineering command, smoke and tests; package script/exports |
 | Docs updated | README, architecture, repository map, roadmap, verification, versioning, phase9 architecture/security/autonomy/E2E plus provider integration and live smoke |
-| Local commits | Implementation: 2cfc4a92aadcd16f6ae75b96e283a183b04f7113; documentation committed with this report after successful checks; no push/merge |
-| Final Git | Feature branch retained; source/docs committed locally; private/generated files excluded; working tree checked at delivery |
+| Integration commits | Implementation: 2cfc4a92aadcd16f6ae75b96e283a183b04f7113; documentation: 9ce59e8b4b6b97757a3104aaed4684c91cbbeef5; both are already in audited main |
+| Historical Git / current audit | Earlier delivery was local; subsequent publication is confirmed by main and its exact-SHA CI. This audit works separately on docs/phase9a-openai-live-validation, without publication |
 | Remaining before L3 | Approved digest-bound snapshot transport, dedicated current real Podman isolation/resource/cleanup E2E and separate operational authorization |
 
 Implemented and offline-tested OpenAI integration is the closure scope. Prior
-live-tested direct API evidence is deliberately narrower. New full-workflow live
-execution is pending authorization; Anthropic is deferred; real L3 is blocked.
+live-tested direct API evidence was deliberately narrower. Full-workflow execution
+was pending authorization at that original closure; later authorized results are
+recorded below. Anthropic is deferred; real L3 is blocked.
 No statement here declares full Phase 9 complete or experimental software ready
 for production. Version recommendation remains 0.8.0.
+
+## Current live acceptance — evidence audit
+
+The four-role synthetic workflow passed with OpenAI gpt-5.5-pro at
+2026-11-23T16:07:36.021Z on **1c3755a494895d071937c8f12f9c1da6e8cf2fb0**:
+four HTTP 200 responses, expected host-validated proposal, nonempty diff and completed
+advisory review. Total elapsed **240770 ms**; reported usage **2132 input / 874 output**
+with **598 reasoning included in output**. Source unchanged and cleanup confirmed;
+patchApplied=false and executedGeneratedCode=false. Cost remains unknown without rates.
+
+This pass used a temporary **600-second** profile. The **120-second maximum was
+restored** afterward. Earlier real runs at 120 seconds and 160 seconds timed out;
+the latter validated a proposal but did not complete review. Their cancelled
+requests have unknown usage/cost, and their reported subtotals are incomplete.
+A pass under the restored deadline is still pending. See the exact dates, commits,
+HTTP observations, historical direct-smoke provenance and [live ledger](phase9-live-smoke.md).
+
+The passing smoke invokes the exported application smoke function, not an actual
+live interactive CLI subprocess. CLI subprocess E2E remains mocked HTTP evidence.
+No general task correctness, production readiness, live L2 approved application or
+L3 gate follows. L2 still requires an independent trusted approver; the CLI remains
+pending approval. No model can promote proposed changes into the original project.
