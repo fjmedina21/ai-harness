@@ -9,9 +9,11 @@ Audited `main` is version **0.8.0** at **9ce59e8b4b6b**, including experimental
 Phases 0–8, partial Phase 9 L1/L2 and the OpenAI 9A engineering integration.
 [Standard CI](https://github.com/fjmedina21/ai-harness/actions/runs/45205140383)
 passed for that exact SHA on 2026-11-23 with **568/568** tests.
-This audit branch records temporary 160/600-second profiles, restores the maximum
+The audit closure records temporary 160/600-second profiles, restores the maximum
 to **120 seconds**, and adds boundary regressions; **570/570** local tests passed.
-There is no hosted CI/publication claim for the new changes.
+At pre-publication closure `5bb6317`, the new changes had local verification only.
+The owner subsequently authorized merge/push; later publication and CI are separate
+evidence associated with their own commits.
 
 Live evidence is separated into mocked HTTP, historical direct API-to-patch smoke,
 and full engineering workflow. The four-role synthetic OpenAI workflow passed
@@ -162,6 +164,7 @@ composition. The full workflow then passed live with a synthetic fixture in
 whose successful live acceptance remains pending. Independent L2 approvals and L3
 isolation gates remain separate.
 Implementation 2cfc4a92aadc and documentation 9ce59e8b4b6b are already in the
-audited `main`; its standard CI passed. Later audit-branch changes are local only.
+audited `main`; its standard CI passed. Audit changes were local at closure
+`5bb6317`; the subsequent merge/push authorization is separate from that snapshot.
 This is not full Phase 9, real L3 or release closure.
 See [scope/acceptance](phase9-provider-integration.md) and [live evidence](phase9-live-smoke.md).

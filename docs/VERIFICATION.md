@@ -25,7 +25,7 @@ audit; the maximum has now been restored to **120000 ms**.
 | Final restored build/test | **570/570** after restoring 120000 ms; zero failed/cancelled/skipped |
 | Final focused checks | **63/63**; 120000 ms acceptance and 120001 ms rejection, mocked actual CLI/smoke processes, existing cancellation/timeout tests |
 | Documentation / private files | 65 relative links/anchors verified, git diff --check clean; no new key/path patterns found; excluded private-file metadata unchanged |
-| New hosted CI | Not run for the local audit/restoration changes; baseline CI does not certify them |
+| Hosted CI at audit closure 5bb6317 | Not run at that pre-publication snapshot; baseline CI does not certify later changes. The owner subsequently authorized merge/push; assess subsequent CI against its own SHA |
 | L2 / L3 | L2 actual filesystem/SQLite with mocked provider HTTP and independent approvals; no live-provider approved application. L3 blocked; no Podman run |
 
 The synthetic four-role OpenAI workflow is **live verified under the temporary

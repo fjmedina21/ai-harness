@@ -4,9 +4,10 @@ Local-first, provider-agnostic TypeScript harness for role-based software tasks.
 Version **0.8.0** is an experimental source milestone. Audited `main` at
 **9ce59e8b4b6b** includes Phase 9A OpenAI engineering, with **568/568** tests
 confirmed by its [standard CI](https://github.com/fjmedina21/ai-harness/actions/runs/45205140383).
-This audit branch preserves the **120-second maximum** after a temporary long
-smoke and adds boundary regressions, with **570/570** local tests. Those later
-changes have not been published or checked by hosted CI.
+The audit closure preserves the **120-second maximum** after a temporary long
+smoke and adds boundary regressions, with **570/570** local tests at `5bb6317`.
+The CI linked above belongs to the earlier baseline; later publication and CI
+must be checked against their own commit.
 The project is **not a production-ready autonomous agent**. L1/L2 have offline
 filesystem/SQLite evidence. A real OpenAI four-role synthetic workflow passed in
 **240.77 seconds** under a temporary 600-second profile; the restored 120-second

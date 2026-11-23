@@ -1,7 +1,7 @@
 # Phase 9 autonomy levels and release gates
 
 Audited source: `main` at **9ce59e8b4b6b97757a3104aaed4684c91cbbeef5**,
-2026-11-23, including Phase 9 and the OpenAI 9A integration. This audit branch adds
+2026-11-23, including Phase 9 and the OpenAI 9A integration. The audit closure records
 explicitly authorized temporary 160/600-second profiles, restores the maximum to
 **120 seconds**, and records evidence plus boundary regressions. Version remains **0.8.0**. Phase 9 is **not completed**.
 
@@ -54,7 +54,8 @@ Successful unit tests or a successful provider response never promote these gate
 Final local restoration checks: **570/570**, including 120000 ms acceptance and
 120001 ms rejection coverage. The temporary 160/600-second profiles also passed
 their bounded offline checks before their real runs. Baseline hosted CI: **568/568** on `9ce59e8b4b6b`;
-it does not certify this branch's later changes. See [verification](VERIFICATION.md#phase-9a-evidence-audit)
+it does not certify the later audit changes. Publication and subsequent CI are
+separate evidence from the local 5bb6317 closure. See [verification](VERIFICATION.md#phase-9a-evidence-audit)
 and [provider integration](phase9-provider-integration.md).
 
 Remaining work includes live acceptance within the restored deadline, independent approval

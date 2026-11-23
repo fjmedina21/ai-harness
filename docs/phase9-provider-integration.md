@@ -140,7 +140,9 @@ records the owner-approved OpenAI/offline integration scope. Standard CI for
 9ce59e8b4b6b subsequently passed; see [the current audit](VERIFICATION.md#phase-9a-evidence-audit).
 It does not close Anthropic engineering, full Phase 9, real L3 or production acceptance.
 The audit branch restores the 120-second maximum after temporary live-run profiles
-and retains boundary regressions, with 570/570 local tests; its hosted CI is pending. No key write,
+and retains boundary regressions, with 570/570 local tests at closure 5bb6317.
+Hosted CI had not run for that pre-publication snapshot; subsequent CI must be
+associated with its own SHA. No key write,
 container workload, push, merge, release or version bump is included in this audit.
 
 ## Historical implementation delivery report — 2026-11-23
@@ -165,7 +167,7 @@ container workload, push, merge, release or version bump is included in this aud
 | Source files changed | application/engineering-provider.ts and engineering.ts; tools/engineering-model-output.ts; contracts; existing provider/transport/telemetry; CLI engineering command, smoke and tests; package script/exports |
 | Docs updated | README, architecture, repository map, roadmap, verification, versioning, phase9 architecture/security/autonomy/E2E plus provider integration and live smoke |
 | Integration commits | Implementation: 2cfc4a92aadcd16f6ae75b96e283a183b04f7113; documentation: 9ce59e8b4b6b97757a3104aaed4684c91cbbeef5; both are already in audited main |
-| Historical Git / current audit | Earlier delivery was local; subsequent publication is confirmed by main and its exact-SHA CI. This audit works separately on docs/phase9a-openai-live-validation, without publication |
+| Historical Git / current audit | Earlier delivery was local; subsequent publication is confirmed by main and its exact-SHA CI. The audit closed locally at 5bb6317 on docs/phase9a-openai-live-validation; the owner subsequently authorized merge/push |
 | Remaining before L3 | Approved digest-bound snapshot transport, dedicated current real Podman isolation/resource/cleanup E2E and separate operational authorization |
 
 Implemented and offline-tested OpenAI integration is the closure scope. Prior

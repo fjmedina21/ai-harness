@@ -8,8 +8,10 @@ The owner subsequently authorized a real full-workflow run, explicitly accepted
 uncertain cost, then authorized a bounded 160-second deadline change and one
 reattempt. The temporary profiles were local commits **11c3738e42ccb9603cc198a434e3ce635c2efda1**
 (160 seconds) and **1c3755a494895d071937c8f12f9c1da6e8cf2fb0** (600 seconds).
-The maximum was restored to **120 seconds** after the successful long run. These
-local changes are not published/integrated to main. No other provider,
+The maximum was restored to **120 seconds** after the successful long run.
+At the pre-publication audit closure `5bb6317`, these changes were local; the owner
+subsequently authorized merge and push. Publication and CI are separate Git/GitHub
+evidence and do not change the recorded live-run profiles. No other provider,
 generated-code execution or L3 operation was run.
 
 **Verified — real OpenAI engineering workflow on the synthetic 600-second profile.**
