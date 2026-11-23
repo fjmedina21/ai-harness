@@ -38,5 +38,12 @@ and the CLI; it is not a new release or an automatic patch/minor bump. The
 integrated starting point is `c87d22f` (PR #3); closure checks on
 `chore/phase8-final-closure` remain local until separately authorized publication.
 No npm publication, tag or GitHub Release is created. External provider and
-remote infrastructure gates are deferred, not approved. Phase 9 remains
-**Not started — design pending**; no `0.9.0` or `1.0.0` is declared.
+remote infrastructure gates are deferred, not approved. At that closure Phase 9 remained design pending; current feature-branch status is
+[partial experimental implementation](phase9-autonomy-levels.md), retaining 0.8.0.
+
+
+Phase 9 development retains **0.8.0** across all manifests and CLI. Do not bump
+0.9.0 based solely on patch generation, fixture repair or passing offline tests.
+Reassess a coherent milestone only after explicit release acceptance, truthful
+level gates and required current real isolation/evidence. No tag, push, merge,
+GitHub Release or 1.0.0 is authorized by this source work.

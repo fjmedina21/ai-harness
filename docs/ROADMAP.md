@@ -5,15 +5,12 @@ are targets, not evidence that those capabilities were delivered.
 
 ## Current source state
 
-The integrated baseline on `main` is version `0.8.0` at commit `c87d22f`
-(`c87d22f2de3a09eed85938c4d955a54f4f00cd7c`), including PR #3's dedicated
-Podman runner preparation. Standard hosted CI run
-[45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893)
-passed for that exact SHA. Phases 0–7 are implemented and integrated as
-experimental foundations; Phase 8's approved read-only implementation is complete.
-Final closure checks on `chore/phase8-final-closure` passed 427 tests and 18
-focused offline E2E tests locally. These closure changes have not been merged,
-published or validated in CI. The baseline had 424 tests.
+The starting `main` is version **0.8.0** at **fdcb1130e91a**, verified clean and
+synchronized with origin before creating the Phase 9 branch. Phases 0–8 are
+integrated experimental foundations; baseline build/tests passed 427/427 locally.
+Phase 9 is partially implemented on its feature branch, with **512/512** current
+local tests. No hosted CI was run for the new branch. Earlier c87d22f / PR #3 and
+Phase 8 closure CI/results remain historical evidence for their respective SHAs.
 
 Live providers: **Deferred — live provider interoperability validation**.
 Remote Podman: **Deferred — dedicated remote infrastructure validation**.
@@ -36,7 +33,7 @@ remains an experimental source milestone.
 | 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Implemented and integrated; experimental foundations; real local SQLite tests passed |
 | 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Implemented and integrated; experimental foundations; historical CI/evaluations retained |
 | 8 | Read-only CLI, three-agent integration, explicit providers, authorized tools, optional persistence/diagnostics, offline E2E, standard CI and documented security | **Implemented — offline E2E validated; external validation gates deferred** |
-| 9 | Workspace isolation, controlled modification and validation design only | **Not started — design pending** |
+| 9 | Private workspaces, controlled patches/approvals, bounded fixture repair and opt-in CLI | **Partial — L1/L2 local evidence; L3 real gate blocked** |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
@@ -110,6 +107,10 @@ Phase 7 adds neutral opt-in telemetry across orchestration, agents, providers an
 
 ## Phase 9 readiness — design handoff only
 
+> Historical Phase 8 handoff. Superseded for current Phase 9 status by the
+> [implementation/gate matrix](phase9-autonomy-levels.md); the table below records
+> questions that existed before this branch, not current absence of L1/L2.
+
 **Not started — design pending.** This section identifies prerequisites and open
 questions; it enables no writes, validation commands or container workloads.
 The existing SDD implementation stage generates proposals, not source changes.
@@ -130,3 +131,13 @@ fixture success cannot establish it. Formal design/spec approval, a revised
 threat model and concrete acceptance tests must precede Phase 9 implementation.
 No `0.9.0` bump, release, write tool exposure or execution capability is included
 in this Phase 8 closure.
+
+## Phase 9 implementation — partial, Gate C blocked
+
+Based on fdcb1130e91a, the feature branch adds experimental local L1/L2, durable
+exact patch approvals, private workspace lifecycle, sequential existing roles,
+bounded fixture repair, separate implement CLI and offline evaluations. Keep 0.8.0.
+No new phase is started. [Gate matrix](phase9-autonomy-levels.md),
+[security](phase9-security.md), [sandbox blocking conditions](phase9-sandbox-validation.md)
+and [E2E evidence](phase9-e2e.md) distinguish implementation from authorized real use.
+No live model/real generated-code sandbox/remote CI gate is passed by these fixtures.

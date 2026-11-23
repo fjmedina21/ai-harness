@@ -245,3 +245,16 @@ Véanse [observabilidad](phase7-observability.md),
 [evaluaciones](phase7-evaluations.md) y [seguridad](phase7-security.md).
 
 Proyecto de ejemplo API + web mínimo: `harness init`, solicitud «agrega endpoint GET /health con prueba», análisis/spec, planificación, asignación de analista/implementador/QA, modificación en worktree o rama autorizada, ejecución de test, registro de evidencias, pausa/aprobación de una acción protegida, interrupción simulada, reanudación desde checkpoint y reporte final. Repetir con un segundo adaptador de proveedor para comprobar compatibilidad.
+
+## Fase 9 — ingeniería aislada experimental
+
+Se implementan contratos compartidos y una composición opt-in independiente del
+workflow inspect. El host selecciona archivos, workspace, política, aprobaciones,
+adaptador y presupuestos. tools contiene copias privadas y patches estructurados;
+checkpointing mantiene journal/aprobaciones y snapshots de estado; orchestrator
+reutiliza roles secuenciales; application coordina propuesta/aplicación/revisión y
+reparación fixture. evaluations consume application sin ciclos de dependencias.
+El proyecto original no recibe modificaciones. L3 real permanece bloqueado por la
+transferencia de snapshots y las pruebas locales actuales de aislamiento pendientes.
+Véanse [arquitectura](phase9-architecture.md), [amenazas](phase9-security.md),
+[fronteras por nivel](phase9-autonomy-levels.md) y [validación](phase9-e2e.md).

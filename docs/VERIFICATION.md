@@ -1,5 +1,48 @@
 # Verification — current source version 0.8.0
 
+## Phase 9 local verification
+
+Date: **2026-11-23**; Node **24.18.0**, pnpm **12.21.0**, macOS arm64.
+Starting commit: **fdcb1130e91ac37212e41253103b7b01f6415040**, on clean main
+synchronized with origin after fetch/ff-only verification. Development branch:
+**feat/phase9-autonomous-engineering-runtime**. Version remains **0.8.0**.
+
+| Required check | Observed current result |
+| --- | --- |
+| Baseline build/test | Passed, 427/427 |
+| pnpm clean | Passed |
+| pnpm build | Passed |
+| pnpm test | **512/512 passed**, zero failed/cancelled/skipped; 85 new regression cases included |
+| Focused Phase 9 suites | Passed incrementally, latest standalone 83/83 before final deadline/checkpoint regressions; all current cases are included in 512 |
+| pnpm harness --help / version | Passed; ai-harness 0.8.0 (experimental) |
+| pnpm harness eval run --suite deterministic | **19/19 scenarios; 42/42 assertions** |
+| pnpm harness eval run --suite phase9 | **10/10 scenarios; 10/10 assertions** |
+| git diff --check | Passed |
+| Private/generated artifacts | AGENTS.md, docs/AI-HARNESS-HANDOFF.md and harness-development remain locally excluded; dist/node_modules are not selected |
+| Real filesystem / SQLite | Passed via synthetic temporary projects, approvals, concurrency, cancellation, cleanup and actual process crash/reopen |
+| Real generated-code Podman / provider execution | **NOT RUN**; no credential use, billing, Machine startup or profile changes |
+| Podman read-only inspection | 6.1.4 installed at /opt/podman/bin/podman; existing ai-harness-isolation Machine stopped; no effective current-code workload validation |
+| Hosted CI | **NOT RUN** for this branch; baseline CI is not new-change evidence |
+
+The full-suite gate first exposed timeout checkpoint finalization inheriting an
+aborted signal. The correction added independent bounded terminal persistence,
+kept L1 free of checkpoints, and added L2 cancellation regression coverage; the
+subsequent complete required command sequence passed. A trusted crashing test
+worker exercises journal Running + actual file changes + a stale lock without
+executing any synthetic-project code. No exactly-once or power-loss guarantee.
+
+See [full report](phase9-e2e.md), [level matrix](phase9-autonomy-levels.md),
+[threat model](phase9-security.md) and [blocked real sandbox gate](phase9-sandbox-validation.md).
+The new branch is experimental and Phase 9 is incomplete. Implementation commit: **0aca4039abf2837b9ae68533b2ae196102bc6091**.
+The documentation commit contains this report; final IDs are supplied at delivery; no push, merge, tag or release is performed.
+
+## Historical Phase 8 evidence
+
+The sections below preserve the earlier closure-time evidence and then-current
+local/unmerged descriptions. That closure is included in the actual starting main
+fdcb1130e91a verified above. No fresh GitHub CI/release claim is made here.
+
+
 Integrated baseline: **`c87d22f2de3a09eed85938c4d955a54f4f00cd7c`** on `main`,
 including [PR #3](https://github.com/fjmedina21/ai-harness/pull/3). Standard CI
 [45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893)

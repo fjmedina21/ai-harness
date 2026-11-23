@@ -7,15 +7,26 @@ milestone, not a formal release announcement. The hosted GitHub release API
 has no release record for this commit; npm publication has not been verified.
 The project is experimental and is **not a production-ready autonomous agent**.
 
-Phase 8 status: **Implemented — offline E2E validated; external validation gates deferred**.
-The integrated baseline is `c87d22f` (PR #3), with successful
-[standard CI](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893).
-The final closure on `chore/phase8-final-closure` is local candidate evidence:
-427 tests and 18 focused E2E tests passed; it has not been merged or run in CI.
-Live providers are **Deferred — live provider interoperability validation**;
-remote Podman is **Deferred — dedicated remote infrastructure validation**.
-Neither gate blocks this offline read-only scope; both remain unvalidated.
-Phase 9 is **Not started — design pending**; see the [handoff](docs/ROADMAP.md#phase-9-readiness--design-handoff-only).
+Phase 8 is integrated on the starting `main` at **fdcb1130e91a**; its current
+local baseline passed 427/427 tests before this work. This feature branch adds
+Phase 9 as **partial experimental implementation — L1/L2 local fixtures validated;
+L3 blocked**. Historical CI evidence belongs to its exact baseline commits and
+does not certify this branch. Live provider engineering and remote Podman gates
+remain unvalidated. See the [capability matrix](docs/phase9-autonomy-levels.md)
+and [verification](docs/VERIFICATION.md#phase-9-local-verification).
+
+## Phase 9 opt-in engineering
+
+The new `run --workflow implement` supports an explicit offline fixture recipe:
+`--autonomy propose` reads host-selected files and returns structured patches;
+`--autonomy isolated` creates a private external copy and pauses for independent
+SQLite approval. A trusted host API can apply approved changes and exercise the
+bounded repair loop with fixture validation. The original project stays unchanged.
+OpenAI/Anthropic engineering integration, real sandbox validation and Gate C are
+unverified/unavailable; inspection provider support remains unchanged.
+No arbitrary request implementation or production autonomy is established by fixtures.
+See [CLI examples](docs/phase9-e2e.md), [design](docs/phase9-architecture.md) and
+[security](docs/phase9-security.md). Version remains **0.8.0**.
 
 ## Quick start
 
@@ -44,13 +55,13 @@ was implemented.
 
 | Area | Current behavior |
 |---|---|
-| Workflow | Sequential dependency-aware SDD proposals and a bounded read-only CLI inspection workflow |
+| Workflow | Existing SDD/inspection plus separate opt-in fixture engineering; private L2 application through trusted host approvals |
 | Providers | Fixture offline mode; explicitly selected OpenAI Responses and Anthropic Messages for inspection |
 | Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
 | Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
 | Isolation | Explicit rootless Podman Machine profile; Docker runtime execution was removed in 0.6.0 |
 | Observability | Opt-in bounded telemetry, in-memory/private rotating JSONL sinks, traces and metrics |
-| Evaluations | 19 deterministic host-fixture scenarios and 42 assertions; known scenarios only |
+| Evaluations | Existing deterministic suite plus independent phase9 offline filesystem/SQLite/repair scenarios; known fixtures only |
 
 Real provider calls and tool calling are programmatic and opt-in through host
 APIs and the explicit inspection CLI mode. No provider is selected from
@@ -114,6 +125,7 @@ support. See [Phase 5 security and migration](docs/phase5-security.md).
 pnpm harness trace --input ./private-telemetry.jsonl --id EXECUTION_ID
 pnpm harness metrics --input ./private-telemetry.jsonl --id EXECUTION_ID
 pnpm harness eval run --suite deterministic
+pnpm harness eval run --suite phase9
 pnpm harness eval report --input ./private-report.json
 ```
 
@@ -148,7 +160,7 @@ documented in [DEDICATED-PODMAN-RUNNER.md](docs/DEDICATED-PODMAN-RUNNER.md).
 
 - [Architecture](docs/ARCHITECTURE.md) — implemented foundations and target design
 - [Repository map](docs/REPOSITORY.md) — implemented workspace packages
-- [Roadmap](docs/ROADMAP.md) — status through implemented Phase 8
+- [Roadmap](docs/ROADMAP.md) — status through partial Phase 9
 - [Verification](docs/VERIFICATION.md) — local evidence, hosted CI and isolation status
 - [Versioning](docs/VERSIONING.md) — pre-1.0 policy
 - [Phase 8 integration](docs/phase8-integration.md) · [security](docs/phase8-security.md) · [E2E](docs/phase8-e2e.md) · [release checklist](docs/RELEASE-CHECKLIST.md)

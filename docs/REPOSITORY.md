@@ -2,15 +2,15 @@
 
 This map describes packages present in the current TypeScript workspace.
 Architecture proposals are maintained separately and do not imply that an
-unlisted service exists. The integrated baseline is `c87d22f` including PR #3;
-final closure evidence on `chore/phase8-final-closure` is local and unmerged.
+unlisted service exists. The starting main baseline is `fdcb1130e91a`; this
+Phase 9 feature branch remains local, with no new hosted CI or publication.
 The inspection composition exposes only `file.read`, even though the tools
 package contains other explicitly opt-in host APIs.
 
 | Path | Current responsibility |
 |---|---|
 | `apps/cli` | `harness` project commands and explicit diagnostics/evaluation commands |
-| `packages/application` | Host-owned composition of the bounded read-only inspection workflow |
+| `packages/application` | Host-owned inspection and opt-in isolated engineering composition |
 | `packages/contracts` | Shared runtime, provider, tools, durable operation and telemetry contracts |
 | `packages/config` | Project configuration validation and defaults |
 | `packages/core` | Project initialization and inspection |
@@ -31,5 +31,21 @@ for phase status and [verification](VERIFICATION.md) for test evidence.
 The dedicated Podman [workflow](../.github/workflows/phase5-isolation.yml) and
 [runner runbook](DEDICATED-PODMAN-RUNNER.md) are integrated preparation; remote
 validation remains deferred. No runner is configured by this closure.
-Phase 9 workspace/write/validation capabilities are not implemented; pending
-design dependencies are in the [roadmap handoff](ROADMAP.md#phase-9-readiness--design-handoff-only).
+Phase 9 adds experimental isolated engineering modules; see the
+[capability matrix](phase9-autonomy-levels.md). The existing inspection composition
+retains its read-only profile; new tools are separate opt-in host bindings.
+
+## Phase 9 modules on the feature branch
+
+- contracts/engineering.ts: levels, states, patches, policy, budgets and evidence.
+- tools/engineering-workspace.ts, engineering-patches.ts: private-copy lifecycle and
+  structured changes; engineering-cleanup.ts and engineering-recovery.ts are host-only.
+- tools/engineering-validation.ts: fixed command descriptions and disabled real Podman port.
+- checkpointing/engineering-checkpoint.ts: bounded append-only private metadata snapshots.
+- orchestrator/engineering-plan.ts: sequential reuse of existing roles.
+- application/engineering.ts and engineering-fixture.ts: bounded host composition and offline recipe.
+- apps/cli/src/engineering-cli.ts: opt-in fixture propose / isolated approval-pending workflow.
+- evaluations/phase9.ts: separate deterministic suite; evaluations now depends on application.
+
+No new third-party dependency/runtime/framework or version bump. The lockfile adds
+only the internal application workspace edge used by evaluations.
