@@ -1,7 +1,12 @@
 /** Fixed host test probes. Never registered as model tools or accepted as source text. */
+const DENIED_NETWORK_ERROR_CODES = ["EACCES", "EPERM", "ENETUNREACH", "EHOSTUNREACH", "ENETDOWN"] as const;
+export function isNetworkDeniedError(code: unknown): boolean {
+  return typeof code === "string" && DENIED_NETWORK_ERROR_CODES.includes(code as typeof DENIED_NETWORK_ERROR_CODES[number]);
+}
 const inspection = String.raw`
 const fs=require('node:fs'), os=require('node:os'), net=require('node:net');
 const fail=()=>{throw Error('isolation probe failed')};
+const deniedNetworkCodes=new Set(${JSON.stringify(DENIED_NETWORK_ERROR_CODES)});
 if(process.getuid()!==65534||process.getgid()!==65534)fail();
 const status=fs.readFileSync('/proc/self/status','utf8');
 for(const rule of [/CapEff:\s+0+\n/,/CapBnd:\s+0+\n/,/NoNewPrivs:\s+1\n/,/Seccomp:\s+2\n/])if(!rule.test(status))fail();
@@ -20,7 +25,7 @@ try{fs.writeFileSync('/harness-root-probe','x');fail()}catch(e){if(!['EROFS','EA
 const socket=net.connect({host:'203.0.113.1',port:9});
 socket.setTimeout(250,()=>{socket.destroy();fail()});
 socket.on('connect',()=>{socket.destroy();fail()});
-socket.on('error',()=>console.log(JSON.stringify({uid:65534,capabilities:'none',seccomp:2,noNewPrivileges:true,rootReadonly:true,tmpfsBytes:16777216,network:'denied',memoryBytes:268435456,swapBytes:0,pids:64,cpu:0.5})));
+socket.on('error',e=>{if(!deniedNetworkCodes.has(e.code))fail();console.log(JSON.stringify({uid:65534,capabilities:'none',seccomp:2,noNewPrivileges:true,rootReadonly:true,tmpfsBytes:16777216,network:'denied',memoryBytes:268435456,swapBytes:0,pids:64,cpu:0.5}))});
 `;
 export const FIXED_CONTAINER_OPERATIONS = Object.freeze({
   "node.version": Object.freeze(["--version"] as const),

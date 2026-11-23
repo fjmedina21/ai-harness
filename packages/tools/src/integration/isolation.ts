@@ -5,6 +5,7 @@ import { NodeProcessRunner } from "../process-runner.js";
 import { loadIsolationProfile } from "../isolation-profile.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { runtimePrefix } from "../runtime-backend.js";
+import { publicContainerPreflight, publicIsolationRunContext } from "../container-profile.js";
 import type { ProcessRunOptions } from "@ai-harness/contracts";
 
 // Separate command, excluded from the normal deterministic test glob. Never silently skip.
@@ -57,7 +58,8 @@ try {
   await assert.rejects(executeFixedContainer(options, runner, "isolation.wait"),
     (e: unknown) => e instanceof ContainerExecutionError && e.kind === "timeout" && e.cleanup === "confirmed" && e.states.includes("running"));
   console.log(JSON.stringify({ status: "passed", timestamp: new Date().toISOString(), node: process.version,
-    backend: preflight.backend, preflight, containerNode: version.stdout.trim(), image: options.image, probes: evidence, cleanup: "confirmed", cancellation: "confirmed", cancellationRunning: observedRunning, timeout: "confirmed" }));
+    ...publicIsolationRunContext(process.env.GITHUB_SHA, process.env.GITHUB_RUN_ID, process.env.GITHUB_WORKFLOW),
+    backend: preflight.backend, preflight: publicContainerPreflight(preflight), containerNode: version.stdout.trim(), image: options.image, probes: evidence, cleanup: "confirmed", cancellation: "confirmed", cancellationRunning: observedRunning, timeout: "confirmed" }));
 } catch {
   console.error(JSON.stringify({ stage, status: validated ? "failed" : "blocked", reason: validated
     ? "Real isolation probe or confirmed cleanup did not pass" : "Dedicated private runtime profile or required daemon capabilities unavailable" }));

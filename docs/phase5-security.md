@@ -117,8 +117,10 @@ The separate pnpm test:isolation gate requires HARNESS_ISOLATION_PROFILE set to
 the absolute approved private profile. It reports passed (exit 0), failed after
 preflight (exit 1) or blocked (exit 2); missing infrastructure never silently skips.
 Real probes verify effective UID/capabilities/seccomp/no-new-privileges,
-read-only root, bounded empty tmpfs, no sockets/shares/network, cgroups, running
-cancellation, timeout and confirmed removal.
+read-only root, bounded empty tmpfs, no host mounts/shares, network denial,
+cgroups, running cancellation, timeout and confirmed removal. The TCP denial
+probe accepts only explicit route/policy errors; connection refusal and timeout
+are failures. Successful JSON omits private socket endpoints and machine fingerprints.
 
 The dedicated GitHub workflow requires its labeled runner, protected environment
 and pre-provisioned Podman Machine/profile. Workflow configuration is not remote
