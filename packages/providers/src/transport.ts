@@ -20,6 +20,8 @@ export const PROVIDER_LIMITS = {
   maxOutputTokens: 4096,
 } as const;
 
+export const PROVIDER_TIMEOUT_CEILING_MS = 120_000;
+
 const MAX_PROVIDER_ERROR_BODY_BYTES = 4096;
 
 function providerHttpErrorCategory(code: unknown, type: unknown): ProviderHttpErrorCategory {
@@ -114,7 +116,7 @@ export async function postJson(
   signal?: AbortSignal,
   observation?: { binding: TelemetryBinding; provider: string; model: string },
 ): Promise<unknown> {
-  const timeoutMs = boundedOption(options.timeoutMs, PROVIDER_LIMITS.timeoutMs);
+  const timeoutMs = boundedOption(options.timeoutMs ?? PROVIDER_LIMITS.timeoutMs, PROVIDER_TIMEOUT_CEILING_MS);
   const maxResponseBytes = boundedOption(
     options.maxResponseBytes,
     PROVIDER_LIMITS.maxResponseBytes,

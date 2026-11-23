@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { AgentRole, DurableOperation, DurableDispatchBinding, EngineeringBudget, EngineeringCheckpoint, EngineeringPolicy, EngineeringState, StructuredPatch, TelemetryBinding, ValidationEvidence, WorkspaceSnapshot } from "@ai-harness/contracts";
 import { createEngineeringTaskPlan } from "@ai-harness/orchestrator";
-import { assertEngineeringStateTransition, emitTelemetry } from "@ai-harness/contracts";
+import { EngineeringProviderError, assertEngineeringStateTransition, emitTelemetry, traceTelemetry } from "@ai-harness/contracts";
 import { EngineeringPatchEngine, EngineeringWorkspace, EngineeringWorkspaceUncertain, createEngineeringTools, engineeringHash, engineeringLimit, openEngineeringSource, patchInvocation, type EngineeringView } from "@ai-harness/tools";
 
 export interface EngineeringAgentInput {
   role: AgentRole;
+  identity?: { executionId: string; workspaceId: string; taskId: string; turn: number };
+  policy?: EngineeringPolicy;
+  plan?: readonly string[];
+  telemetry?: TelemetryBinding;
   request: string;
   snapshot: WorkspaceSnapshot;
   files: readonly { path: string; content: string }[];
@@ -19,10 +23,12 @@ export interface EngineeringAgentInput {
 /** Host adapter port, not a model-owned callback. No filesystem/store/approval handles. */
 export interface EngineeringAgentPort {
   id: string;
+  model?: string;
+  close?(): void;
   mode: "fixture" | "host_model_adapter";
   maxTokensPerRequest: number;
   maxEstimatedCostUsdPerRequest: number;
-  execute(input: EngineeringAgentInput): Promise<{ proposal?: unknown; summary: string; usage: { tokens: number; estimatedCostUsd: number } }>;
+  execute(input: EngineeringAgentInput): Promise<{ proposal?: unknown; summary: string; usage: { tokens: number; estimatedCostUsd: number | null }; reportedUsage?: import("@ai-harness/contracts").TokenUsage; cost?: import("@ai-harness/contracts").CostEstimate }>;
 }
 export interface FixtureValidationPort {
   kind: "fixture";
@@ -38,6 +44,7 @@ export interface EngineeringOptions {
   agent: EngineeringAgentPort;
   /** Explicit host adapter authorization, never read from repository files. */
   modelAdapterAuthorized?: true;
+  allowUncertainCost?: true;
   workspace?: { directory: string; binding: DurableDispatchBinding; createAuthorized: true; ttlMs: number };
   validation?: FixtureValidationPort;
   /** Real execution deliberately blocked regardless of this request. */
@@ -57,6 +64,14 @@ export interface EngineeringResult {
   levelRequested: number;
   levelAvailable: 1 | 2;
   provider: string;
+  model?: string;
+  analyzedFiles: readonly { path: string; hash: string }[];
+  proposals: readonly StructuredPatch[];
+  proposalValidation: "not_run" | "passed" | "failed";
+  reviews: readonly { role: AgentRole; summary: string }[];
+  providerFailure?: import("@ai-harness/contracts").EngineeringProviderFailure;
+  reportedUsage: import("@ai-harness/contracts").TokenUsage;
+  cost: import("@ai-harness/contracts").CostEstimate;
   workspace?: Readonly<import("@ai-harness/contracts").WorkspaceReceipt>;
   baseRevision: string;
   snapshotDigest: string;
@@ -72,7 +87,7 @@ export interface EngineeringResult {
   validations: readonly ValidationEvidence[];
   repairAttempts: number;
   usageComplete: boolean;
-  usage: { requests: number; tokens: number; estimatedCostUsd: number };
+  usage: { requests: number; tokens: number; estimatedCostUsd: number | null };
   pendingApprovals: readonly string[];
   events: readonly EngineeringState[];
   termination: "proposed" | "approval_required" | "review_pending" | "completed" | "budget" | "no_progress" | "regression" | "failed" | "cancelled" | "timeout" | "uncertain" | "sandbox_blocked";
@@ -83,14 +98,14 @@ export interface EngineeringResult {
   l3Gate: "blocked";
   risks: readonly string[];
 }
-const defaultRisks = ["Experimental private local filesystem boundary; same-UID hostile races are unsupported", "L3 unavailable: real Podman snapshot transfer and current isolation E2E are unverified", "Model interoperability is unverified; no integration or publication authority"];
+const defaultRisks = ["Experimental private local filesystem boundary; same-UID hostile races are unsupported", "L3 unavailable: real Podman snapshot transfer and current isolation E2E are unverified", "Real engineering workflow interoperability requires separate live evidence; no integration or publication authority"];
 function validateOptions(o: EngineeringOptions): void {
   if (![1, 2, 3].includes(o.level) || !o.request.trim() || Buffer.byteLength(o.request) > 8192 || !o.files.length) throw new Error("Invalid engineering request");
   engineeringLimit(o.budget.maxIterations, 8); engineeringLimit(o.budget.maxRequests, 32); engineeringLimit(o.budget.maxTokens, 100_000);
   engineeringLimit(o.budget.timeoutMs, 120_000); engineeringLimit(o.budget.maxFiles, 16); engineeringLimit(o.budget.maxBytes, 65536);
   if (!Number.isFinite(o.budget.maxEstimatedCostUsd) || o.budget.maxEstimatedCostUsd < 0 || o.budget.maxEstimatedCostUsd > 10 ||
       !/^[a-zA-Z0-9._-]{1,64}$/.test(o.agent.id) || !["fixture", "host_model_adapter"].includes(o.agent.mode) ||
-      (o.agent.mode === "host_model_adapter" && o.modelAdapterAuthorized !== true) ||
+      (o.agent.mode === "host_model_adapter" && (o.modelAdapterAuthorized !== true || o.allowUncertainCost !== true || o.level === 3)) ||
       !Number.isSafeInteger(o.agent.maxTokensPerRequest) || o.agent.maxTokensPerRequest < 1 || o.agent.maxTokensPerRequest > o.budget.maxTokens ||
       !Number.isFinite(o.agent.maxEstimatedCostUsdPerRequest) || o.agent.maxEstimatedCostUsdPerRequest < 0) throw new Error("Host adapter and finite budgets required");
   if (o.level > 1 && (!o.workspace || o.workspace.createAuthorized !== true || !o.checkpoint)) throw new Error("L2 requires authorized workspace, durable binding and checkpoints");
@@ -100,7 +115,7 @@ class Stop extends Error { constructor(readonly reason: EngineeringResult["termi
 export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<EngineeringResult> {
   // Freeze authority-bearing data before yielding to any untrusted adapter.
   const o: EngineeringOptions = { ...raw, files: [...raw.files], policy: structuredClone(raw.policy), budget: { ...raw.budget },
-    agent: { id: raw.agent.id, mode: raw.agent.mode, maxTokensPerRequest: raw.agent.maxTokensPerRequest,
+    agent: { id: raw.agent.id, model: raw.agent.model, close: raw.agent.close?.bind(raw.agent), mode: raw.agent.mode, maxTokensPerRequest: raw.agent.maxTokensPerRequest,
       maxEstimatedCostUsdPerRequest: raw.agent.maxEstimatedCostUsdPerRequest, execute: raw.agent.execute.bind(raw.agent) },
     ...(raw.workspace ? { workspace: { ...raw.workspace, binding: { ...raw.workspace.binding, requester: { ...raw.workspace.binding.requester } } } } : {}) };
   validateOptions(o);
@@ -108,14 +123,16 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
   const deadlineTimer = setTimeout(() => deadline.abort(), o.budget.timeoutMs);
   const signal = AbortSignal.any([deadline.signal, ...(o.signal ? [o.signal] : [])]);
   const executionId = randomUUID();
+  const executionTelemetry = traceTelemetry(o.telemetry?.observer, executionId);
   let view: EngineeringView | undefined, engine: EngineeringPatchEngine | undefined;
   const result: EngineeringResult = { executionId, request: o.request, state: "Proposed", levelRequested: o.level, levelAvailable: o.level === 1 ? 1 : 2,
-    provider: o.agent.id, baseRevision: "", snapshotDigest: "", plan: [], requirements: [], participants: [], patches: [], filesCreated: [], filesModified: [], filesDeleted: [], diff: "", diffScope: "proposed", validations: [], repairAttempts: 0,
-    usageComplete: true, usage: { requests: 0, tokens: 0, estimatedCostUsd: 0 }, pendingApprovals: [], events: [], termination: "proposed", originalProject: "unchanged", integrated: false, reviewed: false,
+    provider: o.agent.id, model: o.agent.model, analyzedFiles: [], proposals: [], proposalValidation: "not_run", reviews: [], reportedUsage: { availability: "unavailable" }, cost: { status: "unknown", reason: "missing_usage" }, baseRevision: "", snapshotDigest: "", plan: [], requirements: [], participants: [], patches: [], filesCreated: [], filesModified: [], filesDeleted: [], diff: "", diffScope: "proposed", validations: [], repairAttempts: 0,
+    usageComplete: true, usage: { requests: 0, tokens: 0, estimatedCostUsd: o.agent.mode === "host_model_adapter" ? null : 0 }, pendingApprovals: [], events: [], termination: "proposed", originalProject: "unchanged", integrated: false, reviewed: false,
     validationScope: o.validation ? "fixture" : "none", l3Gate: "blocked", risks: [...defaultRisks] };
   const deliver = () => {
     clearTimeout(deadlineTimer);
-    emitTelemetry(o.telemetry, "engineering.completion", { engineeringState: result.state, accepted: result.state === "Completed" });
+    try { o.agent.close?.(); } catch { /* Host lifecycle faults never authorize more calls. */ }
+    emitTelemetry(executionTelemetry, "engineering.completion", { engineeringState: result.state, accepted: result.state === "Completed" });
     return result;
   };
   const boundedWait = async <T>(promise: Promise<T>): Promise<T> => {
@@ -126,10 +143,10 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
   const state = async (next: EngineeringState) => {
     assertEngineeringStateTransition(result.state, next);
     result.state = next; result.events = [...result.events, next];
-    emitTelemetry(o.telemetry, "engineering.state", { engineeringState: next, iteration: result.repairAttempts });
+    emitTelemetry(executionTelemetry, "engineering.state", { engineeringState: next, iteration: result.repairAttempts });
     if (o.checkpoint && view instanceof EngineeringWorkspace) {
       const saving = o.checkpoint.save({ executionId, workspaceId: view.receipt.workspaceId, state: next, snapshotDigest: result.snapshotDigest,
-        iteration: result.repairAttempts, ...result.usage });
+        iteration: result.repairAttempts, requests: result.usage.requests, tokens: result.usage.tokens, estimatedCostUsd: result.usage.estimatedCostUsd ?? 0 });
       if (["Failed", "Cancelled", "Uncertain"].includes(next)) {
         // Independent bounded finalization must not inherit an already-aborted run.
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -138,26 +155,68 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       } else await boundedWait(saving);
     }
   };
+  let knownEstimatedCost = 0, unknownEstimatedCost = false;
+  let checkingProposal = false;
+  const account = (usage: import("@ai-harness/contracts").TokenUsage, cost?: import("@ai-harness/contracts").CostEstimate, includeTotals = true) => {
+    if (usage.availability !== "reported") return;
+    const previous = result.reportedUsage;
+    const combined: import("@ai-harness/contracts").TokenUsage = { availability: "reported" };
+    for (const key of ["inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "reasoningTokens"] as const) {
+      const value = usage[key];
+      if (value !== undefined && Number.isSafeInteger(value) && value >= 0) combined[key] = (previous[key] ?? 0) + value;
+      else if (previous[key] !== undefined) combined[key] = previous[key];
+    }
+    result.reportedUsage = combined;
+    if (includeTotals) {
+      const tokens = (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+      if (!Number.isSafeInteger(tokens) || !Number.isSafeInteger(result.usage.tokens + tokens)) { result.usageComplete = false; throw new Stop("budget"); }
+      result.usage.tokens += tokens;
+      if (cost?.status === "estimated") knownEstimatedCost += cost.amount; else unknownEstimatedCost = true;
+      result.usage.estimatedCostUsd = unknownEstimatedCost ? null : knownEstimatedCost;
+    }
+    if (cost?.status === "estimated") result.cost = result.cost.status === "estimated"
+      ? { ...cost, amount: result.cost.amount + cost.amount, rateVersions: [...new Set([...result.cost.rateVersions, ...cost.rateVersions])] } : cost;
+    else if (cost) result.cost = cost;
+  };
   const act = async (role: AgentRole, failure?: EngineeringAgentInput["previousFailure"]) => {
     signal.throwIfAborted();
     if (result.usage.requests >= o.budget.maxRequests || result.usage.tokens + o.agent.maxTokensPerRequest > o.budget.maxTokens ||
-        result.usage.estimatedCostUsd + o.agent.maxEstimatedCostUsdPerRequest > o.budget.maxEstimatedCostUsd) throw new Stop("budget");
+        (result.usage.estimatedCostUsd ?? 0) + o.agent.maxEstimatedCostUsdPerRequest > o.budget.maxEstimatedCostUsd) throw new Stop("budget");
     const snapshot = await view!.inspect(signal);
     const files: { path: string; content: string }[] = []; let bytes = 0;
     for (const f of snapshot.files) {
       const content = await view!.read(f.path, signal); bytes += Buffer.byteLength(content);
-      if (bytes > 8192) throw new Stop("budget"); files.push({ path: f.path, content });
+      if (bytes > 8192) throw new Stop("budget");
+      if (engineeringHash(content) !== f.hash) throw new Stop("failed");
+      files.push({ path: f.path, content });
     }
     result.usage.requests++; result.usageComplete = false;
     result.participants = [...new Set([...result.participants, role])];
-    const output = await boundedWait(o.agent.execute({ role, request: o.request, snapshot: structuredClone(snapshot), files, previousFailure: failure, diff: result.diff, validationEvidence: structuredClone(result.validations), requirements: [...result.requirements],
-      allowance: { tokens: o.agent.maxTokensPerRequest, estimatedCostUsd: o.agent.maxEstimatedCostUsdPerRequest }, signal }));
+    let output: Awaited<ReturnType<EngineeringAgentPort["execute"]>>;
+    try { output = await boundedWait(o.agent.execute({ role, request: o.request, snapshot: structuredClone(snapshot), files, previousFailure: failure, diff: result.diff, validationEvidence: structuredClone(result.validations), requirements: [...result.requirements], plan: [...result.plan], policy: structuredClone(o.policy),
+      identity: { executionId, workspaceId: view!.receipt.workspaceId, taskId: role, turn: result.usage.requests },
+      telemetry: executionTelemetry,
+      allowance: { tokens: o.agent.maxTokensPerRequest, estimatedCostUsd: o.agent.maxEstimatedCostUsdPerRequest }, signal })); }
+    catch (error) {
+      if (error instanceof EngineeringProviderError) {
+        result.providerFailure = { ...error.failure };
+        if (error.usage) {
+          account(error.usage, error.cost);
+          result.usageComplete = error.usage.availability === "reported" && Number.isSafeInteger(error.usage.inputTokens) && Number.isSafeInteger(error.usage.outputTokens);
+        }
+      }
+      throw error;
+    }
     signal.throwIfAborted();
     if (!output || typeof output.summary !== "string" || Buffer.byteLength(output.summary) > 2048 || !output.usage ||
         !Number.isSafeInteger(output.usage.tokens) || output.usage.tokens < 0 || output.usage.tokens > o.agent.maxTokensPerRequest ||
-        !Number.isFinite(output.usage.estimatedCostUsd) || output.usage.estimatedCostUsd < 0 || output.usage.estimatedCostUsd > o.agent.maxEstimatedCostUsdPerRequest) throw new Stop("budget");
+        (output.usage.estimatedCostUsd === null ? o.allowUncertainCost !== true : !Number.isFinite(output.usage.estimatedCostUsd) || output.usage.estimatedCostUsd < 0 || output.usage.estimatedCostUsd > o.agent.maxEstimatedCostUsdPerRequest)) throw new Stop("budget");
     result.usageComplete = true;
-    result.usage.tokens += output.usage.tokens; result.usage.estimatedCostUsd += output.usage.estimatedCostUsd;
+    result.usage.tokens += output.usage.tokens;
+    if (output.usage.estimatedCostUsd === null) unknownEstimatedCost = true; else knownEstimatedCost += output.usage.estimatedCostUsd;
+    result.usage.estimatedCostUsd = unknownEstimatedCost ? null : knownEstimatedCost;
+    if (output.reportedUsage) account(output.reportedUsage, output.cost, false);
+    if (["code-reviewer", "validator", "security-specialist"].includes(role)) result.reviews = [...result.reviews, { role, summary: output.summary }];
     return output;
   };
   let applying = false, validating = false;
@@ -192,9 +251,10 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       maxFiles: 256, maxBytes: 4 * 1024 * 1024, signal });
     if (view instanceof EngineeringWorkspace) result.workspace = view.receipt;
     result.baseRevision = (await view.inspect(signal)).digest; result.snapshotDigest = result.baseRevision;
+    result.analyzedFiles = (await view.inspect(signal)).files.map(f => ({ path: f.path, hash: f.hash }));
     for (const f of (await view.inspect(signal)).files) original.set(f.path, await view.read(f.path, signal));
     engine = new EngineeringPatchEngine(view, o.policy); await state("Proposed");
-    emitTelemetry(o.telemetry, "engineering.workspace", { accepted: true });
+    emitTelemetry(executionTelemetry, "engineering.workspace", { accepted: true });
     const tasks = createEngineeringTaskPlan(o.request, o.sensitive);
     const role = (id: string) => tasks.find(task => task.id === id)!.assignedRole;
     result.requirements = [(await act(role("requirements"))).summary];
@@ -203,13 +263,16 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
     const snapshots = new Set([result.baseRevision]), failures = new Set<string>(), changedPaths = new Set<string>();
     let changedBytes = 0; let previousChecks: readonly string[] = [], failure: EngineeringAgentInput["previousFailure"];
     for (let iteration = 0; iteration < o.budget.maxIterations; iteration++) {
-      if (iteration) { result.repairAttempts++; await state("Repairing"); emitTelemetry(o.telemetry, "engineering.repair", { iteration, accepted: true }); }
+      if (iteration) { result.repairAttempts++; await state("Repairing"); emitTelemetry(executionTelemetry, "engineering.repair", { iteration, accepted: true }); }
       const output = await act(role("implement"), failure);
+      checkingProposal = true;
       const patch = await engine.propose(output.proposal, signal), diff = await engine.diff(patch.digest, signal);
       await state("Proposed");
-      emitTelemetry(o.telemetry, "engineering.patch", { accepted: true });
+      emitTelemetry(executionTelemetry, "engineering.patch", { accepted: true, patchDigest: patch.digest });
+      emitTelemetry(executionTelemetry, "engineering.proposal_validation", { accepted: true, patchDigest: patch.digest });
       for (const change of patch.changes) { changedPaths.add(change.path); changedBytes += Buffer.byteLength(change.content ?? "") + ((await view.inspect(signal)).files.find(f => f.path === change.path)?.bytes ?? 0); }
       if (changedPaths.size > o.budget.maxFiles || changedBytes > o.budget.maxBytes) throw new Stop("budget");
+      result.proposals = [...result.proposals, structuredClone(patch)]; result.proposalValidation = "passed"; checkingProposal = false;
       result.diff = diff; result.patches = [...result.patches, { digest: patch.digest, status: "proposed", paths: patch.changes.map(c => c.path) }];
       if (o.level === 1) {
         await act(role("review")); result.termination = "proposed";
@@ -218,12 +281,13 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
         result.filesDeleted = patch.changes.filter(c => c.operation === "delete").map(c => c.path);
         return deliver();
       }
+      if (o.agent.mode === "host_model_adapter") await act(role("review"));
       await finishDiff(patch);
       const tools = createEngineeringTools(engine, o.workspace!.binding), identity = { taskId: "engineering", requestId: "patch-" + iteration }, invocation = patchInvocation(patch);
       const waiting = await tools.dispatch(invocation, identity, undefined, signal);
       if (waiting.status !== "approval_required" || !waiting.approvalId) throw new Stop(waiting.operationState === "Uncertain" ? "uncertain" : "failed");
       result.pendingApprovals = [waiting.approvalId];
-      emitTelemetry(o.telemetry, "engineering.approval", { approvalRequired: true, accepted: false });
+      emitTelemetry(executionTelemetry, "engineering.approval", { approvalRequired: true, accepted: false });
       const approved = o.requestApproval ? await boundedWait(o.requestApproval({ approvalId: waiting.approvalId, patch: structuredClone(patch), diff, signal })) : undefined;
       if (!approved) { result.termination = "approval_required"; await state("ReviewPending"); return deliver(); }
       if (approved !== waiting.approvalId || o.workspace!.binding.store.approval(approved)?.status !== "approved") throw new Stop("failed");
@@ -251,7 +315,7 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       if (!evidence || evidence.cleanup !== "confirmed") throw new Stop("uncertain");
       validateEvidence(evidence, snapshot, view.receipt.workspaceId);
       result.validations = [...result.validations, structuredClone(evidence)];
-      emitTelemetry(o.telemetry, "engineering.validation", { accepted: evidence.result === "passed" });
+      emitTelemetry(executionTelemetry, "engineering.validation", { accepted: evidence.result === "passed" });
       if ((await view.inspect(signal)).digest !== snapshot.digest) throw new Stop("uncertain");
       validationOperation = store.finish(validationOperation.operationId, validationOperation.version, "Completed", engineeringHash(JSON.stringify(evidence)));
       validating = false;
@@ -264,16 +328,19 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       failure = { failedChecks: [evidence.validationId], snapshotDigest: snapshot.digest };
       if (iteration + 1 === o.budget.maxIterations) throw new Stop("budget");
     }
-    await finishDiff(); await act(role("review")); await act(role("validate")); if (o.sensitive) await act(role("security"));
+    await finishDiff(); if (o.agent.mode !== "host_model_adapter") await act(role("review")); await act(role("validate")); if (o.sensitive) await act(role("security"));
     await state("ReviewPending"); result.termination = "review_pending";
-    emitTelemetry(o.telemetry, "engineering.review", { accepted: false });
+    emitTelemetry(executionTelemetry, "engineering.review", { accepted: false });
     if (o.humanReview && await boundedWait(o.humanReview(structuredClone(result), signal))) { result.reviewed = true; await state("Completed"); result.termination = "completed"; }
   } catch (error) {
+    if (checkingProposal) { result.proposalValidation = "failed"; emitTelemetry(executionTelemetry, "engineering.proposal_validation", { accepted: false, errorClass: "policy" }); }
     if (validationOperation?.state === "Running") {
       try { validationOperation = o.workspace!.binding.store.finish(validationOperation.operationId, validationOperation.version, "Uncertain"); }
       catch { try { o.workspace!.binding.store.retireSession(); } catch { /* Do not replay. */ } }
     }
-    const why = error instanceof EngineeringWorkspaceUncertain ? "uncertain" : error instanceof Stop ? error.reason : signal.aborted ? o.signal?.aborted ? "cancelled" : "timeout" : "failed";
+    const why = error instanceof EngineeringWorkspaceUncertain ? "uncertain" : error instanceof EngineeringProviderError && error.failure.category === "timeout" ? "timeout" : error instanceof EngineeringProviderError && error.failure.category === "cancelled" ? "cancelled" : error instanceof Stop ? error.reason : signal.aborted ? o.signal?.aborted ? "cancelled" : "timeout" : "failed";
+    if (error instanceof EngineeringProviderError) result.providerFailure = { ...error.failure };
+    if (error instanceof Stop && error.reason === "budget") emitTelemetry(executionTelemetry, "engineering.budget", { accepted: false, errorClass: "limit" });
     result.termination = applying || validating || why === "uncertain" ? "uncertain" : why;
     try { await state(result.termination === "uncertain" ? "Uncertain" : result.termination === "cancelled" ? "Cancelled" : "Failed"); }
     catch { result.state = "Uncertain"; result.termination = "uncertain"; }

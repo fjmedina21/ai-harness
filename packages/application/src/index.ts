@@ -12,3 +12,4 @@ export { FixtureInspectionProvider } from "./fixture-provider.js";
 
 export * from "./engineering.js";
 export { FixtureEngineeringAgent } from "./engineering-fixture.js";
+export * from "./engineering-provider.js";

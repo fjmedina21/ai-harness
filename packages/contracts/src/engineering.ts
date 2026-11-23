@@ -99,3 +99,16 @@ export function assertEngineeringStateTransition(from: EngineeringState, to: Eng
   };
   if (!Object.hasOwn(transitions, from) || !Object.hasOwn(transitions, to) || (from !== to && !transitions[from].includes(to))) throw new Error("Invalid engineering state transition");
 }
+
+export interface EngineeringProviderFailure {
+  category: "http" | "timeout" | "cancelled" | "invalid_response" | "invalid_output" | "usage_unknown" | "limit" | "authorization" | "closed";
+  httpStatus?: number;
+  httpErrorCategory?: import("./telemetry.js").ProviderHttpErrorCategory;
+}
+/** Fixed diagnostics only. Never accepts raw upstream text. */
+export class EngineeringProviderError extends Error {
+  constructor(readonly failure: EngineeringProviderFailure, readonly usage?: import("./telemetry.js").TokenUsage,
+    readonly cost?: import("./telemetry.js").CostEstimate) {
+    super("Engineering provider request rejected"); this.name = "EngineeringProviderError";
+  }
+}

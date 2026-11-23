@@ -88,6 +88,8 @@ export interface ModelRequest {
   correlationId: string;
 }
 export interface ModelResponse {
+  /** Normalized provider-reported usage; legacy usage remains compatible. */
+  tokenUsage?: import("./telemetry.js").TokenUsage;
   text: string;
   model: string;
   usage?: {

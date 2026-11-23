@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { postJson, PROVIDER_LIMITS } from "../transport.js";
+import { postJson, PROVIDER_LIMITS, PROVIDER_TIMEOUT_CEILING_MS } from "../transport.js";
 
 const url = "https://provider.invalid/test";
 const send = (fetcher: typeof fetch, options = {}, signal?: AbortSignal) =>
@@ -205,7 +205,7 @@ test("all transport budgets reject invalid and above-ceiling options", async () 
   for (const [key, ceiling] of Object.entries(PROVIDER_LIMITS).filter(
     ([key]) => key !== "maxOutputTokens",
   )) {
-    for (const value of [0, -1, 0.5, Infinity, ceiling + 1]) {
+    for (const value of [0, -1, 0.5, Infinity, (key === "timeoutMs" ? PROVIDER_TIMEOUT_CEILING_MS : ceiling) + 1]) {
       await assert.rejects(
         send(async () => Response.json({}), { [key]: value }),
         /Invalid provider limit/,
@@ -264,4 +264,11 @@ test("HTTP error categories ignore inherited object properties and still check t
       },
     );
   }
+});
+
+
+test("host may explicitly choose a bounded 120 second deadline without changing the default", async () => {
+  assert.equal(PROVIDER_LIMITS.timeoutMs, 30000);
+  assert.deepEqual(await send(async () => Response.json({ accepted: true }), { timeoutMs: 120000 }), { accepted: true });
+  await assert.rejects(send(async () => Response.json({}), { timeoutMs: 120001 }), /Invalid provider limit/);
 });

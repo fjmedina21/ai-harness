@@ -207,3 +207,4 @@ export * from "./engineering-patches.js";
 export * from "./engineering-validation.js";
 export * from "./engineering-recovery.js";
 export * from "./engineering-cleanup.js";
+export { parseEngineeringModelOutput } from "./engineering-model-output.js";

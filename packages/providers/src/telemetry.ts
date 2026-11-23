@@ -15,6 +15,7 @@ export class ProviderTransportError extends Error {
     readonly classification: TelemetryErrorClass,
     readonly httpStatus?: number,
     readonly httpErrorCategory?: ProviderHttpErrorCategory,
+    readonly usage?: TokenUsage,
   ) {
     super(message);
     this.name = "ProviderTransportError";

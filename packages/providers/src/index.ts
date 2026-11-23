@@ -5,8 +5,8 @@ import type {
   ModelResponse,
 } from "@ai-harness/contracts";
 
-import { postJson, type TransportOptions } from "./transport.js";
-import { observeProvider } from "./telemetry.js";
+import { postJson, boundedOption, PROVIDER_LIMITS, type TransportOptions } from "./transport.js";
+import { observeProvider, normalizeTokenUsage, ProviderTransportError } from "./telemetry.js";
 import { createProviderSession, oneShotToolTurn } from "./tool-session.js";
 import type {
   ModelToolRequest,
@@ -91,6 +91,7 @@ export class OpenAIProvider
           model: this.options.model,
           instructions: request.system,
           input: request.prompt,
+          max_output_tokens: boundedOption(this.options.maxOutputTokens, PROVIDER_LIMITS.maxOutputTokens),
           store: false,
         },
         this.fetcher,
@@ -113,7 +114,7 @@ export class OpenAIProvider
       reportUsage(data);
 
       if (data.status && data.status !== "completed") {
-        throw new Error(`OpenAI response status: ${data.status}`);
+        throw new ProviderTransportError("OpenAI returned an incomplete response", "invalid_response", undefined, undefined, normalizeTokenUsage("openai", data));
       }
 
       const text =
@@ -126,12 +127,13 @@ export class OpenAIProvider
         "";
 
       if (!text.trim()) {
-        throw new Error("OpenAI returned no text content");
+        throw new ProviderTransportError("OpenAI returned no text content", "invalid_response", undefined, undefined, normalizeTokenUsage("openai", data));
       }
 
       return {
         model: this.options.model,
         text,
+        tokenUsage: normalizeTokenUsage("openai", data),
         usage: {
           inputTokens: data.usage?.input_tokens,
           outputTokens: data.usage?.output_tokens,
@@ -224,5 +226,7 @@ export class AnthropicProvider
   }
 }
 
-export { PROVIDER_LIMITS } from "./transport.js";
+export { PROVIDER_LIMITS, PROVIDER_TIMEOUT_CEILING_MS } from "./transport.js";
 export type { TransportOptions } from "./transport.js";
+
+export { ProviderTransportError } from "./telemetry.js";
