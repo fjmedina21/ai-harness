@@ -9,8 +9,8 @@
 > distribuida siguen siendo propuestas, no servicios disponibles.
 
 - Estado: **Arquitectura objetivo parcialmente implementada**
-- Versión documental: **1.0.0**
-- Fecha: **2026-11-21**
+- Revisión documental de arquitectura: **1.0.0** (no es la versión del software, que permanece **0.8.0**)
+- Fecha base de arquitectura: **2026-11-21**; revisión de cierre: **2026-11-22**
 - Alcance: plataforma full stack agnóstica de proveedores de IA
 - Metodología: SDD + ejecución iterativa + paralelismo seguro
 
@@ -28,6 +28,26 @@
   distribuida, paralelismo seguro general, SSO y automatización amplia de
   despliegues. Las decisiones siguientes describen objetivos y restricciones;
   no certifican que cada capacidad exista.
+
+### Cierre experimental de Fase 8 y preparación de Fase 9
+
+Baseline integrado: `c87d22f` (PR #3); CI estándar
+[45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893)
+aprobada para ese SHA. El cierre en `chore/phase8-final-closure` tiene evidencia
+local (427 pruebas; 18 E2E incluidos), sin merge/publicación ni CI propia.
+Estado de Fase 8: **Implemented — offline E2E validated; external validation gates deferred**.
+OpenAI/Anthropic: **Deferred — live provider interoperability validation**.
+Podman remoto: **Deferred — dedicated remote infrastructure validation**.
+La inspección no ejecuta código de agentes en contenedores y puede cerrar su
+alcance offline con esos gates pendientes; no cumple aún todos los criterios
+del MVP objetivo de la sección 15 ni certifica producción.
+
+Fase 9: **Not started — design pending**. El
+[handoff de diseño](ROADMAP.md#phase-9-readiness--design-handoff-only) identifica
+workspaces aislados, escrituras autorizadas, revisión/aprobación de diffs,
+validación en contenedores, estados parciales, evidencia y recuperación
+conservadora. Nada de ello se habilita en este cierre. La estructura SDD produce
+propuestas; una inspección completada no es implementación ni ejecución de tests.
 
 ## 1. Propósito y límites
 

@@ -7,6 +7,16 @@ milestone, not a formal release announcement. The hosted GitHub release API
 has no release record for this commit; npm publication has not been verified.
 The project is experimental and is **not a production-ready autonomous agent**.
 
+Phase 8 status: **Implemented — offline E2E validated; external validation gates deferred**.
+The integrated baseline is `c87d22f` (PR #3), with successful
+[standard CI](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893).
+The final closure on `chore/phase8-final-closure` is local candidate evidence:
+427 tests and 18 focused E2E tests passed; it has not been merged or run in CI.
+Live providers are **Deferred — live provider interoperability validation**;
+remote Podman is **Deferred — dedicated remote infrastructure validation**.
+Neither gate blocks this offline read-only scope; both remain unvalidated.
+Phase 9 is **Not started — design pending**; see the [handoff](docs/ROADMAP.md#phase-9-readiness--design-handoff-only).
+
 ## Quick start
 
 Requirements: Node.js >=22 (CI uses Node 24), pnpm 12.21.0. Durable SQLite mode

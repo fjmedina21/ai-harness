@@ -1,19 +1,103 @@
 # Verification — current source version 0.8.0
 
-The current integrated source is **0.8.0** at commit
-`5991799d278e88c69abe4f1fdc27b7cf405469de` on `main`. The initial Phase 8
-source snapshot `d9ecbf49597c5c22784257d519a6a217c2c9e73f` remains historical
-evidence. This is not a formal release announcement. The GitHub releases endpoint
-has no release record for this source; npm publication was not independently
-verified. The initial Phase 8 snapshot has local validation and a successful
-standard GitHub Actions run. The latest commit also passed standard hosted CI
-run [45082194651](https://github.com/fjmedina21/ai-harness/actions/runs/45082194651).
-The current Actions history contains no run for `phase5-isolation.yml`.
+Integrated baseline: **`c87d22f2de3a09eed85938c4d955a54f4f00cd7c`** on `main`,
+including [PR #3](https://github.com/fjmedina21/ai-harness/pull/3). Standard CI
+[45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893)
+was verified through GitHub: `build-test`, install, build, tests and CLI smoke
+all passed for that exact SHA. The 18-run Actions history contains only standard
+CI; no dedicated remote isolation run was found. The releases API returned no
+releases; npm publication was not independently checked.
+
+## Final Phase 8 closure — local candidate evidence
+
+Date: 2026-11-22 (America/Santo_Domingo). Branch:
+`chore/phase8-final-closure`, starting from the integrated SHA above.
+Environment: Node **24.18.0**, pnpm **12.21.0**, TypeScript **5.8.3**, macOS arm64.
+These closure changes are **local, not merged or published, and have no CI run**.
+Baseline CI does not certify this branch's new fix or regressions.
+The local compatible fix and regressions are committed at
+`87b32b39ce5589b30df1c8da09d9d5a562043aca`; documentation follows in a separate
+local closure commit.
+
+| Check | Observed result |
+|---|---|
+| Baseline clean/build/full tests | Passed; 424/424 tests |
+| Final `pnpm clean`, `pnpm build`, `pnpm test` | Passed; **427/427**, zero failed/cancelled/skipped |
+| Focused transport/application/CLI regression run | Passed; 31/31 (included in full suite) |
+| Focused Phase 8 application/CLI E2E | Passed; **18/18** (included in full suite) |
+| Real CLI subprocess smoke | init, doctor, fixture inspect JSON/text and status passed; reopened SQLite, optional telemetry, three roles, three reads and six fixture turns; README unchanged; temporary resources removed |
+| `pnpm harness --help` / `version` | Passed; **ai-harness 0.8.0 (experimental)** |
+| Deterministic evaluation | **19/19 scenarios, 42/42 assertions**; known host fixtures only |
+| Docs links, versions, exclusions, `git diff --check` | Passed locally; no generated/private artifacts selected for commit |
+
+Tests use synthetic projects, mocked HTTP and the actual local SQLite backend.
+Real provider credentials were removed from the test process environment;
+provider tests supply synthetic values and replace HTTP. No live API, real
+Podman isolation or infrastructure command was executed in this closure.
+Repeated focused runs are not additional unique tests beyond the 427 total.
+Private support logs remain under excluded `harness-development/phase8-final-closure/`.
+
+### Audit and compatible correction
+
+- CLI → application → sequential orchestrator → planner → code reviewer →
+  validator → parsed/validated calls → Default Deny dispatcher → bounded
+  `file.read` → checkpoints / optional SQLite / optional telemetry → structured
+  result. Inspection completion never means source implementation or project
+  test execution; the default SDD path still generates proposals.
+- Execution/task identities, native tool/result call IDs, durable request/call
+  scope and progress correlation remain separated and tested. Host selection
+  owns provider/model, permissions, budgets and paths; project config cannot
+  authorize extra tools. `complete()` and public exports remain compatible.
+- Reproduced inherited-property lookup in HTTP error classification: `__proto__`
+  returned an object and `constructor` a function instead of a fixed category.
+  The compatible fix uses own-property lookup; unknown codes become `unknown`
+  and a recognized error type can still classify the response. No retries,
+  billing changes or extra provider requests were added.
+- Added regressions for that lookup, both-provider HTTP failure through CLI
+  without retry/fallback or sensitive telemetry, and CLI timeout exit 124 with
+  in-flight abort and reopened cancelled checkpoint. Strengthened identity and
+  project-config permission non-escalation assertions.
+- Provider sessions close in agent `finally`; HTTP timers/listeners and streams,
+  read descriptors, telemetry sinks and SQLite lifecycle were reviewed. Reopen,
+  cancellation, timeout, invalid stores and resource cleanup are covered by
+  local regressions. This is not exhaustive leak testing or sandbox proof.
+
+### Security acceptance and remaining trust
+
+Inspection exposes only `file.read` with `files:read`. No shell, source-writing,
+Git mutation, deployment, container execution, approval self-grant, provider
+fallback or automatic replay is added. Telemetry allowlists discard payloads;
+HTTP diagnostics retain numeric status/fixed categories, not upstream bodies.
+Checkpoints and summaries can retain requests and sensitive model-derived data.
+
+Filesystem guards are not race-free rooted confinement; sensitive filename
+filters do not find every secret. Checkpoint directories and ancestry remain
+host-trusted local state (including protection against link substitution).
+Snapshots are not authenticated authorization records. Telemetry is bounded,
+lossy and single-writer; cancellation does not promise rollback; recovery does
+not resume native provider sessions or guarantee external exactly-once effects.
+No architectural/security guarantee was expanded by this closure.
+
+### Deferred external acceptance gates
+
+| Gate | Status and limitation |
+|---|---|
+| OpenAI | **Deferred — live provider interoperability validation**; failed HTTP 429 history below retained; no successful complete live workflow |
+| Anthropic | **Deferred — live provider interoperability validation**; deterministic HTTP only, no successful complete live workflow evidenced |
+| Dedicated remote Podman | **Deferred — dedicated remote infrastructure validation**; PR #3 preparation integrated, historical local isolation retained, no remote run |
+| Package distribution / formal release | Not performed; npm unverified and no GitHub Release found; version stays 0.8.0 |
+
+These unpassed gates do not block the experimental offline read-only scope.
+Remote isolation remains mandatory before future untrusted-code execution,
+subject to a separate threat model. Phase 9 is **Not started — design pending**;
+see [the design handoff](ROADMAP.md#phase-9-readiness--design-handoff-only).
+
+---
 
 ## Phase 8 source — historical local evidence
 
-Initial Phase 8 snapshot: `d9ecbf49597c5c22784257d519a6a217c2c9e73f`; the current
-source is `5991799d278e88c69abe4f1fdc27b7cf405469de` on `main`.
+Initial Phase 8 snapshot: `d9ecbf49597c5c22784257d519a6a217c2c9e73f`; the
+source at the diagnostics snapshot was `5991799d278e88c69abe4f1fdc27b7cf405469de`.
 Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
 
 - pnpm clean: passed.
@@ -30,8 +114,8 @@ Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
 - `pnpm clean`, `pnpm build`, `pnpm test`, CLI help/version and deterministic
   evaluation were rerun during finalization; all passed on the integrated
   source commit; that suite had 417 tests. The diagnostics follow-up at `5991799`
-  passed locally with **421/421 tests** before this runner-preparation branch
-  added three deterministic tests. Four diagnostics tests cover safe category
+  passed locally with **421/421 tests** before the subsequent runner-preparation work
+  added three deterministic tests (integrated by PR #3). Four diagnostics tests cover safe category
   mapping, telemetry retention, unknown codes and bounded error bodies. No live
   calls were part of the diagnostics suite.
 
@@ -58,15 +142,18 @@ completed successfully for commit `d9ecbf49597c5c22784257d519a6a217c2c9e73f`
 behavior or the separate real isolation workflow. No reproducible performance
 benchmark was run, so no runtime performance improvement is claimed.
 
-## Dedicated runner preparation — local branch evidence
+## Dedicated runner preparation — historical branch evidence, now integrated
 
 On `ci/dedicated-podman-isolation-validation`, `pnpm clean`, `pnpm build`,
 `pnpm test`, `pnpm harness --help`, `pnpm harness version` and
 `git diff --check` passed; **424/424 tests passed**. Three new tests cover
 public evidence redaction, GitHub context allowlisting and strict network-denial
 classification. These are deterministic checks and do not execute Podman.
-The workflow/docs/source changes are local to this branch and are not yet
-published. No real isolation suite or remote workflow was run.
+The workflow/docs/source changes were subsequently integrated into `main` by
+PR #3 at `c87d22f2de3a09eed85938c4d955a54f4f00cd7c`; standard CI run
+[45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893)
+passed. No real isolation suite or remote workflow was run for that preparation.
+Its three tests are deterministic, not evidence of real remote isolation.
 
 ## Published Phase 7 baseline — historical evidence
 

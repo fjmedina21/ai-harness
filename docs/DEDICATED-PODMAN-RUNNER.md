@@ -1,8 +1,13 @@
 # Dedicated Podman isolation runner
 
-**Status: preparation only.** The real remote gate has not been run from a dedicated
-GitHub Actions runner. The local Podman Machine evidence recorded in this repository
-does not satisfy remote acceptance.
+**Preparation integrated:** PR #3 is on `main` at `c87d22f`.
+**Validation status: Deferred — dedicated remote infrastructure validation**.
+The real remote gate has not been run from a dedicated GitHub Actions runner.
+Historical local Podman Machine evidence does not satisfy remote acceptance.
+This gate does not block Phase 8 offline read-only inspection, which executes
+no agent code in containers. It remains required before future untrusted-code
+execution, with a separate risk analysis. This closure configures no remote
+infrastructure and runs no real isolation suite.
 
 ## Trust model
 
@@ -152,12 +157,13 @@ workflow run page is the source for workflow metadata. Restrict log access and
 configure retention to the repository's approved minimum; review content before
 adding any artifact upload in the future.
 
-The current evidence state is **remote validation pending**. The Phase 5 real
-Podman run recorded in `docs/VERIFICATION.md` was local. The current `main` commit `5991799` passed standard CI run
-[45082194651](https://github.com/fjmedina21/ai-harness/actions/runs/45082194651).
-The current Actions history contains no run for `.github/workflows/phase5-isolation.yml`;
-no successful remote isolation run is recorded. Standard CI and deterministic
-fixtures do not satisfy this gate.
+The evidence state is **Deferred — dedicated remote infrastructure validation**.
+The Phase 5 real Podman evidence in `docs/VERIFICATION.md` was local and is retained.
+The integrated baseline `c87d22f` passed standard CI run
+[45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893).
+The verified 18-run Actions history contains no isolation workflow run; standard
+CI and deterministic fixtures do not satisfy this gate. Closure-branch checks
+remain local evidence, not a newly published CI or isolation result.
 
 ## Failure handling
 

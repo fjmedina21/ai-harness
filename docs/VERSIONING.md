@@ -32,3 +32,11 @@ pins pnpm 12.21.0. The root scripts are `build`, `clean`, `check`, `test`,
 `test:isolation`, `smoke:real-provider`, `harness` and `dev`; the default test
 script builds before running Node's test runner. The real-provider smoke script
 is opt-in and may incur charges.
+
+The final Phase 8 closure deliberately retains **0.8.0** across every manifest
+and the CLI; it is not a new release or an automatic patch/minor bump. The
+integrated starting point is `c87d22f` (PR #3); closure checks on
+`chore/phase8-final-closure` remain local until separately authorized publication.
+No npm publication, tag or GitHub Release is created. External provider and
+remote infrastructure gates are deferred, not approved. Phase 9 remains
+**Not started — design pending**; no `0.9.0` or `1.0.0` is declared.

@@ -2,7 +2,10 @@
 
 This map describes packages present in the current TypeScript workspace.
 Architecture proposals are maintained separately and do not imply that an
-unlisted service exists.
+unlisted service exists. The integrated baseline is `c87d22f` including PR #3;
+final closure evidence on `chore/phase8-final-closure` is local and unmerged.
+The inspection composition exposes only `file.read`, even though the tools
+package contains other explicitly opt-in host APIs.
 
 | Path | Current responsibility |
 |---|---|
@@ -25,3 +28,8 @@ The root `tsconfig.json` references these workspace projects. All packages use
 TypeScript, NodeNext ESM and Node's built-in test runner. See [architecture](ARCHITECTURE.md)
 for the long-term design (some of which remains aspirational), [roadmap](ROADMAP.md)
 for phase status and [verification](VERIFICATION.md) for test evidence.
+The dedicated Podman [workflow](../.github/workflows/phase5-isolation.yml) and
+[runner runbook](DEDICATED-PODMAN-RUNNER.md) are integrated preparation; remote
+validation remains deferred. No runner is configured by this closure.
+Phase 9 workspace/write/validation capabilities are not implemented; pending
+design dependencies are in the [roadmap handoff](ROADMAP.md#phase-9-readiness--design-handoff-only).

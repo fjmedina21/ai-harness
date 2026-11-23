@@ -72,5 +72,31 @@ telemetry controls remain in force.
   temporary fixture and reports no response text. Its explicit output/request
   budget is not a guaranteed dollar cap.
 
-No Phase 8 change modifies Podman policies, container privileges, SQLite
-transition rules, approval issuance, or runtime selection.
+## Final closure review
+
+The integrated baseline `c87d22f` includes PR #3's runner guard, pinned actions,
+private profile validation, stricter network-denial evidence and redaction.
+Those controls and the Podman-only backend are retained. This closure changes
+no container privileges, SQLite transition rules, approval issuance or runtime
+selection and runs no isolation workload.
+
+The closure fixes inherited-property lookup in bounded HTTP error classification;
+only own allowlisted codes map to categories, and unknown codes stay `unknown`.
+Regression coverage exercises hostile inherited names, HTTP errors through both
+adapters without retries/fallback or telemetry payload disclosure, and CLI timeout
+with HTTP cancellation and persisted cancelled status. No public contract changes.
+
+Checkpoints and task results remain potentially sensitive. Existing checkpoint
+state and directory ancestry must be host-controlled; snapshot persistence is
+not a race-free rooted sandbox or authenticated state. Common filename filters
+cannot guarantee secret detection, and telemetry label allowlists do not remove
+the host's duty to keep secrets out of diagnostic identifiers. Tests are bounded
+local evidence, not a proof against a compromised host or all filesystem races.
+
+OpenAI/Anthropic: **Deferred — live provider interoperability validation**.
+Remote Podman: **Deferred — dedicated remote infrastructure validation**.
+These are unpassed external gates, not offline blockers for the inspection-only
+scope. Dedicated remote validation and a separate risk review remain required
+before future untrusted-code execution. Phase 9 writes, workspace mounts and
+validation commands remain **Not started — design pending**; see the
+[design handoff](ROADMAP.md#phase-9-readiness--design-handoff-only).

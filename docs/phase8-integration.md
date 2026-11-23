@@ -4,6 +4,12 @@ Phase 8 adds a host-owned composition boundary for a deliberately narrow
 engineering workflow. This is experimental read-only inspection, not autonomous
 implementation.
 
+Status: **Implemented — offline E2E validated; external validation gates deferred**.
+Baseline `c87d22f` includes PR #3. The final closure is on
+`chore/phase8-final-closure` with local evidence only, not a merged/CI result.
+Version stays 0.8.0. See [verification](VERIFICATION.md) and the
+[offline acceptance checklist](RELEASE-CHECKLIST.md).
+
 ## Architecture
 
 ```mermaid
@@ -120,6 +126,21 @@ implemented or validated by tests.
   optional and separate from the durable journal.
 - The workflow is sequential. It does not write source files or run project
   validation commands.
+
+## External gates and next-phase boundary
+
+OpenAI and Anthropic are **Deferred — live provider interoperability validation**;
+both adapters have deterministic HTTP coverage, not successful live workflow
+acceptance. The failed OpenAI HTTP 429 attempt remains historical evidence.
+Remote Podman is **Deferred — dedicated remote infrastructure validation**;
+its preparation is integrated, its local isolation history is preserved, and
+its remote workflow is not run. This does not block read-only offline closure;
+real remote isolation plus a new risk review is required before future execution
+of untrusted code. No new execution capability is included here.
+
+Phase 9 is **Not started — design pending**. Its
+[design handoff](ROADMAP.md#phase-9-readiness--design-handoff-only) identifies
+dependencies without implementing workspaces, patch tools or container validation.
 
 See [Phase 8 security](phase8-security.md), [E2E evidence](phase8-e2e.md) and
 [release checklist](RELEASE-CHECKLIST.md).
