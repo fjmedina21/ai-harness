@@ -48,3 +48,19 @@ Remaining work includes the concrete real snapshot/validation path, live provide
 engineering adapters/interoperability, approval UI with a deployed identity verifier,
 current real isolation E2E, and release acceptance. Existing abstract verifier and
 host adapter ports are not deployed authentication or validated model integrations.
+
+## Phase 9A OpenAI update
+
+| Evidence / capability | Current status |
+| --- | --- |
+| OpenAI L1 request-to-proposal workflow | Implemented; real adapter + mocked HTTP + actual CLI subprocess tests |
+| OpenAI L2 approval routing/application | Implemented; actual private filesystem and SQLite tests; CLI stays pending |
+| Prior direct OpenAI API → patch engine smoke | Live passed with gpt-5.5-pro; narrow synthetic one-call case only |
+| New multi-role OpenAI CLI live smoke | Implemented and offline-tested; paid execution pending separate approval |
+| Anthropic engineering | Deferred by owner; existing inspection unchanged |
+| L3 | Blocked, no snapshot transfer or real workload execution added |
+
+The earlier table and milestone snapshots describe initial Phase 9 foundations.
+Current OpenAI scope is detailed in [provider integration](phase9-provider-integration.md).
+No general model quality, full Phase 9 completion, production readiness or 0.9.0
+release follows from the OpenAI offline integration closure.

@@ -47,3 +47,10 @@ Phase 9 development retains **0.8.0** across all manifests and CLI. Do not bump
 Reassess a coherent milestone only after explicit release acceptance, truthful
 level gates and required current real isolation/evidence. No tag, push, merge,
 GitHub Release or 1.0.0 is authorized by this source work.
+
+
+Phase 9A OpenAI-only integration closure retains 0.8.0. Its new opt-in
+smoke:engineering-openai script does not run in standard tests. Null real cost
+and normalized usage are documented compatibility additions. No 0.9.0, tag,
+publication, GitHub Release, push or merge is included; full Phase 9/L3 and
+Anthropic engineering remain outside this owner-approved closure.

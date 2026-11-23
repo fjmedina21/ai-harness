@@ -89,3 +89,16 @@ only; L3 is unavailable. L4 has contracts only; L5 has no implementation.
 6. Run clean/build/test, CLI help/version, deterministic eval and diff checks.
 
 No push, merge, publication, live paid APIs, infrastructure or isolation changes.
+
+## 9A OpenAI composition
+
+Implemented on feat/phase9-real-provider-engineering: reusable ModelProviderAdapter
+bridge, fixed host-selected OpenAI factory, bounded read-only context, stateless
+per-role identity, strict JSON response envelope, host result-hash computation,
+actual usage/nullable cost, classified errors and CLI propose/isolated selection.
+The existing patch engine and durable dispatcher remain independent authority.
+The provider text output cap is now serialized on the wire and an explicit host
+timeout can reach 120 seconds while the default stays 30 seconds.
+No new paid calls or real sandbox runs occur in standard validation. Detailed
+[contract/compatibility notes](phase9-provider-integration.md) separate the prior
+one-call real smoke from the unexecuted new full-workflow smoke.

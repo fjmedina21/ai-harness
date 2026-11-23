@@ -49,3 +49,19 @@ retains its read-only profile; new tools are separate opt-in host bindings.
 
 No new third-party dependency/runtime/framework or version bump. The lockfile adds
 only the internal application workspace edge used by evaluations.
+
+## Phase 9A OpenAI integration
+
+- application/engineering-provider.ts: generic role bridge and OpenAI factory,
+  scoped execution lifecycle, bounded context and host-rate accounting.
+- tools/engineering-model-output.ts: strict bounded JSON envelope and deterministic
+  host result-hash materialization before the existing engine validates.
+- contracts: additive normalized usage and fixed provider error metadata; real
+  engineering cost values may now be null and callers must handle unknown cost.
+- providers: existing OpenAI complete() now sends max_output_tokens and retains
+  normalized/incomplete-response usage; default deadline remains 30s, explicit
+  host deadline is bounded to 120s. No Anthropic protocol implementation change.
+- CLI: existing engineering command now selects fixture/OpenAI, with explicit model,
+  confirmation, scopes and budgets. engineering-provider-smoke.ts is opt-in only.
+- New application and actual CLI subprocess tests use real adapters and mocked HTTP;
+  no new dependency, package manager, provider HTTP client or infrastructure.

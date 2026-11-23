@@ -141,3 +141,15 @@ No new phase is started. [Gate matrix](phase9-autonomy-levels.md),
 [security](phase9-security.md), [sandbox blocking conditions](phase9-sandbox-validation.md)
 and [E2E evidence](phase9-e2e.md) distinguish implementation from authorized real use.
 No live model/real generated-code sandbox/remote CI gate is passed by these fixtures.
+
+## Phase 9A OpenAI scope — implementation closure
+
+OpenAI is connected to the existing L1/L2 workflow and CLI using a common agent
+port and existing adapter. Strict output/context policy, finite reservations,
+actual usage, unknown-cost policy, independent L2 approvals, optional telemetry,
+actual CLI subprocess tests and separate opt-in smoke are implemented. Anthropic
+engineering is deferred by the owner; previous inspect support is preserved.
+The earlier direct gpt-5.5-pro smoke is real but does not certify the new full
+composition. New workflow live smoke remains separately opt-in/unexecuted.
+This is not full Phase 9 or real L3 closure, hosted CI, release, merge or push.
+See [scope/acceptance](phase9-provider-integration.md) and [live evidence](phase9-live-smoke.md).

@@ -81,3 +81,31 @@ Exit codes also include 0 proposal/delivery success, 1 failure, 124 timeout and
 
 Phase 9 remains partial and experimental. The pending operational gate is explicit;
 fixtures cannot substitute for real isolation or model evidence.
+
+## Phase 9A OpenAI closure evidence
+
+The new application suite engineering-provider.test.ts exercises actual
+OpenAIProvider Responses requests with mocked HTTP, then the real patch engine,
+private filesystems and SQLite approval boundaries. The CLI suite
+openai-engineering-cli.test.ts spawns the compiled CLI with a trusted test-only
+fetch preload; it does not expose a production mock/fallback flag. It verifies
+JSON/text, required configuration, no implicit .env loading, errors/usage/limits,
+L1 read-only behavior, L2 pending approval, timeout/cancellation exit codes and
+fixture compatibility. The separate full-workflow smoke is also exercised as an
+actual process with mocked HTTP and strict semantic/cleanup acceptance.
+
+Required commands are recorded in [verification](VERIFICATION.md#phase-9a-openai-local-closure).
+Run the new suites independently after build:
+
+```sh
+node --test packages/application/dist/__tests__/engineering-provider.test.js \
+  apps/cli/dist/__tests__/openai-engineering-cli.test.js \
+  packages/providers/dist/__tests__/transport.test.js
+```
+
+The prior real direct-provider smoke is recorded separately in
+[phase9-live-smoke.md](phase9-live-smoke.md). It is not attributed to the new CLI,
+the changed budget/deadline controls, hosted CI or real Podman. No additional paid
+call, key persistence, generated-code execution, original-project modification,
+merge or push is part of this closure. Anthropic engineering is deferred and L3
+continues blocked. Version remains 0.8.0; local commits follow successful validation.

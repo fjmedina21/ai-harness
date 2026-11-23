@@ -17,16 +17,41 @@ and [verification](docs/VERIFICATION.md#phase-9-local-verification).
 
 ## Phase 9 opt-in engineering
 
-The new `run --workflow implement` supports an explicit offline fixture recipe:
+The original `run --workflow implement` fixture recipe remains available:
 `--autonomy propose` reads host-selected files and returns structured patches;
 `--autonomy isolated` creates a private external copy and pauses for independent
 SQLite approval. A trusted host API can apply approved changes and exercise the
 bounded repair loop with fixture validation. The original project stays unchanged.
-OpenAI/Anthropic engineering integration, real sandbox validation and Gate C are
-unverified/unavailable; inspection provider support remains unchanged.
+OpenAI engineering is now implemented and offline E2E tested on the 9A branch.
+Anthropic engineering is deferred; real sandbox validation and Gate C remain
+unavailable. Existing inspection provider support is unchanged.
 No arbitrary request implementation or production autonomy is established by fixtures.
 See [CLI examples](docs/phase9-e2e.md), [design](docs/phase9-architecture.md) and
 [security](docs/phase9-security.md). Version remains **0.8.0**.
+
+## Phase 9A OpenAI engineering
+
+```sh
+pnpm harness run --workflow implement --path /ABSOLUTE/PROJECT \
+  --request "Add pagination to the users API" --provider openai \
+  --model HOST_SELECTED_MODEL --autonomy propose --files src/users/service.ts \
+  --max-provider-requests 6 --max-output-tokens 512 \
+  --confirm-provider-call --allow-uncertain-cost --json
+```
+
+Requires OPENAI_API_KEY in the host environment; no project .env is loaded
+implicitly. L1 returns an actual structured proposal and reviewed diff without
+writing files. L2 uses private copies and exact independent durable approval;
+CLI remains pending approval. Calls are bounded and cancellable, with actual
+reported tokens and optional host-rate estimates. Unknown cost is null/unknown,
+not zero; --allow-uncertain-cost explicitly acknowledges billing uncertainty.
+No automatic fallback, retry, original-project write or generated-code execution.
+
+The prior gpt-5.5-pro direct provider-to-patch-engine smoke succeeded. The new
+multi-role CLI is verified with mocked HTTP, filesystem and SQLite; its separate
+live smoke is prepared but not executed. See [integration](docs/phase9-provider-integration.md),
+[live scope/runbook](docs/phase9-live-smoke.md) and [verification](docs/VERIFICATION.md#phase-9a-openai-local-closure).
+Version remains 0.8.0; Anthropic engineering is deferred and L3 is blocked.
 
 ## Quick start
 
@@ -56,7 +81,7 @@ was implemented.
 | Area | Current behavior |
 |---|---|
 | Workflow | Existing SDD/inspection plus separate opt-in fixture engineering; private L2 application through trusted host approvals |
-| Providers | Fixture offline mode; explicitly selected OpenAI Responses and Anthropic Messages for inspection |
+| Providers | Fixture offline mode; explicit OpenAI engineering/inspection; Anthropic Messages inspection retained |
 | Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
 | Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
 | Isolation | Explicit rootless Podman Machine profile; Docker runtime execution was removed in 0.6.0 |

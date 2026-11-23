@@ -1,5 +1,47 @@
 # Verification — current source version 0.8.0
 
+
+## Phase 9A OpenAI local closure
+
+Date: **2026-11-23**. Starting commit **463b3255390eab90cdb06d6f07adb9a35e3575f8**.
+Branch: **feat/phase9-real-provider-engineering**. Node **24.18.0**, pnpm
+**12.21.0**, source version **0.8.0**. Owner scope is OpenAI only; Anthropic
+engineering is deferred. No new phase, release, push or merge is included.
+Implementation commit: **2cfc4a92aadcd16f6ae75b96e283a183b04f7113**;
+the documentation commit contains this final report.
+
+| Check | Current observed result |
+| --- | --- |
+| Baseline build and full tests | Passed, **512/512** |
+| Final pnpm clean / build / test | Passed, **568/568**; zero failed/cancelled/skipped |
+| Separate OpenAI application + CLI subprocess + transport suites | Passed, **69/69**; included in the full count |
+| pnpm harness --help / version | Passed; **0.8.0 (experimental)** |
+| Deterministic evaluation | **19/19**, **42/42 assertions** |
+| Phase 9 evaluation | **10/10**, **10/10 assertions** |
+| Real adapters + mocked HTTP | New OpenAI L1/L2, JSON/protocol, budgets, failure/usage/timeout/cancellation and no-fallback tests passed |
+| Real filesystem + SQLite | Selected context, original unchanged, exact independent pending/approved application tested |
+| Actual CLI processes | JSON/text, fixture compatibility, no implicit .env load, L2 pending, cancellation 130 and timeout 124 tested |
+| New full-workflow smoke | Opt-in script implemented; subprocess/semantic/cleanup acceptance tested with mocked HTTP; **live not executed** |
+| Prior direct live smoke | gpt-5.5-pro HTTP 200, valid patch/diff, source unchanged; **separate baseline evidence**, not new CLI validation |
+| Real Podman / L3 | **Not executed / blocked** |
+| Hosted CI for this branch | **Not run**; no publication authorized |
+
+Tests detected and corrected the legacy OpenAI text adapter's omitted
+max_output_tokens wire field, telemetry binding registration, explicit invalid
+proposal outcomes, and estimated usage retention for incomplete responses. Native
+output limits now have request assertions. The default HTTP deadline remains 30s;
+explicit host-selected deadlines are bounded to 120s. The earlier direct smoke's
+observed output was below the requested cap but did not establish provider cap
+serialization or a 120s adapter deadline; see [live evidence](phase9-live-smoke.md).
+
+Scope, compatibility and security are documented in
+[provider integration](phase9-provider-integration.md). Optional full-workflow paid
+smoke requires separate owner approval; no credential is read from .env during
+standard tests. No raw provider error, key, prompt or code is telemetry. Current
+source changes retain default-deny, independent approvals, original-root read-only
+behavior, no generated-code execution and no real L3. Full Phase 9 remains partial.
+
+
 ## Phase 9 local verification
 
 Date: **2026-11-23**; Node **24.18.0**, pnpm **12.21.0**, macOS arm64.

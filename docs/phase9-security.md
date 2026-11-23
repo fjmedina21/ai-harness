@@ -36,3 +36,39 @@ invocation; cancellation/malformed evidence leaves Uncertain. Recovery verifies 
 receipt against the durable creation digest and never grants retry. Cleanup is a
 separate exact-snapshot host-only operation and preserves uncertain workspaces.
 Current evidence and unpassed gates are listed in [verification](phase9-e2e.md).
+
+## Phase 9A OpenAI security review
+
+The model receives only explicitly selected source text/hashes, bounded advisory
+history, diagnostic identity and relative-path/operation policy. It receives no
+keys, original absolute roots, journal handles or approval callbacks. The host
+clones authority-bearing options and rechecks file content against snapshot hashes.
+The generic role bridge binds one execution, disallows concurrent/reused/closed
+instances, sends one stateless provider request per turn and has no model tools.
+Unexpected native calls/refusals/JSON fail closed; no text extraction, fallback,
+retry or model-requested command execution exists. A project file can still contain
+secrets: filename restrictions are not comprehensive detection, so the host must
+review its explicit selection before external transmission.
+
+Existing Phase 9 operations and schemas remain the enforcement boundary. A null
+model resultHash is materialized by the host; a supplied wrong hash, bad base,
+unsafe path/operation or extra authority field is rejected. Code review is advisory.
+Every L2 application still needs a different authenticated approver and the exact
+SQLite-bound digest/base/policy/expiry. No approval/resume CLI is added. Test IdP
+identities are fixtures, not deployed authentication. Original roots remain read-only.
+
+Budget policy is explicit: max requests/turns/context/output/total reported tokens,
+finite wall time and host-rate reservations. Exact billing cannot be promised;
+--allow-uncertain-cost is required even with tariffs. Missing usage stops calls;
+unknown cost is null/unknown. Cancellation can leave upstream spend unknown and
+never authorizes automatic retry. The default provider deadline remains 30 seconds,
+with an explicit host-selected maximum of 120 seconds. OpenAI text requests now
+include max_output_tokens; the omission in the previous adapter was corrected and
+has wire-level regression coverage.
+
+Optional telemetry reuses registered host-created bindings, fixed labels and
+bounded attributes (including validated digest/state/iteration); no prompts, source,
+patch bodies, raw errors or credentials are recorded. CLI JSON contains reviewable
+code by explicit request and must be handled as sensitive local output, not telemetry.
+The full new live workflow is unverified; direct API evidence does not validate
+container isolation, semantic correctness or production safety. L3 remains blocked.

@@ -258,3 +258,17 @@ El proyecto original no recibe modificaciones. L3 real permanece bloqueado por l
 transferencia de snapshots y las pruebas locales actuales de aislamiento pendientes.
 Véanse [arquitectura](phase9-architecture.md), [amenazas](phase9-security.md),
 [fronteras por nivel](phase9-autonomy-levels.md) y [validación](phase9-e2e.md).
+
+## Fase 9A — integración OpenAI de L1/L2
+
+La capa ModelEngineeringAgent consume el ModelProviderAdapter existente mediante
+complete(), con contexto/identidad/política fijados por el host y respuestas JSON
+acotadas. createOpenAIEngineeringAgent compone el adaptador OpenAI existente; no
+se añade HTTP paralelo. tools materializa hashes de resultados y el PatchEngine
+sigue siendo el validador independiente. El coordinador conserva consumo conocido,
+costo desconocido y fallos sanitizados, cierra el agente y enlaza telemetría propia.
+La CLI admite OpenAI explícito con presupuestos y aceptación de costo incierto.
+L2 conserva aprobaciones SQLite independientes; no se habilita aprobación/resume
+CLI ni L3. Anthropic engineering queda diferido por indicación del propietario.
+Detalles y migración: [integración](phase9-provider-integration.md) y
+[evidencia real separada](phase9-live-smoke.md).
