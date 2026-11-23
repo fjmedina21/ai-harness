@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chmod, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { main } from "../index.js";
@@ -186,5 +186,90 @@ test("CLI rejects fixture path traversal without exposing outside file contents"
     const result = JSON.parse(lines[0]!) as { state: string; tasks: Array<{ state: string }> };
     assert.equal(result.state, "failed");
     assert.ok(result.tasks.some((task) => task.state === "failed"));
+  });
+});
+
+
+test("CLI HTTP failures stop without retries or fallback and retain only safe telemetry", async () => {
+  await withProject(async (root) => {
+    const originalFetch = globalThis.fetch;
+    const previousKeys = [process.env.OPENAI_API_KEY, process.env.ANTHROPIC_API_KEY];
+    const telemetryDirectory = await realpath(await mkdtemp(path.join(os.tmpdir(), "harness-phase8-http-")));
+    await chmod(telemetryDirectory, 0o700);
+    process.env.OPENAI_API_KEY = "test-only-openai-credential";
+    process.env.ANTHROPIC_API_KEY = "test-only-anthropic-credential";
+    try {
+      for (const [provider, status] of [["openai", 429], ["anthropic", 500]] as const) {
+        let calls = 0;
+        globalThis.fetch = (async (input) => {
+          calls++;
+          assert.equal(String(input), provider === "openai" ? "https://api.openai.com/v1/responses" : "https://api.anthropic.com/v1/messages");
+          return Response.json({ error: { code: "rate_limit_error", message: "PRIVATE_DIAGNOSTIC test-only-credential" } }, { status });
+        }) as typeof fetch;
+        const lines: string[] = [];
+        const code = await main([
+          "run", "--workflow", "inspect", "--path", root, "--request", "PRIVATE_REQUEST",
+          "--provider", provider, "--model", "host-fixture", "--confirm-provider-call",
+          "--max-output-tokens", "128", "--max-provider-requests", "6",
+          "--telemetry-dir", telemetryDirectory, "--json",
+        ], root, (line) => lines.push(line));
+        assert.equal(code, 1);
+        assert.equal(calls, 1);
+        const result = JSON.parse(lines[0]!) as { state: string; provider: string; providerRequests: number; completedTasks: number; telemetry: { file: string } };
+        assert.equal(result.state, "failed");
+        assert.equal(result.provider, provider);
+        assert.equal(result.providerRequests, 1);
+        assert.equal(result.completedTasks, 0);
+        const telemetry = await readFile(result.telemetry.file, "utf8");
+        assert.match(telemetry, new RegExp(`"providerHttpStatus":${status}`));
+        assert.match(telemetry, /"providerHttpErrorCategory":"rate_limit"/);
+        assert.doesNotMatch(telemetry, /PRIVATE_DIAGNOSTIC|PRIVATE_REQUEST|test-only-/);
+        assert.doesNotMatch(lines.join("\n"), /PRIVATE_DIAGNOSTIC|test-only-/);
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [index, variable] of ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"].entries()) {
+        if (previousKeys[index] === undefined) delete process.env[variable];
+        else process.env[variable] = previousKeys[index];
+      }
+      await rm(telemetryDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
+test("CLI timeout aborts in-flight HTTP, returns 124, and reopens the cancelled checkpoint", async () => {
+  await withProject(async (root) => {
+    const originalFetch = globalThis.fetch;
+    const previousKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-only-openai-credential";
+    let calls = 0;
+    let requestSignal: AbortSignal | null | undefined;
+    globalThis.fetch = (async (_input, init) => {
+      calls++;
+      requestSignal = init?.signal;
+      return new Promise<Response>(() => {});
+    }) as typeof fetch;
+    try {
+      const lines: string[] = [];
+      const code = await main([
+        "run", "--workflow", "inspect", "--path", root, "--request", "Timeout fixture",
+        "--provider", "openai", "--model", "host-fixture", "--confirm-provider-call",
+        "--max-output-tokens", "128", "--max-provider-requests", "6",
+        "--timeout-ms", "1000", "--json",
+      ], root, (line) => lines.push(line));
+      assert.equal(code, 124);
+      assert.equal(calls, 1);
+      assert.equal(requestSignal?.aborted, true);
+      const result = JSON.parse(lines[0]!) as { executionId: string; state: string; termination: string };
+      assert.equal(result.termination, "timeout");
+      assert.equal(result.state, "cancelled");
+      const statusLines: string[] = [];
+      assert.equal(await main(["status", "--path", root, "--id", result.executionId], root, (line) => statusLines.push(line)), 0);
+      assert.ok(statusLines.includes("Status: cancelled"));
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = previousKey;
+    }
   });
 });

@@ -247,3 +247,21 @@ test("transport releases a response from a fetcher that resolves after cancellat
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(cancelled, true);
 });
+
+
+test("HTTP error categories ignore inherited object properties and still check the error type", async () => {
+  for (const item of [
+    { code: "__proto__", category: "unknown" },
+    { code: "constructor", category: "unknown" },
+    { code: "__proto__", type: "rate_limit_error", category: "rate_limit" },
+  ]) {
+    await assert.rejects(
+      send(async () => Response.json({ error: item }, { status: 429 })),
+      (error: unknown) => {
+        assert.equal((error as { httpErrorCategory?: string }).httpErrorCategory, item.category);
+        assert.equal((error as Error).message, "Provider request failed with HTTP 429");
+        return true;
+      },
+    );
+  }
+});

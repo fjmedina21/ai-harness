@@ -45,8 +45,8 @@ function providerHttpErrorCategory(code: unknown, type: unknown): ProviderHttpEr
   };
   for (const value of [code, type]) {
     if (typeof value === "string") {
-      const category = categories[value.toLowerCase()];
-      if (category) return category;
+      const key = value.toLowerCase();
+      if (Object.hasOwn(categories, key)) return categories[key]!;
     }
   }
   return "unknown";

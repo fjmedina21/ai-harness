@@ -94,12 +94,16 @@ test("offline end-to-end workflow reads project files through the dispatcher and
   assert.deepEqual(result.tasks.map((task) => task.role), ["planner", "code-reviewer", "validator"]);
   assert.equal(progress.filter((event) => event.kind === "tool" && event.toolStatus === "executed").length, 3);
   assert.ok(progress.every((event) => !Object.hasOwn(event, "arguments") && !Object.hasOwn(event, "summary")));
+  assert.ok(progress.every((event) => event.executionId === result.executionId));
+  assert.deepEqual(progress.filter((event) => event.type === "task.started").map((event) => event.taskId), ["planning", "review", "validation"]);
   assert.equal(result.operations.length, 3);
   assert.ok(result.operations.every((operation) => operation.toolId === "file.read" && operation.state === "Completed"));
   const reopened = await openSqliteOperationJournal(journalFile);
   try {
     const persisted = reopened.list(result.executionId);
     assert.equal(persisted.length, 3);
+    assert.ok(persisted.every((operation) => operation.executionId === result.executionId && operation.requestId === operation.toolCallId));
+    assert.deepEqual(persisted.map((operation) => operation.taskId).sort(), ["planning", "review", "validation"]);
     assert.ok(persisted.every((operation) => operation.state === "Completed" && operation.safety === "read_only"));
   } finally { reopened.close(); }
 });
@@ -117,6 +121,11 @@ test("offline workflow checkpoints a complete execution and reports only safe su
 
 test("project configuration cannot grant tools and the model cannot request a write", async (t) => {
   const root = await project(t);
+  const configPath = path.join(root, ".ai", "config.json");
+  const config = JSON.parse(await readFile(configPath, "utf8")) as { security: { grantedPermissions: string[]; requireApprovalFor: string[] } };
+  config.security.grantedPermissions = ["files:read", "files:write", "git:write", "shell:execute", "deployment:execute"];
+  config.security.requireApprovalFor = [];
+  await writeFile(configPath, JSON.stringify(config));
   const provider = new ScriptedProvider(async () => ({ kind: "tool_calls", calls: [{ id: "write-attempt", toolId: "file.write", arguments: { path: "created.txt", content: "blocked" } }] }));
   const result = await runReadOnlyWorkflow({ projectRoot: root, request: "Inspect safely", provider: selected(), providerAdapter: provider });
   assert.equal(result.state, "failed");
