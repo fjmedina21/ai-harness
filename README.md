@@ -133,6 +133,9 @@ guarantee a dollar ceiling.
 
 ## Documentation
 
+Dedicated remote Podman isolation setup and its pending acceptance gate are
+documented in [DEDICATED-PODMAN-RUNNER.md](docs/DEDICATED-PODMAN-RUNNER.md).
+
 - [Architecture](docs/ARCHITECTURE.md) — implemented foundations and target design
 - [Repository map](docs/REPOSITORY.md) — implemented workspace packages
 - [Roadmap](docs/ROADMAP.md) — status through implemented Phase 8

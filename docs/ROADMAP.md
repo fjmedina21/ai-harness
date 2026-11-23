@@ -5,10 +5,13 @@ are targets, not evidence that those capabilities were delivered.
 
 ## Current source state
 
-The current source on `main` is version `0.8.0` at commit `d9ecbf4`
-(`d9ecbf49597c5c22784257d519a6a217c2c9e73f`). Phases 0–8 are integrated in
-`main`. The Phase 8 code has a successful standard GitHub Actions run for this
-commit (run [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502)).
+The current source on `main` is version `0.8.0` at commit `5991799`
+(`5991799d278e88c69abe4f1fdc27b7cf405469de`). Phases 0–8 are integrated in
+`main`. The Phase 8 baseline `d9ecbf4` had a successful standard GitHub Actions
+run [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502).
+The standard hosted CI run [45082194651](https://github.com/fjmedina21/ai-harness/actions/runs/45082194651)
+passed for `5991799`. The dedicated remote Podman workflow has no run in the
+current Actions run history; see [its runner runbook](DEDICATED-PODMAN-RUNNER.md).
 The GitHub releases endpoint has no release record for this source; npm
 publication was not independently verified. `0.8.0` is the experimental
 source version, not a production-readiness claim.
@@ -23,7 +26,7 @@ source version, not a production-readiness claim.
 | 5 | Podman cancellation/preflight/cleanup, bounded filesystem reads, opt-in real suite | Integrated in `main` at `fdd5c3b`; local Podman gate passed; dedicated GitHub runner validation pending |
 | 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Included in 0.6.0; local durable tests passed |
 | 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Integrated on `main` at `c390459`; 401 local tests and 19 scenarios passed; hosted CI run 45035585620 passed |
-| 8 | End-to-end host composition, read-only CLI workflow, bounded provider selection, durable/telemetry integration and release readiness | Implemented and integrated in `main` at `d9ecbf4`; local validation and standard hosted CI passed; live-provider smoke and real isolation gates remain separate |
+| 8 | End-to-end host composition, read-only CLI workflow, bounded provider selection, durable/telemetry integration and release readiness | Implemented in source version 0.8.0; baseline `d9ecbf4` passed standard hosted CI; diagnostics follow-up `5991799` passed local tests and standard hosted CI run 45082194651; live-provider smoke and remote isolation remain separate gates |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
@@ -78,8 +81,9 @@ require separate design and authorization.
 No production-readiness or external exactly-once promise follows from these
 experimental foundations. Phase 5 publication remains recorded at fdd5c3b;
 Phase 7 was integrated at c390459; the former 0.7.0 snapshot at 6dcb0e7 is
-historical. Phase 8 is at d9ecbf4 on current `main`. Commit 959f20f is an
-earlier 0.5.0 historical reference, not the current starting point.
+historical. Phase 8's initial source snapshot is d9ecbf4; current `main` is
+5991799. Commit 959f20f is an earlier 0.5.0 historical reference, not the
+current starting point.
 
 ## Runtime backend removal (0.6.0 migration)
 

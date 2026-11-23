@@ -7,7 +7,34 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { FIXED_CONTAINER_OPERATIONS } from "../container-operations.js";
 import { loadIsolationProfile } from "../isolation-profile.js";
+import { publicContainerPreflight, publicIsolationRunContext } from "../container-profile.js";
+import { isNetworkDeniedError } from "../container-operations.js";
 import { OPTIONS } from "./container-fixture.js";
+
+test("public isolation evidence excludes private daemon socket endpoint", () => {
+  const evidence = publicContainerPreflight({
+    backend: "podman", serverVersion: "6.2.0", kernel: "fixture-kernel", daemonId: "a".repeat(64),
+    platform: "linux/amd64", imageId: "b".repeat(64), endpoint: "unix:///private/runner/podman.sock",
+  });
+  assert.equal("endpoint" in evidence, false);
+  assert.equal(JSON.stringify(evidence).includes("podman.sock"), false);
+  assert.equal(JSON.stringify(evidence).includes("a".repeat(64)), false);
+  assert.equal(evidence.backend, "podman");
+});
+
+test("public isolation run context accepts only GitHub identifiers", () => {
+  assert.deepEqual(publicIsolationRunContext("a".repeat(40), "123456789", "Phase 5 dedicated isolation"), {
+    commitSha: "a".repeat(40), workflowRunId: "123456789", workflowName: "Phase 5 dedicated isolation",
+  });
+  assert.deepEqual(publicIsolationRunContext("/private/path", "token-secret", "private workflow"), {});
+});
+
+test("network probe accepts only explicit route or policy denial errors", () => {
+  for (const code of ["EACCES", "EPERM", "ENETUNREACH", "EHOSTUNREACH", "ENETDOWN"])
+    assert.equal(isNetworkDeniedError(code), true);
+  for (const code of ["ECONNREFUSED", "ETIMEDOUT", "EADDRNOTAVAIL", undefined, "private"])
+    assert.equal(isNetworkDeniedError(code), false);
+});
 
 test("fixed isolation probe source compiles without executing on the host", () => {
   for (const [id, args] of Object.entries(FIXED_CONTAINER_OPERATIONS)) {

@@ -1,7 +1,8 @@
 # Release readiness checklist — Phase 8
 
-This checklist records Phase 8 acceptance evidence for source version 0.8.0 on
-`main` at `d9ecbf49597c5c22784257d519a6a217c2c9e73f`. It is an experimental
+This checklist records Phase 8 acceptance evidence for source version 0.8.0.
+The initial source snapshot was `d9ecbf49597c5c22784257d519a6a217c2c9e73f`;
+current `main` is `5991799d278e88c69abe4f1fdc27b7cf405469de`. It is an experimental
 source milestone, not a formal release announcement. The GitHub releases
 endpoint has no release record; npm publication was not independently
 verified. Evidence is split between local validation, standard hosted CI, and
@@ -10,8 +11,9 @@ separately authorized checks.
 ## Build and behavior
 
 - [x] `pnpm clean`, `pnpm build` and complete `pnpm test` pass locally on the
-  finalization branch; 421/421 tests passed. The integrated `main` baseline
-  had 417/417 before the diagnostics follow-up.
+  Phase 8 finalization passed 421/421 tests before the dedicated-runner changes.
+  This preparation branch passed 424/424 locally; those changes are not yet
+  merged. The integrated Phase 8 baseline had 417/417.
 - [x] `pnpm harness --help`, `pnpm harness version` and
   `pnpm harness eval run --suite deterministic` pass; 19 scenarios and 42
   assertions passed.
@@ -40,9 +42,11 @@ separately authorized checks.
 
 ## Publication
 
-- [x] Standard hosted CI for the exact source commit passed: run
+- [x] Standard hosted CI passed for the initial Phase 8 snapshot: run
   [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502),
   SHA `d9ecbf49597c5c22784257d519a6a217c2c9e73f`.
+- [x] Standard hosted CI passed for current `main` source `5991799`: run
+  [45082194651](https://github.com/fjmedina21/ai-harness/actions/runs/45082194651).
 - [ ] Complete release review before creating any tag or publishing packages.
 - [x] Treat `0.8.0` as a pre-1.0 source milestone, not production readiness.
 - [x] Do not publish npm packages, create a GitHub release, merge or push without
@@ -55,8 +59,10 @@ separately authorized checks.
   not resolved and the smoke is not validated. See `docs/VERIFICATION.md`.
 - [ ] Live Anthropic smoke: requires the same explicit authorization and
   host-supplied bounded inputs.
-- [ ] Real Podman isolation: not rerun for Phase 8 because its controls were not
-  changed; local prior-phase evidence does not establish remote isolation.
+- [ ] Dedicated remote Podman isolation gate: pending runner/Environment/profile
+  setup and a manually authorized successful workflow run. The historical local
+  Podman result does not establish remote isolation. See
+  `docs/DEDICATED-PODMAN-RUNNER.md`.
 - [ ] Formal GitHub release: none found. npm publication: not independently
   verified. Neither is part of this source-validation task.
 

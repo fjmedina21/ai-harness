@@ -1,15 +1,19 @@
-# Verification — Phase 8 source, version 0.8.0
+# Verification — current source version 0.8.0
 
-The integrated source is **0.8.0** at commit
-`d9ecbf49597c5c22784257d519a6a217c2c9e73f` on `main`. This is not a formal
-release announcement. The GitHub releases endpoint has no release
-record for this commit; npm publication was not independently verified. Phase
-8 has both local validation and a successful standard GitHub Actions run for
-this exact commit.
+The current integrated source is **0.8.0** at commit
+`5991799d278e88c69abe4f1fdc27b7cf405469de` on `main`. The initial Phase 8
+source snapshot `d9ecbf49597c5c22784257d519a6a217c2c9e73f` remains historical
+evidence. This is not a formal release announcement. The GitHub releases endpoint
+has no release record for this source; npm publication was not independently
+verified. The initial Phase 8 snapshot has local validation and a successful
+standard GitHub Actions run. The latest commit also passed standard hosted CI
+run [45082194651](https://github.com/fjmedina21/ai-harness/actions/runs/45082194651).
+The current Actions history contains no run for `phase5-isolation.yml`.
 
-## Phase 8 source — local evidence
+## Phase 8 source — historical local evidence
 
-Commit: `d9ecbf49597c5c22784257d519a6a217c2c9e73f` on `main`.
+Initial Phase 8 snapshot: `d9ecbf49597c5c22784257d519a6a217c2c9e73f`; the current
+source is `5991799d278e88c69abe4f1fdc27b7cf405469de` on `main`.
 Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
 
 - pnpm clean: passed.
@@ -25,11 +29,11 @@ Environment: Node.js 24 and pnpm 12.21.0 on the local development machine.
 - git diff --check: passed on the Phase 8 source tree before finalization.
 - `pnpm clean`, `pnpm build`, `pnpm test`, CLI help/version and deterministic
   evaluation were rerun during finalization; all passed on the integrated
-  source commit; that suite had 417 tests. The provider diagnostics follow-up
-  on `chore/phase8-final-validation` is a separate local change and passed
-  `pnpm clean`, `pnpm build` and the full suite with **421/421 tests**. The
-  four added tests cover safe category mapping, telemetry retention, unknown
-  codes and bounded error bodies. No live calls were part of that suite.
+  source commit; that suite had 417 tests. The diagnostics follow-up at `5991799`
+  passed locally with **421/421 tests** before this runner-preparation branch
+  added three deterministic tests. Four diagnostics tests cover safe category
+  mapping, telemetry retention, unknown codes and bounded error bodies. No live
+  calls were part of the diagnostics suite.
 
 The new E2E tests use temporary local projects and the actual filesystem and
 SQLite journal, including reopen/persistence, invalid-journal rejection,
@@ -43,16 +47,26 @@ unknown. No token usage or cost estimate was returned. Three network requests
 were made in total; no further retries were made. This was a failed live
 provider attempt, not provider validation. See OpenAI's
 [error guidance](https://developers.openai.com/api/docs/guides/error-codes).
-The local follow-up on `chore/phase8-final-validation` adds bounded
-allowlisted error-category capture for a future diagnosis; it does not change
-retries or authorization. Phase 8 does
-not change Podman or its isolation policy, so the real Podman isolation suite
-was not run for this candidate. Standard hosted GitHub Actions CI run
+Commit `5991799` integrates bounded allowlisted error-category capture; its
+local full suite passed with 421 tests and hosted standard CI run 45082194651
+passed. It does not change retries or authorization. The initial Phase 8 change
+at `d9ecbf4` did not modify Podman policy, so the real isolation suite was not
+run for that candidate. Standard hosted GitHub Actions CI run
 [45076334502](https://github.com/fjmedina21/ai-harness/actions/runs/45076334502)
 completed successfully for commit `d9ecbf49597c5c22784257d519a6a217c2c9e73f`
 (install, build, test and CLI smoke). This does not validate live provider
 behavior or the separate real isolation workflow. No reproducible performance
 benchmark was run, so no runtime performance improvement is claimed.
+
+## Dedicated runner preparation — local branch evidence
+
+On `ci/dedicated-podman-isolation-validation`, `pnpm clean`, `pnpm build`,
+`pnpm test`, `pnpm harness --help`, `pnpm harness version` and
+`git diff --check` passed; **424/424 tests passed**. Three new tests cover
+public evidence redaction, GitHub context allowlisting and strict network-denial
+classification. These are deterministic checks and do not execute Podman.
+The workflow/docs/source changes are local to this branch and are not yet
+published. No real isolation suite or remote workflow was run.
 
 ## Published Phase 7 baseline — historical evidence
 
@@ -84,7 +98,7 @@ phase7-evaluations.md and phase7-security.md.
 
 The following sections are preserved snapshots from their named phase/candidate.
 Statements about publication or CI below describe only that snapshot and do not
-override the current Phase 7 status above.
+override the current source state above.
 
 Owner-directed local change on feat/phase6-durable-execution-recovery.
 Docker daemon/context execution and implicit backend selection have been removed.
