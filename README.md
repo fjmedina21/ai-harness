@@ -1,19 +1,34 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Version **0.8.0** is an experimental source milestone. Audited `main` at
-**9ce59e8b4b6b** includes Phase 9A OpenAI engineering, with **568/568** tests
-confirmed by its [standard CI](https://github.com/fjmedina21/ai-harness/actions/runs/45205140383).
-The audit closure preserves the **120-second maximum** after a temporary long
-smoke and adds boundary regressions, with **570/570** local tests at `5bb6317`.
-The CI linked above belongs to the earlier baseline; later publication and CI
-must be checked against their own commit.
-The project is **not a production-ready autonomous agent**. L1/L2 have offline
-filesystem/SQLite evidence. A real OpenAI four-role synthetic workflow passed in
-**240.77 seconds** under a temporary 600-second profile; the restored 120-second
-profile has no successful real full-workflow evidence. Real L3 remains blocked.
-See the [capability matrix](docs/phase9-autonomy-levels.md)
-and [verification](docs/VERIFICATION.md#phase-9a-evidence-audit).
+Version **0.8.0** is an experimental source milestone. Starting main
+**082d46fa6d48** includes OpenAI engineering and
+[baseline CI](https://github.com/fjmedina21/ai-harness/actions/runs/45215617846).
+The stabilization branch adds layered deadlines and safe performance metrics,
+with 592 local tests and one newly authorized four-role OpenAI smoke passed
+in 262.44s under an explicit 360s/180s/180s profile. The default 120s workflow
+profile has no passing real evidence for this slow model. L2 still needs
+independent approval; L3 stays blocked. This is **not production-ready autonomy**.
+See [verification](docs/VERIFICATION.md#phase-9a-stabilization).
+
+## Phase 9A stabilization
+
+Starting main: **082d46fa6d48**, version 0.8.0. The stabilization branch separates
+finite global, HTTP and role deadlines from terminal persistence; adds safe phase/
+role metrics and a reproducible offline benchmark. OpenAI engineering defaults to
+120s global / 30s HTTP; explicit host settings allow at most 900s global / 300s HTTP
+or role. A slow-model profile is 360s global / 180s HTTP / 180s per role, selected
+with --timeout-ms, --request-timeout-ms and --role-timeout-ms. Its one newly
+authorized real acceptance run passed in 262.44s on 2ce8717. The old 600s-profile pass remains
+historical evidence.
+
+Run pnpm bench:engineering for offline measurements. Requirements and Reviewer
+stay mandatory. [L2 approval/continuation](docs/phase9-l2-approval-resume-design.md)
+is design only; no approve/resume CLI is enabled. See
+[performance](docs/phase9a-performance.md),
+[time/budget policy](docs/phase9a-timeout-budget-policy.md) and
+[verification](docs/VERIFICATION.md#phase-9a-stabilization).
+L3 stays blocked; Anthropic engineering stays deferred.
 
 ## Phase 9 opt-in engineering
 
@@ -36,7 +51,8 @@ pnpm harness run --workflow implement --path /ABSOLUTE/PROJECT \
   --request "Add pagination to the users API" --provider openai \
   --model HOST_SELECTED_MODEL --autonomy propose --files src/users/service.ts \
   --max-provider-requests 6 --max-output-tokens 512 \
-  --confirm-provider-call --allow-uncertain-cost --json
+  --confirm-provider-call --allow-uncertain-cost \
+  --timeout-ms 360000 --request-timeout-ms 180000 --role-timeout-ms 180000 --json
 ```
 
 Requires OPENAI_API_KEY in the host environment; no project .env is loaded
@@ -47,15 +63,12 @@ reported tokens and optional host-rate estimates. Unknown cost is null/unknown,
 not zero; --allow-uncertain-cost explicitly acknowledges billing uncertainty.
 No automatic fallback, retry, original-project write or generated-code execution.
 
-The historical gpt-5.5-pro direct smoke is recorded separately from the new
-four-role workflow. That full synthetic workflow passed live on 2026-11-23 with
-four requests, valid expected proposal/diff, completed advisory review, unchanged
-source and confirmed cleanup. It took 240.77 seconds under a temporary long
-profile; attempts at 120 and 160 seconds timed out. The configurable maximum is
-restored to **120 seconds**, so that successful long trace is not validation of
-the current deadline profile. See [integration](docs/phase9-provider-integration.md),
-[live evidence](docs/phase9-live-smoke.md) and [verification](docs/VERIFICATION.md#phase-9a-evidence-audit).
-Version remains 0.8.0; Anthropic engineering is deferred and L3 is blocked.
+The direct historical smoke, the 120s/160s timeouts and the temporary 600s pass
+remain in the [evidence ledger](docs/phase9-live-smoke.md). The stabilized four-role
+synthetic workflow passed with four HTTP 200s, valid expected patch/diff and
+completed advisory review, using the explicitly selected 360s/180s/180s profile.
+Source stayed unchanged and cleanup was confirmed. That proves neither arbitrary
+task correctness nor real L2 approved application or L3. Version remains 0.8.0.
 
 ## Quick start
 

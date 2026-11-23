@@ -1,5 +1,67 @@
 # Phase 9A OpenAI live-smoke evidence and runbook
 
+## Stabilization acceptance
+
+Source **2ce871777b987bcbf262f9eca4f8787a328b4dec**, feat/phase9a-stabilization,
+version 0.8.0. The owner authorized **one** new gpt-5.5-pro run: max 6 requests,
+512 output tokens/request, 52224 cumulative reported-token budget, 360000 ms global,
+180000 ms HTTP/role, unknown cost accepted, synthetic value.ts only, no application/
+execution. The run PASSED; no old authorization or 600s result is reused.
+
+The stabilized smoke requires explicit HARNESS_ENGINEERING_REAL_REQUEST_TIMEOUT_MS
+and HARNESS_ENGINEERING_REAL_ROLE_TIMEOUT_MS in addition to the global budget.
+It emits dates, total/role/provider/HTTP timing, safe HTTP status, usage completeness,
+independent expected-change/Reviewer checks, diff size/digest and cleanup. Missing
+usage/status stays unknown. It never loads .env automatically. The host observation
+envelope binds the exact clean runtime source SHA.
+
+Current limits/defaults are in [the timing policy](phase9a-timeout-budget-policy.md).
+The audit below describes the earlier restored 120-second maximum and remains
+historical evidence. All recorded old execution metrics and SHAs remain unchanged.
+
+## Stabilization real result — passed with definitive explicit profile
+
+| Field | Observed result |
+| --- | --- |
+| Source SHA | 2ce871777b987bcbf262f9eca4f8787a328b4dec; runtime clean, documentation pending |
+| UTC start / finish | 2026-11-23T17:32:15.183Z / 2026-11-23T17:36:37.618Z |
+| Provider / model | OpenAI / owner-selected gpt-5.5-pro |
+| Authorized budget | 6 requests max; 512 output/request; 52224 cumulative reported tokens; global 360000 ms, HTTP/role 180000 ms; cost uncertainty accepted |
+| Actual requests | 4, sequential; all HTTP 200; no retry/fallback |
+| Total smoke / workflow elapsed | 262437.172 ms / 262423.642 ms |
+| Remaining global allowance | 97578 ms at workflow delivery; terminal allowance 1000 ms unused for a failure path |
+| Reported usage | 2136 input / 826 output; 565 reasoning included in output; cache read/write 0 |
+| Usage complete / cost | true / unknown, missing host rates; no estimate reconstructed |
+| Status / exit | proposed / 0; smokePassed=true |
+| Proposal / expected semantics / Reviewer | proposalValidated=true / expectedChangeValid=true / reviewerCompleted=true |
+| Diff | 129 bytes; digest 1753d505f0c34f71949ab72fefb484f9b5c36a9d0dae740a53199a912e9d2d09 |
+| Patch digest | 20e638ec7b50dc33a3dccfb58c94b8cc6a5688fb945870c9cb221449ce6bb1ba |
+| Source unchanged / cleanup | true / confirmed |
+| Patch applied / generated code executed / real L3 | false / false / blocked |
+
+### Per-role real observations
+
+Durations are milliseconds. Role time includes its context/bridge work. Provider
+duration includes transport and adapter work; HTTP spans include complete body
+processing, unlike the historical fetch-header observations. Nested spans overlap.
+Reasoning is included in output; never add it again.
+
+| Request | Role | Role ms | HTTP ms | Provider request ms | Input / output / reasoning | HTTP / role outcome |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | requirements-analyst | 29027.789 | 29024.846 | 29025.607 | 487 / 155 / 119 | 200 / ok |
+| 2 | planner | 100149.839 | 100145.715 | 100146.188 | 507 / 227 / 182 | 200 / ok |
+| 3 | backend-developer | 51585.865 | 51567.271 | 51567.970 | 546 / 306 / 163 | 200 / ok |
+| 4 | code-reviewer | 81638.988 | 81633.545 | 81634.178 | 596 / 138 / 101 | 200 / ok |
+
+All role/HTTP requests fit 180000 ms, and the complete workflow fits 360000 ms.
+Four roles and exact harmless expected-change/diff checks passed. This validates
+only that host-selected synthetic profile, not arbitrary tasks, guaranteed latency,
+production safety, default 120s completion, live approved L2 application or L3.
+No pending approval was consumed. The report is sanitized metadata from the
+opt-in exported smoke entry point; an interactive real CLI process was not tested.
+Ordinary CI uses mocked HTTP and no live credentials. No further paid run is
+authorized by this pass.
+
 ## Audit scope and current acceptance state
 
 Audited on **2026-11-23** against integrated `main` at
@@ -210,7 +272,8 @@ It never automatically loads a repository .env. Required trusted host inputs:
 - HARNESS_ENGINEERING_REAL_MODEL set to a host-selected available model.
 - HARNESS_ENGINEERING_REAL_REQUEST_BUDGET from 4 to 6.
 - HARNESS_ENGINEERING_REAL_OUTPUT_TOKEN_BUDGET from 1 to 512.
-- HARNESS_ENGINEERING_REAL_TIMEOUT_MS from 1 to 120000 in the restored code. The historical 600000 setting is rejected; it describes evidence, not current usage.
+- HARNESS_ENGINEERING_REAL_TIMEOUT_MS from 1 to 900000 in stabilized code; the older restored 120000 maximum is historical.
+- HARNESS_ENGINEERING_REAL_REQUEST_TIMEOUT_MS and HARNESS_ENGINEERING_REAL_ROLE_TIMEOUT_MS from 1 to 300000 each, clipped by global deadline. Ordinary CLI defaults remain separate.
 - Optional HARNESS_ENGINEERING_REAL_RATES referencing an existing private host tariff file. Missing rates mean unknown cost.
 
 The script runs L1 requirements/planner/implementer/reviewer and requires a valid

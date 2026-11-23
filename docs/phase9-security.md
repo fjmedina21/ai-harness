@@ -62,7 +62,9 @@ finite wall time and host-rate reservations. Exact billing cannot be promised;
 --allow-uncertain-cost is required even with tariffs. Missing usage stops calls;
 unknown cost is null/unknown. Cancellation can leave upstream spend unknown and
 never authorizes automatic retry. The default provider deadline remains 30 seconds,
-with an explicit host-selected maximum of 120 seconds. OpenAI text requests now
+with an explicit host-selected HTTP ceiling of 300 seconds after stabilization;
+global/role/absolute deadlines independently shorten it. OpenAI CLI global default
+is 120 seconds. The old shared 120-second ceiling is a historical snapshot. OpenAI text requests now
 include max_output_tokens; the omission in the previous adapter was corrected and
 has wire-level regression coverage.
 
@@ -70,5 +72,28 @@ Optional telemetry reuses registered host-created bindings, fixed labels and
 bounded attributes (including validated digest/state/iteration); no prompts, source,
 patch bodies, raw errors or credentials are recorded. CLI JSON contains reviewable
 code by explicit request and must be handled as sensitive local output, not telemetry.
-The full new live workflow is unverified; direct API evidence does not validate
-container isolation, semantic correctness or production safety. L3 remains blocked.
+The older synthetic full workflow passed under a temporary 600-second profile.
+The stabilization policy passed its separately authorized synthetic acceptance run
+on 2ce8717 in 262.44s with a 360s/180s/180s profile;
+neither establishes general semantic correctness, container isolation or production
+safety. L3 remains blocked.
+
+
+## Stabilization security review
+
+Longer time allowances remain finite trusted-host settings. Models/project files
+cannot choose deadlines, roles, budgets or approvals. One monotonic global deadline
+clips role signals and HTTP cancellation. Explicit checks stop synchronous callbacks
+from silently clearing expired timers; trusted JavaScript callbacks cannot be
+preempted. Terminal persistence has one separate finite allowance, not an extension
+for provider/mutation work. Delivered results are detached snapshots, so late
+callbacks cannot mutate them. Cancellation does not establish upstream billing.
+
+No security rehash or required role was removed. Telemetry adds only closed labels
+and bounded counts/durations; observer failure cannot authorize work. No keys,
+source or patches enter metrics. Benchmarks use actual temporary files/SQLite with
+HTTP mocked and trusted fixture identities, not a deployed authenticator. Existing
+ownerSession checks and recovery blocks stay in place.
+The [L2 design](phase9-l2-approval-resume-design.md) requires private durable artifacts,
+independent authentication, fenced leases/CAS and reconciliation before continuation.
+No insecure approve flag, uncertain replay, native-session resume or real L3 is added.

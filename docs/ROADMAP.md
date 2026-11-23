@@ -3,7 +3,21 @@
 This status follows the implemented code. Earlier broad architecture proposals
 are targets, not evidence that those capabilities were delivered.
 
-## Current source state
+## Phase 9A stabilization — local work
+
+Starting at 082d46fa6d48, feat/phase9a-stabilization adds finite layered deadlines,
+monotonic acceptance checks, bounded phase/role telemetry and a real-filesystem/
+SQLite benchmark with mocked HTTP. Requirements, Planner, Implementer and Reviewer
+remain sequential. No safety read or approval was removed for a speed claim.
+The 360s/180s/180s acceptance profile is a host opt-in, not a new default.
+Its one newly authorized OpenAI smoke passed in 262.44s on 2ce8717; historical failures and the
+600s pass remain separate evidence. This branch has no new hosted CI.
+[L2 approval/resume](phase9-l2-approval-resume-design.md) is design only; private
+proposal artifacts, authenticated broker and fenced ownership transfer require
+implementation/review before any approve/continue CLI. No Phase 9B or L3 starts.
+See [performance](phase9a-performance.md) and [policy](phase9a-timeout-budget-policy.md).
+
+## Historical integrated baseline — before stabilization
 
 Audited `main` is version **0.8.0** at **9ce59e8b4b6b**, including experimental
 Phases 0–8, partial Phase 9 L1/L2 and the OpenAI 9A engineering integration.

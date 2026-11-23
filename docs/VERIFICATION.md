@@ -1,6 +1,49 @@
 # Verification — current source version 0.8.0
 
 
+## Phase 9A stabilization
+
+Date: 2026-11-23. Starting main/origin/main: **082d46fa6d48267c96e92e7feba4f068396e2b4f**,
+clean and equal after fetch/ff-only synchronization. Branch:
+**feat/phase9a-stabilization**, version **0.8.0**. Runtime implementation:
+**2ce871777b987bcbf262f9eca4f8787a328b4dec**.
+
+| Evidence | Result / scope |
+| --- | --- |
+| Baseline build/test | 570/570 passed before implementation |
+| Baseline hosted CI | [45215617846](https://github.com/fjmedina21/ai-harness/actions/runs/45215617846), success, exact starting SHA, completed 2026-11-23T16:22:25Z |
+| Stabilization offline suite | 592/592 passed, zero failed/cancelled/skipped, after final clean/build; all required CLI/evaluation checks repeated at closure |
+| New timing/benchmark tests | 18/18, real temporary filesystem/SQLite and mocked HTTP; included in full count |
+| CLI + timing focused checks | 45/45 after final smoke metadata changes; included in full count |
+| Evaluations | Deterministic 19/19 scenarios, 42/42 assertions; phase9 10/10, 10/10 assertions |
+| Benchmark | 12 configurations, 5 samples each, 60 synthetic runs; real patch/dispatcher/checkpoints/SQLite with mocked HTTP; [results](phase9a-performance.md) |
+| New real OpenAI acceptance | One explicitly authorized gpt-5.5-pro run, max 6 requests, 512 output, 360s global / 180s HTTP and role, uncertain cost accepted; PASSED in 262437.172 ms, four HTTP 200s, exact expected proposal/diff and Reviewer completed; source unchanged, cleanup confirmed |
+| L2 continuation | Design only; reopening a pending SQLite operation remains non-executable |
+| New hosted CI | Not run; no push/merge authorized for this branch |
+| L3 / Podman / Anthropic engineering | Disabled / not executed / deferred |
+
+New metrics contain only fixed phases, role/index, durations, remaining time, bounded
+context byte count, token usage and terminal/timeout labels. No prompts, source,
+credentials, raw responses or sensitive patches enter telemetry. The smoke checks
+expected semantics, completed Reviewer, diff digest/bytes, usage completeness and
+cleanup independently of terminal success.
+
+Security regressions cover deadline precedence, boundaries, delayed synchronous
+callbacks, uncooperative providers, cancellation, persistence timeout, detached
+late-completion results, SQLite reopen, expired approval, stale workspace and
+redacted per-role telemetry. Existing malformed-response, quota, unknown-usage,
+budgets, scope, concurrency and L2 replay/approval tests remain.
+
+Private AGENTS.md and harness-development/ (including its current handoff) remain
+excluded and untouched. No use is made of the obsolete handoff location. Only
+synthetic temporary projects are fixtures. New real evidence is separate from
+baseline CI, the old direct smoke and the temporary 600s success. See
+[the live ledger](phase9-live-smoke.md), [policy](phase9a-timeout-budget-policy.md)
+and [L2 design](phase9-l2-approval-resume-design.md).
+
+Older sections below are dated snapshots. Their then-local branches, counts, limits
+and CI statements are not the current stabilization configuration.
+
 ## Phase 9A evidence audit
 
 Audit date: **2026-11-23**. Starting `main` and `origin/main` were clean and equal
@@ -569,3 +612,27 @@ The host/daemon/profile remain trusted. No kernel-escape, durable journal,
 transactional approval, automatic recovery or exactly-once guarantee is established.
 See [Phase 5 security and migration](phase5-security.md).
 The workspace version is `0.5.0`; see the [versioning policy](VERSIONING.md).
+
+
+## Stabilization closure record
+
+Scoped stabilization is complete locally: instrumented four-role workflow, finite
+layered deadlines and budgets, reproducible offline benchmark, one authorized real
+acceptance run on 2ce8717, and a complete L2 approval/continuation design. This does
+not close full Phase 9, production readiness, L2 cross-session execution or L3.
+
+Final required sequence passed: pnpm clean; pnpm build; pnpm test (592/592);
+pnpm harness --help; pnpm harness version (0.8.0 experimental);
+pnpm harness eval run --suite deterministic (19/19, 42/42 assertions);
+pnpm harness eval run --suite phase9 (10/10, 10/10 assertions).
+All 85 local documentation links/anchors passed. Sensitive-pattern checks found
+no credential/private-path literals in the ten edited documents; git diff --check
+passed and final Git status is checked after the local documentation commit. No hosted CI, push,
+merge, package publication, tag, release or infrastructure action accompanies this
+local closure. The runtime commit is 2ce8717; the documentation commit contains
+this record. Local/private artifacts remain outside Git.
+
+Before L3: separately approved digest-bound snapshot transport, fixed validation
+registry integration, dedicated approved Podman profile and current real synthetic
+isolation/build/test/repair/cleanup evidence, plus remote risk acceptance where
+applicable. None is supplied by an OpenAI proposal smoke.

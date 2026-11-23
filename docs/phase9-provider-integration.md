@@ -51,6 +51,26 @@ regressions, retained fixture/inspection behavior, full required checks, opt-in
 synthetic live smoke, documentation and local commits only. Live evidence is
 reported separately from mocked HTTP and does not establish L3 or production safety.
 
+## Stabilization contracts and configuration
+
+Implementation 2ce8717 adds optional EngineeringOptions.timing (roleTimeoutMs,
+roleTimeouts, deadlineAt and finalizationTimeoutMs) and diagnostic result.timing.
+budget.timeoutMs is global; createOpenAIEngineeringAgent.timeoutMs continues to
+mean HTTP timeout. CLI maps --timeout-ms, --request-timeout-ms, --role-timeout-ms
+and --finalization-timeout-ms separately. No complete() or native protocol schema
+change, model switching or provider-session resume is introduced.
+The global ceiling is 900000 ms; role/HTTP ceilings 300000 ms; defaults remain
+conservative (OpenAI CLI global 120000, HTTP 30000, role clipped to 120000).
+Terminal persistence is independently bounded to 1000 ms by default, at most 5000;
+an ambiguous or late write remains Uncertain.
+
+Existing telemetry gains fixed phase metrics, remaining time and request index on
+role spans. Provider usage correlates by inherited role/trace. HTTP timings include
+body processing; serialization/parsing have explicit nested spans. Diagnostics
+convey no authority. The single new real smoke passed in 262437.172 ms; evidence belongs
+to its own source SHA. See [policy](phase9a-timeout-budget-policy.md),
+[performance](phase9a-performance.md) and [L2 design](phase9-l2-approval-resume-design.md).
+
 ## CLI and host configuration
 
 ```sh
@@ -58,7 +78,8 @@ pnpm harness run --workflow implement --path /ABSOLUTE/PROJECT \
   --request "Add pagination to the users API" --provider openai \
   --model HOST_SELECTED_MODEL --autonomy propose --files src/users/service.ts \
   --max-provider-requests 6 --max-output-tokens 512 \
-  --confirm-provider-call --allow-uncertain-cost --json
+  --confirm-provider-call --allow-uncertain-cost \
+  --timeout-ms 360000 --request-timeout-ms 180000 --role-timeout-ms 180000 --json
 ```
 
 OPENAI_API_KEY must already be in the host environment. The CLI never reads .env
@@ -82,10 +103,9 @@ an explicit host operation selection. Both remain subject to the patch engine.
 `--max-total-tokens` defaults to the request count times per-turn token allowance,
 capped at 100000. `--max-agent-turns` can lower the request ceiling because each
 role makes exactly one request. `--max-context-bytes`, `--max-context-tokens`,
-`--timeout-ms` and `--sensitive` configure bounded host behavior. Global engineering timeout
-is at most **120000 ms** in the restored code. Temporary local 160/600-second
-profiles were used only for the specifically authorized evidence runs. Provider
-default remains 30000 ms. No automatic retry, malformed-output repair or real L3
+`--timeout-ms` and `--sensitive` configure bounded host behavior. Global engineering timeout is at most **900000 ms**, with HTTP/role ceilings
+of **300000 ms**. The earlier shared 120000 ms maximum is historical. OpenAI CLI
+global default remains 120000 ms; HTTP default remains 30000 ms. No automatic retry, malformed-output repair or real L3
 repair loop is enabled. Native tool calls/refusals are not treated as patches.
 
 Host private tariffs use existing `--rates FILE` plus `--max-cost-usd N` (0..10,
@@ -124,7 +144,7 @@ labelled applied; isolated application is never labelled integration.
   a validated patch-digest attribute; payloads/keys/approval credentials are absent.
 - CLI is composition only; no HTTP, patch language, auth or provider fallback is added.
 
-## Verification and closure
+## Historical OpenAI integration closure — before stabilization
 
 Real-adapter mocked HTTP tests cover L1, real SQLite pending/approved L2, base/hash/
 path/operation/schema/size/duplicate failures, refusals/native calls, session and
@@ -139,7 +159,7 @@ and [live evidence](phase9-live-smoke.md) for the narrower real API result. This
 records the owner-approved OpenAI/offline integration scope. Standard CI for
 9ce59e8b4b6b subsequently passed; see [the current audit](VERIFICATION.md#phase-9a-evidence-audit).
 It does not close Anthropic engineering, full Phase 9, real L3 or production acceptance.
-The audit branch restores the 120-second maximum after temporary live-run profiles
+The earlier audit branch restored the 120-second maximum after temporary live-run profiles
 and retains boundary regressions, with 570/570 local tests at closure 5bb6317.
 Hosted CI had not run for that pre-publication snapshot; subsequent CI must be
 associated with its own SHA. No key write,
@@ -177,7 +197,7 @@ recorded below. Anthropic is deferred; real L3 is blocked.
 No statement here declares full Phase 9 complete or experimental software ready
 for production. Version recommendation remains 0.8.0.
 
-## Current live acceptance — evidence audit
+## Historical live acceptance — before stabilization
 
 The four-role synthetic workflow passed with OpenAI gpt-5.5-pro at
 2026-11-23T16:07:36.021Z on **1c3755a494895d071937c8f12f9c1da6e8cf2fb0**:
@@ -198,3 +218,10 @@ live interactive CLI subprocess. CLI subprocess E2E remains mocked HTTP evidence
 No general task correctness, production readiness, live L2 approved application or
 L3 gate follows. L2 still requires an independent trusted approver; the CLI remains
 pending approval. No model can promote proposed changes into the original project.
+
+
+Role and phase metrics require a host TelemetryObserver, used by the opt-in smoke
+and offline benchmark. Ordinary engineering CLI output exposes bounded result.timing
+without adding a new telemetry-directory or authentication surface. Hosts may use
+the existing private JSONL sink through the programmatic observer port. No
+diagnostic event is required to authorize an operation.
