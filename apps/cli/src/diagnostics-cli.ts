@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { lstat, open } from "node:fs/promises";
 import path from "node:path";
-import { compareEvaluationReports, EVALUATION_LIMITS, parseEvaluationReport, runDeterministicEvaluations } from "@ai-harness/evaluations";
+import { compareEvaluationReports, EVALUATION_LIMITS, parseEvaluationReport, runDeterministicEvaluations, runPhase9Evaluations } from "@ai-harness/evaluations";
 import { buildExecutionMetrics, buildExecutionTrace, readTelemetryJsonl } from "@ai-harness/observability";
 
 function value(args: readonly string[], flag: string): string | undefined {
@@ -44,8 +44,8 @@ export async function diagnosticCommand(command: string, args: string[], cwd: st
       const [action, ...options] = args;
       if (action === "run") {
         allowed(options, ["--suite"]);
-        if (value(options, "--suite") !== "deterministic") throw new Error("Unknown evaluation suite");
-        const report = await runDeterministicEvaluations();
+        if (!["deterministic", "phase9"].includes(value(options, "--suite") ?? "")) throw new Error("Unknown evaluation suite");
+        const report = await (value(options, "--suite") === "phase9" ? runPhase9Evaluations() : runDeterministicEvaluations());
         output(JSON.stringify(report, null, 2));
         return report.summary.passed === report.summary.total ? 0 : 1;
       }

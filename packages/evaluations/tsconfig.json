@@ -26,6 +26,9 @@
     },
     {
       "path": "../checkpointing"
+    },
+    {
+      "path": "../application"
     }
   ]
 }

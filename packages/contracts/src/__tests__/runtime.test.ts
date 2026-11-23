@@ -67,3 +67,12 @@ test("agent contract accepts an executor", () => {
 
   assert.equal(agent.role, "backend-developer");
 });
+
+
+test("engineering states cannot resume completed or uncertain work", async () => {
+  const { assertEngineeringStateTransition } = await import("../index.js");
+  assertEngineeringStateTransition("Repairing", "Proposed");
+  assertEngineeringStateTransition("Applying", "Uncertain");
+  assert.throws(() => assertEngineeringStateTransition("Uncertain", "Applying"));
+  assert.throws(() => assertEngineeringStateTransition("Completed", "Authorized"));
+});

@@ -201,3 +201,9 @@ export type { ContainerSecurityProfile, ContainerPreflight } from "./container-e
 
 export type { PodmanExecutionOptions } from "./podman-profile.js";
 export type { ExecutionRuntimeOptions } from "./runtime-backend.js";
+
+export * from "./engineering-workspace.js";
+export * from "./engineering-patches.js";
+export * from "./engineering-validation.js";
+export * from "./engineering-recovery.js";
+export * from "./engineering-cleanup.js";

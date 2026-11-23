@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
+import { engineeringCommand } from "./engineering-cli.js";
 import { diagnosticCommand } from "./diagnostics-cli.js";
 import { readPrivateCostRates } from "./rates.js";
 import { executeRun, getRunStatus } from "./runtime-cli.js";
@@ -77,6 +78,7 @@ export async function main(
       }
 
       case "run": {
+        if (optionValue(args, "--workflow") === "implement") return engineeringCommand(args, cwd, output, signal);
         rejectUnknown(args, ["--path", "--request", "--provider", "--workflow", "--model", "--fixture-file", "--journal", "--telemetry-dir", "--timeout-ms", "--rates", "--max-output-tokens", "--max-provider-requests"], ["--confirm-provider-call", "--json"]);
 
         const request = optionValue(args, "--request");
@@ -274,11 +276,15 @@ function help(): string {
   \n       [--fixture-file FILE]
   \n       [--journal ABSOLUTE_FILE] [--telemetry-dir PRIVATE_DIR] [--rates PRIVATE_JSON]
   \n       [--timeout-ms N] [--json]
+  \n  run --workflow implement --autonomy propose|isolated --path DIR --request TEXT --provider fixture
+  \n       --files FILES_CSV --fixture-file FILE --fixture-content TEXT [--json]
+  \n       [--workspace-dir PRIVATE_DIR --journal PRIVATE_FILE --checkpoint-dir PRIVATE_DIR --authorize-workspace]
+  \n       [--max-iterations N] [--timeout-ms N]
   \n  status --path DIR --id EXECUTION_ID
   \n  doctor [--path DIR]                          Validate project configuration and declarations
   \n  agents [--path DIR]                          List enabled agent roles
   \n  config [--path DIR]                          Print validated configuration
-  \n  eval run --suite deterministic                 Run offline host-owned fixtures
+  \n  eval run --suite deterministic|phase9                 Run offline host-owned fixtures
   \n  eval report --input FILE [--baseline FILE]      Inspect or compare private evaluation reports
   \n  trace --input FILE --id EXECUTION_ID            Inspect private JSONL spans
   \n  metrics --input FILE --id EXECUTION_ID          Summarize captured execution metrics
@@ -287,7 +293,7 @@ function help(): string {
 
   \n  inspect supports only host-authorized read-only file access; it does not edit files or run tests.
   \nReal-provider calls can incur charges and require --confirm-provider-call, --model, an output/request budget and a host environment credential.
-  \nNot exposed by the CLI: resume, approval decisions, deployment, Git writes, shell, isolated runtime, dashboard.`;
+  \nImplement uses explicit offline fixture recipes. Isolated mode stops pending approval; real Podman validation is blocked.\nNot exposed by the CLI: resume, approval decisions, deployment, Git writes, shell, real isolated execution, dashboard.`;
 }
 
 function limitOutput(value: string): string {

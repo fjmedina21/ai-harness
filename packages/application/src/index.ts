@@ -9,3 +9,6 @@ export type {
 } from "./workflow.js";
 export type { CostRate } from "@ai-harness/contracts";
 export { FixtureInspectionProvider } from "./fixture-provider.js";
+
+export * from "./engineering.js";
+export { FixtureEngineeringAgent } from "./engineering-fixture.js";

@@ -251,3 +251,5 @@ export function compareEvaluationReports(baselineRaw: EvaluationReport, candidat
 }
 
 export { createDeterministicEvaluationSuite, runDeterministicEvaluations } from "./deterministic.js";
+
+export { createPhase9EvaluationSuite, runPhase9Evaluations } from "./phase9.js";

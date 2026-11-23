@@ -138,3 +138,5 @@ export type * from "./execution.js";
 export * from "./durable.js";
 
 export * from "./telemetry.js";
+
+export * from "./engineering.js";

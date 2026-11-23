@@ -292,6 +292,9 @@ importers:
       '@ai-harness/agents':
         specifier: workspace:*
         version: link:../agents
+      '@ai-harness/application':
+        specifier: workspace:*
+        version: link:../application
       '@ai-harness/checkpointing':
         specifier: workspace:*
         version: link:../checkpointing

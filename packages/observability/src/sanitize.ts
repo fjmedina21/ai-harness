@@ -1,8 +1,8 @@
-import { AGENT_ROLES, OPERATION_STATES } from "@ai-harness/contracts";
+import { AGENT_ROLES, OPERATION_STATES, ENGINEERING_STATES } from "@ai-harness/contracts";
 import type { ProviderHttpErrorCategory, TelemetryAttributes, TelemetryErrorClass, TokenUsage } from "@ai-harness/contracts";
 
 export const SPANS = ["execution", "task", "agent", "model.turn", "provider.request", "provider.http", "tool.dispatch", "tool.handler"] as const;
-export const EVENTS = ["task.blocked", "agent.tools_requested", "agent.tools_rejected", "agent.limit", "tool.validation", "tool.policy", "tool.authorization"] as const;
+export const EVENTS = ["engineering.state", "engineering.workspace", "engineering.patch", "engineering.approval", "engineering.validation", "engineering.repair", "engineering.review", "engineering.completion", "task.blocked", "agent.tools_requested", "agent.tools_rejected", "agent.limit", "tool.validation", "tool.policy", "tool.authorization"] as const;
 export const STATUSES = ["ok", "error", "cancelled", "timeout", "denied", "blocked", "uncertain"] as const;
 export const ERRORS: readonly TelemetryErrorClass[] = ["cancelled", "timeout", "invalid_response", "limit", "policy", "approval", "storage", "tool", "dependency", "runtime", "http", "invalid_input"];
 export const PROVIDER_HTTP_ERROR_CATEGORIES: readonly ProviderHttpErrorCategory[] = ["rate_limit", "quota_or_billing", "authentication", "permission", "model_access", "invalid_request", "unknown"];
@@ -15,6 +15,8 @@ export function boundedInteger(value: unknown, max = Number.MAX_SAFE_INTEGER): v
 }
 export function attributes(raw: TelemetryAttributes = {}): TelemetryAttributes {
   const out: TelemetryAttributes = {};
+  if (ENGINEERING_STATES.includes(raw.engineeringState!)) out.engineeringState = raw.engineeringState;
+  if (boundedInteger(raw.iteration, 8)) out.iteration = raw.iteration;
   for (const key of ["taskId", "provider", "model", "toolId", "operationId"] as const) {
     const value = label(raw[key]);
     if (value !== undefined) out[key] = value;

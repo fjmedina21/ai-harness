@@ -339,6 +339,7 @@ class SqliteOperationJournal implements DurableOperationStore {
       const grant = this.approval(id); check(grant && grant.status === "pending");
       const op = this.get(grant.operationId)!;
       check(this.executionHealthy && op.ownerSession === this.session && Date.parse(this.time()) < Date.parse(grant.expiresAt));
+      if (op.toolId === "patch.apply" && approved) check(actor.issuer !== op.requester.issuer || actor.subject !== op.requester.subject);
       grant.approver = actor; grant.status = approved ? "approved" : "denied"; grant.updatedAt = this.time();
       this.move(op, approved ? "Approved" : "Cancelled", approved ? "approval.approved" : "approval.denied", actor);
       this.saveApproval(grant); return grant;
