@@ -19,7 +19,7 @@ clean and equal after fetch/ff-only synchronization. Branch:
 | Benchmark | 12 configurations, 5 samples each, 60 synthetic runs; real patch/dispatcher/checkpoints/SQLite with mocked HTTP; [results](phase9a-performance.md) |
 | New real OpenAI acceptance | One explicitly authorized gpt-5.5-pro run, max 6 requests, 512 output, 360s global / 180s HTTP and role, uncertain cost accepted; PASSED in 262437.172 ms, four HTTP 200s, exact expected proposal/diff and Reviewer completed; source unchanged, cleanup confirmed |
 | L2 continuation | Design only; reopening a pending SQLite operation remains non-executable |
-| New hosted CI | Not run; no push/merge authorized for this branch |
+| Hosted CI at local closure 5686af0 | Not run then; the owner subsequently authorized merge/push. Later CI must be associated with its own published SHA |
 | L3 / Podman / Anthropic engineering | Disabled / not executed / deferred |
 
 New metrics contain only fixed phases, role/index, durations, remaining time, bounded
@@ -629,7 +629,7 @@ All 85 local documentation links/anchors passed. Sensitive-pattern checks found
 no credential/private-path literals in the ten edited documents; git diff --check
 passed and final Git status is checked after the local documentation commit. No hosted CI, push,
 merge, package publication, tag, release or infrastructure action accompanies this
-local closure. The runtime commit is 2ce8717; the documentation commit contains
+local closure at 5686af0, before the subsequent merge/push authorization. The runtime commit is 2ce8717; the documentation commit contains
 this record. Local/private artifacts remain outside Git.
 
 Before L3: separately approved digest-bound snapshot transport, fixed validation

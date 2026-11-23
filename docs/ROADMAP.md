@@ -11,7 +11,8 @@ SQLite benchmark with mocked HTTP. Requirements, Planner, Implementer and Review
 remain sequential. No safety read or approval was removed for a speed claim.
 The 360s/180s/180s acceptance profile is a host opt-in, not a new default.
 Its one newly authorized OpenAI smoke passed in 262.44s on 2ce8717; historical failures and the
-600s pass remain separate evidence. This branch has no new hosted CI.
+600s pass remain separate evidence. At local closure 5686af0 no new hosted CI had
+run; subsequent publication and CI are separate evidence for their exact SHA.
 [L2 approval/resume](phase9-l2-approval-resume-design.md) is design only; private
 proposal artifacts, authenticated broker and fenced ownership transfer require
 implementation/review before any approve/continue CLI. No Phase 9B or L3 starts.
