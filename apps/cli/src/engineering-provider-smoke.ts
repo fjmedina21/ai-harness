@@ -19,7 +19,7 @@ export async function runEngineeringProviderSmoke(output = console.log): Promise
     const maxRequests = integer("HARNESS_ENGINEERING_REAL_REQUEST_BUDGET", 6);
     if (maxRequests < 4) throw new Error("Smoke requires four role turns");
     const maxOutputTokens = integer("HARNESS_ENGINEERING_REAL_OUTPUT_TOKEN_BUDGET", 512);
-    const timeoutMs = integer("HARNESS_ENGINEERING_REAL_TIMEOUT_MS", 160000);
+    const timeoutMs = integer("HARNESS_ENGINEERING_REAL_TIMEOUT_MS", 600000);
     const rates = process.env.HARNESS_ENGINEERING_REAL_RATES ? await readPrivateCostRates(path.resolve(required("HARNESS_ENGINEERING_REAL_RATES"))) : undefined;
     root = await realpath(await mkdtemp(path.join(await realpath(tmpdir()), "harness-live-engineering-")));
     const before = "export const value = 1;\n";

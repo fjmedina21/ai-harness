@@ -102,7 +102,7 @@ const defaultRisks = ["Experimental private local filesystem boundary; same-UID 
 function validateOptions(o: EngineeringOptions): void {
   if (![1, 2, 3].includes(o.level) || !o.request.trim() || Buffer.byteLength(o.request) > 8192 || !o.files.length) throw new Error("Invalid engineering request");
   engineeringLimit(o.budget.maxIterations, 8); engineeringLimit(o.budget.maxRequests, 32); engineeringLimit(o.budget.maxTokens, 100_000);
-  engineeringLimit(o.budget.timeoutMs, 160_000); engineeringLimit(o.budget.maxFiles, 16); engineeringLimit(o.budget.maxBytes, 65536);
+  engineeringLimit(o.budget.timeoutMs, 600_000); engineeringLimit(o.budget.maxFiles, 16); engineeringLimit(o.budget.maxBytes, 65536);
   if (!Number.isFinite(o.budget.maxEstimatedCostUsd) || o.budget.maxEstimatedCostUsd < 0 || o.budget.maxEstimatedCostUsd > 10 ||
       !/^[a-zA-Z0-9._-]{1,64}$/.test(o.agent.id) || !["fixture", "host_model_adapter"].includes(o.agent.mode) ||
       (o.agent.mode === "host_model_adapter" && (o.modelAdapterAuthorized !== true || o.allowUncertainCost !== true || o.level === 3)) ||
