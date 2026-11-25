@@ -2,7 +2,24 @@
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
 Version **0.8.0**, experimental; **not production-ready autonomy**. Current work
-starts at `fff4932f13f0` on `feat/phase9-github-auth-podman-validation`.
+starts at `6dbdc98797d3` on `feat/phase9-personal-approval-mode`.
+
+## Phase 9A.4 — Personal Mode and Team Mode
+
+Team remains the default: requester and approver must be different stable GitHub
+identities. An explicit, strictly validated host policy can select Personal Mode
+and explicitly assign all four scoped roles to one account. Personal approval
+requires exact diff review, typed `APPROVE` in an interactive terminal and fresh
+macOS device-owner authentication. A session, pipeline, model response or
+`continue` command cannot approve. The existing durable services record the exact
+decision and retain expiry, single use, CAS and fenced continuation.
+
+Sandbox execution needs a second, independently scoped approval. Its CLI remains
+blocked pending Gate C. SQLite v3 migrates existing records conservatively; old
+approvals remain Team approvals. An owner-confirmed native Personal approval and
+single-account L2 fixture passed locally; automated tests use mocked verifiers.
+Team's real two-account acceptance remains pending. See
+[Personal Mode, configuration and migration](docs/phase9-personal-mode.md).
 
 ## Phase 9A.3 and Phase 9B — current boundary
 
@@ -18,23 +35,26 @@ durable lifecycle. The CLI verifies app-bound user tokens online, stores session
 in macOS Keychain and enforces explicit numeric-account/resource role assignments.
 `auth login|whoami|status|refresh|logout` and authenticated
 `engineering status|diff|approve|reject|revoke|continue --id ID` are implemented.
-New isolated requests require `harness:requester`; a second authorized stable
-GitHub identity is required for approval. Tokens/credentials are never accepted
+New isolated requests require `harness:requester`; Team approval requires a second
+authorized stable GitHub identity. Tokens/credentials are never accepted
 in arguments. See [GitHub App setup](docs/phase9-github-app-setup.md),
 [authentication](docs/phase9-github-authentication.md) and
 [Operational L2](docs/phase9-operational-l2.md).
 
-**Authentication/Operational L2: offline verified, live pending.** Mocked GitHub
+**Operational L2 Personal: verified for the tested synthetic local scope.** Actual
+GitHub login, Keychain-backed recovery, refresh and logout were observed with owner
+authorization. Team's real two-account approval remains pending. Mocked GitHub
 HTTP, real SQLite/filesystem and independent processes do not replace an explicitly
 authorized actual GitHub/native Keychain smoke. Linux/Windows native credential
 adapters are not supplied and fail closed. No legacy requester identity migration
-or self-approval shortcut is introduced.
+or implicit approval is introduced. Personal Mode is an explicit host policy.
 
 Phase 9B adds closed snapshot transfer by bounded stdin, a host action registry,
 separate durable action approval, Podman-only runtime and private bounded evidence.
 The first profile retains network denial, rootless execution, no host mounts and
 the existing 10-second/resource limits; it supports restricted Node actions, not
-general dependency builds. **Real Podman acceptance is pending; the validation CLI
+general dependency builds. Both authorized fixed local Podman suites passed;
+durable authenticated coordinator acceptance remains pending. **Full Podman acceptance is pending; the validation CLI
 remains blocked.** See [runtime](docs/phase9b-validation-runtime.md),
 [snapshot transfer](docs/phase9b-snapshot-transfer.md) and
 [verification](docs/VERIFICATION.md#phase-9a3-and-phase-9b). Phase 9C autonomous repair,
@@ -51,8 +71,8 @@ See [time/budget policy](docs/phase9a-timeout-budget-policy.md).
 
 The original `run --workflow implement` fixture recipe remains available:
 `--autonomy propose` reads host-selected files and returns structured patches;
-`--autonomy isolated` creates a private external copy and pauses for independent
-SQLite approval. A trusted host API can apply approved changes and exercise the
+`--autonomy isolated` creates a private external copy and pauses for scoped human
+SQLite approval (independent accounts by default). A trusted host API can apply approved changes and exercise the
 bounded repair loop with fixture validation. The original project stays unchanged.
 OpenAI engineering is integrated in the audited `main` and offline E2E tested.
 Anthropic engineering is deferred; sandbox validation components are implemented
@@ -74,7 +94,7 @@ pnpm harness run --workflow implement --path /ABSOLUTE/PROJECT \
 
 Requires OPENAI_API_KEY in the host environment; no project .env is loaded
 implicitly. L1 returns an actual structured proposal and reviewed diff without
-writing files. L2 uses private copies and exact independent durable approval;
+writing files. L2 uses private copies and exact policy-bound durable approval;
 CLI remains pending approval. Calls are bounded and cancellable, with actual
 reported tokens and optional host-rate estimates. Unknown cost is null/unknown,
 not zero; --allow-uncertain-cost explicitly acknowledges billing uncertainty.
@@ -120,7 +140,7 @@ was implemented.
 | Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
 | Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
 | Isolation | Explicit rootless Podman Machine profile; Docker runtime execution was removed in 0.6.0 |
-| Sandbox validation | Bounded snapshot transfer, restricted host Node profiles, independent action approval and private evidence; real gate pending, CLI disabled |
+| Sandbox validation | Bounded snapshot transfer, restricted host Node profiles, separate action approval and private evidence; real fixed suites passed, full gate pending, CLI disabled |
 | Observability | Opt-in bounded telemetry, in-memory/private rotating JSONL sinks, traces and metrics |
 | Evaluations | Existing deterministic suite plus independent phase9 offline filesystem/SQLite/repair scenarios; known fixtures only |
 

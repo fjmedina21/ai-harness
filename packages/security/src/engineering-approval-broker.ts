@@ -1,10 +1,12 @@
-import { canonicalProposalJson, EngineeringResumeError, type EngineeringResumeStore, type ProposalReference, type ResumeAction, type ResumeIdentityChallenge, type ResumeIdentityVerifier, type VerifiedResumeIdentity } from "@ai-harness/contracts";
+import { canonicalProposalJson, EngineeringResumeError, normalizeApprovalPolicy, type ApprovalPolicy, type ApprovalReviewContext, type HumanIntentReceipt, type EngineeringResumeStore, type ProposalReference, type ResumeAction, type ResumeIdentityChallenge, type ResumeIdentityVerifier, type VerifiedResumeIdentity } from "@ai-harness/contracts";
 import { DurableApprovalService } from "./durable-approval.js";
+import { approvalPolicyDigest, assertHumanIntent } from "./approval-policy.js";
+import { GitHubAuthError } from "./github-auth.js";
 
 /** Host-side adapter boundary. No authenticator configured means no access, including private diff. */
 export class ApprovalBroker {
   constructor(private readonly store: EngineeringResumeStore, private readonly verifier?: ResumeIdentityVerifier,
-    private readonly now: () => number = Date.now) {}
+    private readonly now: () => number = Date.now, private readonly policy?: ApprovalPolicy) { this.policy = normalizeApprovalPolicy(policy); }
   reference(operationId: string): ProposalReference {
     try {
       const reference = this.store.proposal(operationId);
@@ -15,10 +17,15 @@ export class ApprovalBroker {
   async authenticate(operationId: string, action: ResumeAction, credential: string): Promise<VerifiedResumeIdentity> {
     if (!this.verifier || typeof credential !== "string" || !credential.trim() || credential.length > 8192) throw new EngineeringResumeError("authentication_required");
     const ref = this.reference(operationId);
+    const review = this.store.approvalReview?.(operationId);
+    if (review ? review.policyDigest !== approvalPolicyDigest(this.policy) : normalizeApprovalPolicy(this.policy).mode !== "team") throw new EngineeringResumeError("policy_changed");
     const challenge: ResumeIdentityChallenge = { action, executionId: ref.executionId, workspaceId: ref.workspaceId, artifactDigest: ref.artifactDigest, challenge: ref.challenge };
     let actor: VerifiedResumeIdentity;
     try { actor = await this.verifier.verify(credential, Object.freeze({ ...challenge })); }
-    catch { throw new EngineeringResumeError("authentication_required"); }
+    catch (e) {
+      throw new EngineeringResumeError(e instanceof GitHubAuthError && e.code === "github_unavailable" ? "authentication_unavailable" :
+        e instanceof GitHubAuthError && e.code === "cancelled" ? "cancelled" : "authentication_required");
+    }
     if (!actor || !/^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$/.test(actor.issuer) || !/^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$/.test(actor.subject) ||
       !Number.isSafeInteger(actor.expiresAt) || actor.expiresAt <= this.now() || actor.expiresAt > this.now() + 300_000 ||
       canonicalProposalJson(actor.binding) !== canonicalProposalJson(challenge)) throw new EngineeringResumeError("authentication_required");
@@ -26,19 +33,31 @@ export class ApprovalBroker {
     if (!Array.isArray(actor.roles) || !actor.roles.includes(role)) throw new EngineeringResumeError("forbidden_scope");
     return structuredClone(actor);
   }
-  async decide(operationId: string, credential: string, approved: boolean, review?: () => Promise<void>): Promise<void> {
+  async decide(operationId: string, credential: string, approved: boolean, review?: () => Promise<void>, confirm?: (actor: VerifiedResumeIdentity, context: ApprovalReviewContext) => Promise<HumanIntentReceipt | null>): Promise<void> {
     const action = approved ? "approve" : "reject";
     const actor = await this.authenticate(operationId, action, credential);
     const ref = this.reference(operationId), op = this.store.get(operationId);
     if (!op?.approvalId) throw new EngineeringResumeError("approval_mismatch");
-    if (actor.issuer === op.requester.issuer && actor.subject === op.requester.subject) throw new EngineeringResumeError("forbidden_scope");
+    if (normalizeApprovalPolicy(this.policy).mode === "team" && actor.issuer === op.requester.issuer && actor.subject === op.requester.subject) throw new EngineeringResumeError("forbidden_scope");
     await review?.();
+    let intent: HumanIntentReceipt | undefined;
+    if (approved && normalizeApprovalPolicy(this.policy).mode === "personal") {
+      const context = this.store.approvalReview?.(operationId);
+      if (!context || !confirm) throw new EngineeringResumeError("human_confirmation_required");
+      const receipt = await confirm(actor, structuredClone(context));
+      if (!receipt) throw new EngineeringResumeError("human_confirmation_cancelled");
+      assertHumanIntent(receipt, context, actor, this.now()); intent = receipt;
+      const fresh = await this.authenticate(operationId, action, credential);
+      if (fresh.issuer !== actor.issuer || fresh.subject !== actor.subject) throw new EngineeringResumeError("authentication_required");
+      if (canonicalProposalJson(this.store.approvalReview?.(operationId)) !== canonicalProposalJson(context)) throw new EngineeringResumeError("approval_mismatch");
+      await review?.();
+    }
     if (this.now() >= actor.expiresAt) throw new EngineeringResumeError("authentication_required");
     // Reuses the existing independently authenticated approval service, not a parallel grant store.
     const service = new DurableApprovalService(this.store, { verify: async () => {
       return { issuer: actor.issuer, subject: actor.subject, roles: actor.roles };
-    } });
-    try { await service.decide(op.approvalId, credential, approved, { artifactDigest: ref.artifactDigest, challenge: ref.challenge }); }
+    } }, this.policy);
+    try { await service.decide(op.approvalId, credential, approved, { artifactDigest: ref.artifactDigest, challenge: ref.challenge }, intent); }
     catch { throw new EngineeringResumeError("approval_mismatch"); }
   }
   async revoke(operationId: string, credential: string): Promise<void> {

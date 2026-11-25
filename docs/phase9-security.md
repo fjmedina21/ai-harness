@@ -2,7 +2,7 @@
 
 ## Phase 9A.3 authentication and Phase 9B boundary
 
-Core L2 Resume adds private authenticated artifacts, SQLite v2 immutable proposal
+Core L2 Resume adds private authenticated artifacts, SQLite v3 immutable proposal
 bindings, scoped decisions through the existing approval service, and leased
 apply-only continuation. Host state stays outside the source project. HMAC keys are
 0600 host-owned random material; no identity is authenticated with a content hash.
@@ -12,9 +12,12 @@ an authenticated identity. Numeric account IDs, current scoped role assignments 
 expiration are rechecked. macOS Keychain protects access/refresh tokens and the App
 secret outside the project; other OS adapters fail closed. CLI lifecycle access
 requires that verified session and does not accept credentials in argv. Live
-GitHub/native Keychain acceptance remains pending. See [authentication](phase9-github-authentication.md).
-Requester self-approval, challenge/patch/policy/snapshot substitution and consumption
-replay fail closed. Reader, approver and operator entitlements are separate.
+GitHub/native Keychain passed the explicitly authorized local lifecycle; broader
+host acceptance is separate. See [authentication](phase9-github-authentication.md).
+Requester self-approval fails closed in default Team Mode. Personal is an explicit
+strict host policy requiring exact review and a new human-intent receipt, never a
+model/JSON claim. Challenge/patch/policy/snapshot substitution and consumption replay
+fail closed in both modes. Reader, approver and operator entitlements are separate.
 
 Lease acquisition atomically CAS-checks the Approved operation version and transfers
 ownerSession with increasing epoch, operator identity, state version and bounded
@@ -31,7 +34,7 @@ observer failure cannot authorize or alter durable state. No credentials, privat
 paths, SQL, source or patch bodies enter error/telemetry messages. Original source is
 read-only. Ordinary tests do not execute generated code. Phase 9B supplies a bounded
 stdin snapshot transport and fixed host Node validation profiles through the
-existing Podman-only restrictions, separate independent shell action approval and
+existing Podman-only restrictions, separate policy-bound shell action approval and
 durable evidence. The CLI remains gated pending actual isolation/transfer/workload
 acceptance. Fixtures validate composition, not live identity/storage or VM safety.
 Key rotation/backup/retention and independent review remain operational duties.
@@ -70,6 +73,7 @@ promotion into the source repository is out of scope.
 The implementation bounds serialized tool results as well as raw bytes, checks
 prospective net diff before effects, verifies the expected whole resulting inventory,
 and distinguishes unknown provider usage. SQLite patch self-approval is denied in
+Team Mode; Personal requires stored exact-review context and single-use intent in
 the existing decision transaction. Validation fixture calls enter the journal before
 invocation; cancellation/malformed evidence leaves Uncertain. Recovery verifies the
 receipt against the durable creation digest and never grants retry. Cleanup is a
@@ -92,7 +96,7 @@ review its explicit selection before external transmission.
 Existing Phase 9 operations and schemas remain the enforcement boundary. A null
 model resultHash is materialized by the host; a supplied wrong hash, bad base,
 unsafe path/operation or extra authority field is rejected. Code review is advisory.
-Every L2 application still needs a different authenticated approver and the exact
+Every Team L2 application still needs a different authenticated approver and the exact
 SQLite-bound digest/base/policy/expiry. No approval/resume CLI is added. Test IdP
 identities are fixtures, not deployed authentication. Original roots remain read-only.
 

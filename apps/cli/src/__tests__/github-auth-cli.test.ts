@@ -3,6 +3,7 @@ import test from "node:test";
 import { chmod, link, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
+import { normalizeApprovalPolicy } from "@ai-harness/contracts";
 import path from "node:path";
 import { GitHubAuthentication, GitHubAuthError, GitHubOAuthClient, type GitHubAuthPolicy, type GitHubCredentialStore } from "@ai-harness/security";
 import { authCommand, githubKeychainService, readGitHubHostConfiguration, type GitHubHost } from "../github-host.js";
@@ -31,6 +32,12 @@ test("missing configuration fails closed and live smoke requires explicit consen
   assert.equal(await githubAuthSmoke([], text => output.push(text)), 2); assert.match(output.join(""), /blocked/);
   assert.notEqual(githubKeychainService("one-app"), githubKeychainService("another-app"));
 });
+test("CLI reports unavailable verification without suggesting a credential replacement", async () => {
+  const output: string[] = [];
+  assert.equal(await authCommand(["status"], text => output.push(text), undefined, async () => { throw new GitHubAuthError("github_unavailable"); }), 1);
+  const result = JSON.parse(output.join("")); assert.equal(result.authenticated, false); assert.equal(result.error.code, "github_unavailable");
+  assert.match(result.error.message, /verification unavailable/); assert.doesNotMatch(result.error.message, /configuration|credential|token/);
+});
 for (const mode of ["valid", "file-mode", "directory-mode", "symlink", "hardlink", "fifo", "unknown-key", "oversized", "bad-json"] as const) test("host configuration private filesystem validation " + mode, async t => {
   const base = await realpath(await mkdtemp(path.join(tmpdir(), "harness-auth-profile-"))); await chmod(base, 0o700); t.after(() => rm(base, { recursive: true, force: true }));
   const directory = path.join(base, "private"); await mkdir(directory, { mode: 0o700 }); const filename = path.join(directory, "github-auth.json");
@@ -44,4 +51,11 @@ for (const mode of ["valid", "file-mode", "directory-mode", "symlink", "hardlink
   if (mode === "fifo") { selected = path.join(directory, "fifo.json"); execFileSync("/usr/bin/mkfifo", [selected]); }
   if (mode === "valid") assert.deepEqual(await readGitHubHostConfiguration(filename), profile);
   else await assert.rejects(readGitHubHostConfiguration(selected), e => { assert.doesNotMatch(String(e), /PRIVATE/); return e instanceof GitHubAuthError; });
+});
+for (const mode of ["personal", "team", "invalid", "contradictory"] as const) test("host approval configuration is explicit and strict: " + mode, async t => {
+  const directory = await realpath(await mkdtemp(path.join(tmpdir(), "harness-mode-"))); await chmod(directory, 0o700); t.after(() => rm(directory, { recursive: true, force: true }));
+  const approval = { ...normalizeApprovalPolicy(), ...(mode === "team" ? {} : { mode: "personal", allowRequesterApproval: true }), ...(mode === "invalid" ? { skipReview: true } : mode === "contradictory" ? { requireHumanConfirmation: false } : {}) };
+  const filename = path.join(directory, "profile.json"); await writeFile(filename, JSON.stringify({ version: 1, auth: policy, workspaces: [], approval }), { mode: 0o600 });
+  if (mode === "invalid" || mode === "contradictory") await assert.rejects(readGitHubHostConfiguration(filename));
+  else { const loaded = await readGitHubHostConfiguration(filename); assert.equal(loaded.approval!.mode, mode); assert.deepEqual(loaded.auth.assignments[0]!.roles, ["harness:reader"]); }
 });

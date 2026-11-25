@@ -47,6 +47,7 @@ globalThis.fetch = async (input, init) => {
   }
   githubCalls++;
   if (init?.redirect !== "error") throw new Error("Synthetic GitHub requests must deny redirects");
+  if (scenario === "unavailable") return Response.json({ message: "PRIVATE SYNTHETIC SERVER ERROR" }, { status: 500 });
   if (scenario === "revoked") return Response.json({ message: "Synthetic revoked credential" }, { status: 401 });
   const id = scenario === "wrong_account" ? 999 : Number(actor);
   if (url === `https://api.github.com/applications/${authPolicy.clientId}/token` && init?.method === "POST") return Response.json({ app: { client_id: authPolicy.clientId }, user: { id } });

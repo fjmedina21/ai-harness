@@ -94,6 +94,13 @@ test("GitHub requester role is enforced before generation and workspace creation
   assert.deepEqual(await readdir(path.join(base, "workspaces")), []); assert.deepEqual(await readdir(path.join(base, "state")), []);
   await sourceUnchanged(base);
 });
+test("unavailable GitHub exhausts only bounded verification and cannot create a workspace or call the model", async t => {
+  const base = await fixture(t), result = await run(base, "generate", "", "101", "unavailable");
+  assert.equal(result.code, 1); assert.equal(result.result.error.code, "github_unavailable"); assert.match(result.result.error.message, /verification unavailable/);
+  assert.equal(result.githubCalls, 3); assert.equal(result.providerCalls, 0);
+  assert.deepEqual(await readdir(path.join(base, "workspaces")), []); assert.deepEqual(await readdir(path.join(base, "state")), []);
+  assert.doesNotMatch(JSON.stringify(result.result), /PRIVATE|ghu_|synthetic-app-secret/); await sourceUnchanged(base);
+});
 
 for (const decision of ["reject", "revoke"] as const)
   test("GitHub " + decision + " durably blocks an independently authenticated operator", async t => {

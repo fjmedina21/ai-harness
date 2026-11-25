@@ -37,6 +37,7 @@ export interface FixtureValidationPort {
   validate(snapshot: WorkspaceSnapshot, workspaceId: string, signal: AbortSignal): Promise<ValidationEvidence>;
 }
 export interface EngineeringOptions {
+  approvalPolicy?: import("@ai-harness/contracts").ApprovalPolicy;
   projectRoot: string;
   request: string;
   files: readonly string[];
@@ -124,7 +125,8 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
   const o: EngineeringOptions = { ...raw, files: [...raw.files], policy: structuredClone(raw.policy), budget: { ...raw.budget }, timing: raw.timing ? structuredClone(raw.timing) : undefined,
     agent: { id: raw.agent.id, model: raw.agent.model, close: raw.agent.close?.bind(raw.agent), mode: raw.agent.mode, maxTokensPerRequest: raw.agent.maxTokensPerRequest,
       maxEstimatedCostUsdPerRequest: raw.agent.maxEstimatedCostUsdPerRequest, execute: raw.agent.execute.bind(raw.agent) },
-    ...(raw.workspace ? { workspace: { ...raw.workspace, binding: { ...raw.workspace.binding, requester: { ...raw.workspace.binding.requester } } } } : {}) };
+    ...(raw.workspace ? { workspace: { ...raw.workspace, binding: { ...raw.workspace.binding, requester: { ...raw.workspace.binding.requester } } } } : {}),
+    ...(raw.approvalPolicy ? { approvalPolicy: structuredClone(raw.approvalPolicy) } : {}) };
   validateOptions(o);
   const deadline = new EngineeringDeadline(o.budget.timeoutMs, o.timing, o.signal);
   const signal = deadline.signal;
@@ -330,7 +332,7 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
           workspaceId: view.receipt.workspaceId, receipt: { ...view.receipt }, sourceRevision: view.receipt.baseRevision,
           baseSnapshot: await view.inspect(signal), patch, patchDigest: patch.digest, diffDigest: engineeringHash(diff), diff,
           allowedPaths: [...o.policy.allowedPaths], allowedOperations: [...o.policy.allowedOperations], policy: o.policy, policyDigest: patch.policyDigest,
-          budget: o.budget, accounting: { ...result.usage, usageComplete: result.usageComplete, reportedUsage: result.reportedUsage, cost: result.cost } });
+          budget: o.budget, accounting: { ...result.usage, usageComplete: result.usageComplete, reportedUsage: result.reportedUsage, cost: result.cost } }, o.approvalPolicy);
         signal.throwIfAborted();
         emitTelemetry(executionTelemetry, "engineering.resume", { resumeEvent: "proposal.persisted", operationId: waiting.operationId });
         emitTelemetry(executionTelemetry, "engineering.resume", { resumeEvent: "approval.requested", operationId: waiting.operationId });

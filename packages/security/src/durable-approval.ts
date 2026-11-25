@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import type { ApproverIdentityVerifier, DurableApproval, DurableOperationStore, HostIdentity } from "@ai-harness/contracts";
+import { normalizeApprovalPolicy, type ApprovalPolicy, type HumanIntentReceipt, type ApproverIdentityVerifier, type DurableApproval, type DurableOperationStore, type HostIdentity } from "@ai-harness/contracts";
+import { approvalPolicyDigest, assertHumanIntent } from "./approval-policy.js";
 
 /** Canonical bounded JSON digest. Never persist the original value. */
 export function digestDurableValue(value: unknown): string {
@@ -49,7 +50,7 @@ export function digestDurableValue(value: unknown): string {
  * The store's low-level decision methods are trusted-host ports, not authentication.
  */
 export class DurableApprovalService {
-  constructor(private readonly store: DurableOperationStore, private readonly verifier: ApproverIdentityVerifier) {}
+  constructor(private readonly store: DurableOperationStore, private readonly verifier: ApproverIdentityVerifier, private readonly policy?: ApprovalPolicy) { this.policy = normalizeApprovalPolicy(policy); }
   private async actor(credential: string): Promise<HostIdentity> {
     try {
       if (typeof credential !== "string" || !credential.trim() || credential.length > 8192) throw new Error();
@@ -58,8 +59,17 @@ export class DurableApprovalService {
       return { issuer: verified.issuer, subject: verified.subject };
     } catch { throw new Error("Durable approver authentication required"); }
   }
-  async decide(id: string, credential: string, approved: boolean, binding?: import("@ai-harness/contracts").ApprovalDecisionBinding): Promise<DurableApproval> {
+  async decide(id: string, credential: string, approved: boolean, binding?: import("@ai-harness/contracts").ApprovalDecisionBinding, intent?: HumanIntentReceipt): Promise<DurableApproval> {
     const actor = await this.actor(credential);
+    const reviewedStore = this.store as import("@ai-harness/contracts").EngineeringResumeStore;
+    const grant = this.store.approval(id);
+    const context = grant && reviewedStore.approvalReview?.(grant.operationId);
+    if (context) {
+      if (context.policyDigest !== approvalPolicyDigest(this.policy) || !reviewedStore.decideReviewed || context.purpose === "patch.apply" && (!binding || binding.artifactDigest !== context.artifactDigest || binding.challenge !== context.challenge)) throw new Error("Approval review binding changed");
+      if (approved && context.policy.mode === "personal") assertHumanIntent(intent, context, actor);
+      return reviewedStore.decideReviewed(id, actor, approved, intent);
+    }
+    if (normalizeApprovalPolicy(this.policy).mode !== "team") throw new Error("Legacy operation cannot become Personal Mode");
     if (binding) {
       const store = this.store as import("@ai-harness/contracts").EngineeringResumeStore;
       if (typeof store.decideScoped !== "function") throw new Error("Scoped durable approval unavailable");

@@ -3,7 +3,8 @@ import type { TestContext } from "node:test";
 import { chmod, lstat, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { EngineeringPolicy, ProcessResult, ProcessRunOptions, ValidationActionProfile } from "@ai-harness/contracts";
+import type { ApprovalPolicy, EngineeringPolicy, ProcessResult, ProcessRunOptions, ValidationActionProfile } from "@ai-harness/contracts";
+import { humanIntentDigest } from "@ai-harness/security";
 import { FileValidationEvidenceStore, openSqliteOperationJournal, sealProposalArtifact } from "@ai-harness/checkpointing";
 import { EngineeringWorkspace, engineeringHash } from "../engineering-workspace.js";
 import { EngineeringPatchEngine, createEngineeringTools, patchInvocation } from "../engineering-patches.js";
@@ -14,12 +15,12 @@ export const operator = { issuer: "github.com", subject: "1001" };
 export const approver = { issuer: "github.com", subject: "2002" };
 export const action: ValidationActionProfile = { id: "test", runtimeProfile: "node-isolated-v1", image: PODMAN_OPTIONS.image, executable: "node",
   args: ["--test", "value.js"], workingDirectory: "", timeoutMs: 1000, maxOutputBytes: 1024, network: "none", resources: { cpu: 0.5, memoryBytes: 268435456, pids: 64 } };
-export async function validationFixture(t: TestContext, patchState: "completed" | "approved" | "running" | "uncertain" = "completed") {
+export async function validationFixture(t: TestContext, patchState: "completed" | "approved" | "running" | "uncertain" = "completed", approvalPolicy?: ApprovalPolicy) {
   const base = await realpath(await mkdtemp(path.join(tmpdir(), "harness-validation-"))); await chmod(base, 0o700);
   for (const d of ["source", "workspaces", "state", "evidence"]) await mkdir(path.join(base, d), { mode: 0o700 });
   const original = "export const value = 1;\n", changed = "export const value = 2;\n";
   await writeFile(path.join(base, "source", "value.js"), original, { mode: 0o600 });
-  const store = await openSqliteOperationJournal(path.join(base, "state", "ops.sqlite"), { approvalTtlMs: 300000 });
+  const store = await openSqliteOperationJournal(path.join(base, "state", "ops.sqlite"), { approvalTtlMs: 300000, approvalPolicy });
   t.after(async () => { try { store.close(); } catch {} await rm(base, { recursive: true, force: true }); });
   const binding = { store, requester: operator, safetyByTool: {} };
   const workspace = await EngineeringWorkspace.create({ directory: path.join(base, "workspaces"), sourceRoot: path.join(base, "source"), executionId: "validation-fixture",
@@ -37,8 +38,15 @@ export async function validationFixture(t: TestContext, patchState: "completed" 
     policy, policyDigest: engine.policyDigest, policyEncoding: JSON.stringify(policy), budget: { maxIterations: 1, maxRequests: 1, maxTokens: 1, maxEstimatedCostUsd: 0, timeoutMs: 10000, maxFiles: 4, maxBytes: 65536 },
     accounting: { requests: 0, tokens: 0, estimatedCostUsd: 0, usageComplete: false, reportedUsage: { availability: "unavailable" }, cost: { status: "unknown", reason: "missing_usage" } },
     createdAt: new Date().toISOString(), expiresAt: new Date(Math.min(workspace.receipt.expiresAt, Date.parse(store.approval(op.approvalId!)!.expiresAt))).toISOString() });
-  store.bindProposal({ operationId: op.operationId, executionId: artifact.executionId, workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, challenge: "1".repeat(64), expiresAt: artifact.expiresAt });
-  store.decideScoped(op.approvalId!, approver, true, { artifactDigest: artifact.artifactDigest, challenge: "1".repeat(64) });
+  store.bindProposal({ operationId: op.operationId, executionId: artifact.executionId, workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, challenge: "1".repeat(64), expiresAt: artifact.expiresAt }, approvalPolicy ? {
+    policy: approvalPolicy, workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, patchDigest: artifact.patchDigest, snapshotDigest: baseSnapshot.digest, contentDigest: artifact.diffDigest,
+  } : undefined);
+  if (approvalPolicy) {
+    const actor = approvalPolicy.mode === "personal" ? operator : approver, context = store.approvalReview!(op.operationId)!;
+    // Test-only low-level host fixture, not evidence of native human presence.
+    const now = Date.now();
+    store.decideReviewed!(op.approvalId!, actor, true, approvalPolicy.mode === "personal" ? { id: engineeringHash("patch-intent" + artifact.workspaceId), bindingDigest: humanIntentDigest(context, actor), issuedAt: now, expiresAt: now + 60000, method: "reviewed-external-v1" } : undefined);
+  } else store.decideScoped(op.approvalId!, approver, true, { artifactDigest: artifact.artifactDigest, challenge: "1".repeat(64) });
   store.acquireLease(op.operationId, store.get(op.operationId)!.version, 300000, operator);
   if (patchState === "completed") {
     const applied = await tools.dispatch(patchInvocation(patch), identity, pending.approvalId);

@@ -2,10 +2,26 @@
 
 ## Phase 9A.3 and Phase 9B — current implementation
 
+Phase 9A.4 extends this implementation with a host-owned versioned approval policy:
+Team by default, Personal only by explicit configuration. The same ApprovalBroker,
+DurableApprovalService, artifact store, journal and continuation coordinator enforce
+both modes. Contracts add immutable review contexts and human-intent receipts.
+Security accepts live receipts only from a trusted presence-verifier capability;
+serialized/model claims cannot authorize. The CLI combines exact diff review and
+typed confirmation with macOS LocalAuthentication, then rechecks GitHub identity,
+roles, host policy and actual files before committing the decision. Native Personal
+review/confirmation and cross-process continuation passed in an owner-authorized
+synthetic local workflow; broader/Team acceptance is separate.
+
+Journal v3 adds review-context and unique confirmation-ID tables, preserving old
+Team rows. Patch and sandbox actions have different scopes/challenges/decisions;
+no sandbox privilege follows from patch approval. Validation CLI remains blocked.
+See [Personal Mode](phase9-personal-mode.md) for contracts, trust limits and rollback.
+
 Baseline `fff4932f13f0`, version 0.8.0. Contracts describe authenticated private
 proposal artifacts, scoped decisions, independent identity challenges and fenced
 continuation leases. Checkpointing owns canonical HMAC artifacts and the additive
-SQLite v1-to-v2 migration. Security's ApprovalBroker reuses DurableApprovalService;
+SQLite migrations through v3. Security's ApprovalBroker reuses DurableApprovalService;
 Application's RecoveryService/LeaseManager/ContinuationCoordinator reconcile and
 apply the exact persisted patch through the existing dispatcher. Host identity,
 receipt/device/inode, selected source inventory, policy and full workspace inventory
@@ -22,13 +38,14 @@ Model providers remain independent, and continuation still has no provider port.
 Phase 9B contracts/tools add a closed manifest/byte snapshot, bounded stdin transfer
 to a fixed Node receiver, an immutable host action registry and a coordinator using
 the same ToolDispatcher/journal. Checkpointing owns private create-only validation
-evidence. Separate independent `shell:execute` action approval and a trusted host
+evidence. Separate policy-bound `shell:execute` action approval and a trusted host
 live-acceptance verifier are required. The rootless Podman-only security profile
 is reused; no Docker runtime, host binds or generated command strings are added.
 
 Mocked GitHub/Podman tests and actual multiprocess filesystem/SQLite verify offline
-composition. Real GitHub/native Keychain and current-code Podman acceptance remain
-pending; the validation CLI stays blocked. Existing L0/L1, complete(), read-only
+composition. Actual local GitHub/Keychain and Personal approval/continuation passed;
+Team's two-account and complete durable Podman acceptance remain pending. The
+validation CLI stays blocked. Existing L0/L1, complete(), read-only
 source and trusted same-session APIs remain compatible. No original-project
 mutation, autonomous sandbox repair, publication or production safety is claimed.
 See the [implemented design](phase9-l2-approval-resume-design.md) for contracts,

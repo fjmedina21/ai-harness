@@ -1,6 +1,31 @@
 # AI Harness — implementation roadmap
 
+## Phase 9A.4 — current local development
+
+Starting commit `6dbdc98797d3`, branch `feat/phase9-personal-approval-mode`, version
+0.8.0. Team retains independent accounts by default. Personal is host opt-in with
+strict policy validation, explicit scoped roles, exact diff review, typed confirmation
+and a macOS presence-verifier bridge. Existing durable approval/resume services,
+CAS, fencing and source isolation are reused. Journal v3 adds review and intent
+metadata without reinterpreting previous Team approvals. Sandbox approval remains
+a distinct action, and the real validation CLI remains blocked.
+
+Offline fixtures exercise both modes, policy changes, cancellation, replay,
+concurrency and separate-process continuation with zero new provider calls.
+Actual native Personal confirmation and single-account L2 passed in the explicitly
+authorized synthetic local workflow after the online-verification correction.
+The later authorized OAuth cycle also passed fresh login, protected storage and
+logout. Team live two-account acceptance and full Gate C remain pending.
+See [Personal Mode](phase9-personal-mode.md) and [verification](VERIFICATION.md).
+The later explicitly authorized follow-up enabled Personal only in the synthetic
+private profile, passed GitHub login/refresh/logout, native Personal approval and
+continuation, one bounded OpenAI L1 smoke and both fixed Podman runtime suites.
+Full sandbox evidence and Team's real two-account acceptance remain incomplete; see the
+[real report](phase9-real-acceptance-report.md). No Phase 9C/9D or publication is included.
+
 ## Phase 9A.3 and Phase 9B — current development
+
+Historical implementation checkpoint; current acceptance evidence is above.
 
 Implemented locally from `fff4932f13f0` on `feat/phase9-github-auth-podman-validation`;
 version remains 0.8.0. Existing core: private HMAC proposal/diff artifacts, immutable SQLite
@@ -13,8 +38,9 @@ see [verification](VERIFICATION.md#phase-9a2-durable-l2-resume).
 GitHub-only App OAuth + PKCE, protected macOS sessions, online App/user validation,
 stable numeric-ID scoped RBAC and authenticated L2 CLI are implemented. Offline
 GitHub HTTP plus real multiprocess journal/artifact tests verify composition.
-Actual GitHub/native Keychain and two-identity Operational L2 acceptance remain
-pending explicit owner authorization. Other OS credential adapters remain deferred.
+This historical implementation checkpoint preceded basic live GitHub/Keychain setup.
+Full session lifecycle and two-identity Operational L2 acceptance remain pending.
+Other OS credential adapters remain deferred.
 
 Phase 9B implements closed snapshot stdin transfer, a restricted Node action
 registry, separately approved dispatcher execution, existing Podman isolation and

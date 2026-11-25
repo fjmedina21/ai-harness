@@ -49,11 +49,15 @@ export interface ContinuationLease {
 }
 /** Additive v2 journal capability; old store implementations retain their v1 API. */
 export interface EngineeringResumeStore extends DurableOperationStore {
-  bindProposal(reference: ProposalReference): void;
+  bindProposal(reference: ProposalReference, review?: import("./approval-policy.js").ApprovalReviewInput): void;
   proposal(operationId: string): ProposalReference | null;
   decideScoped(id: string, actor: HostIdentity, approved: boolean, binding: ApprovalDecisionBinding): DurableApproval;
   acquireLease(operationId: string, expectedVersion: number, ttlMs: number, operator: HostIdentity): ContinuationLease;
   assertLease(lease: ContinuationLease): void;
+  /** Additive v3 host ports. Older stores cannot grant Personal Mode approvals. */
+  approvalReview?(operationId: string): import("./approval-policy.js").ApprovalReviewContext | null;
+  bindValidationReview?(operationId: string, review: import("./approval-policy.js").ApprovalReviewInput): void;
+  decideReviewed?(id: string, actor: HostIdentity, approved: boolean, intent?: import("./approval-policy.js").HumanIntentReceipt): DurableApproval;
 }
 export type ResumeAction = "status" | "diff" | "approve" | "reject" | "continue" | "revoke";
 export interface ResumeIdentityChallenge {
@@ -77,9 +81,9 @@ export interface ResumeIdentityVerifier {
 }
 export type EngineeringReconciliation = { status: "ready"; artifactDigest: string; snapshotDigest: string } |
   { status: "blocked"; code: ResumeErrorCode };
-export type ResumeErrorCode = "authentication_required" | "forbidden_scope" | "artifact_missing" | "artifact_invalid" |
+export type ResumeErrorCode = "authentication_required" | "authentication_unavailable" | "forbidden_scope" | "artifact_missing" | "artifact_invalid" |
   "approval_expired" | "approval_mismatch" | "policy_changed" | "snapshot_changed" | "lease_conflict" |
-  "reconciliation_required" | "storage_uncertain" | "cancelled" | "timeout";
+  "reconciliation_required" | "storage_uncertain" | "cancelled" | "timeout" | "human_confirmation_required" | "human_confirmation_cancelled";
 export class EngineeringResumeError extends Error {
   constructor(readonly code: ResumeErrorCode) { super("Engineering continuation rejected: " + code); this.name = "EngineeringResumeError"; }
 }

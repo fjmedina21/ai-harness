@@ -40,6 +40,7 @@ export interface DurableApproval {
   status: DurableApprovalStatus;
   expiresAt: string;
   updatedAt: string;
+  decision?: import("./approval-policy.js").ApprovalDecisionRecord;
 }
 export interface OperationEvent {
   sequence: number;

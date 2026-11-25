@@ -1,4 +1,10 @@
-# Phase 9 — durable independent approval and continuation
+# Phase 9 — durable policy-bound approval and continuation
+
+Phase 9A.4 adds explicit Personal/Team host policy to this protocol. Team is the
+default and preserves independent accounts. Personal requires authenticated scoped
+GitHub authority plus verified human intent after exact review. It reuses the same
+decision transaction and continuation, not a second approval system. See
+[Personal Mode](phase9-personal-mode.md) for UI, sandbox decisions and trust limits.
 
 Core implementation baseline: `2746500e6787`; GitHub authentication development
 starts at `fff4932f13f0` on `feat/phase9-github-auth-podman-validation`. Version
@@ -93,7 +99,11 @@ binds the original tool argument digest, scope and approval expiry. Approver ide
 and decision timestamp are in the existing durable approval/events audit.
 `harness:reader` gates status/diff, `harness:approver` gates approve/reject/revoke,
 and a separate `harness:operator` gates continuation. Approver authority alone does
-not permit application. Requester and approver must differ by canonical issuer/subject.
+not permit application. In Team Mode requester and approver must differ by canonical
+issuer/subject. In Personal Mode, a live intent receipt from the trusted host UI is
+required, bound to actor, exact review, challenge and expiration. Serialized receipts
+cannot serve as approval credentials. Personal decisions recheck identity and files
+after review; pending-state/CAS allows only one concurrent decision.
 
 ApprovalBroker authenticates once before review and delegates the verified,
 short-lived exact-scope actor to `DurableApprovalService`; the journal's
@@ -118,13 +128,21 @@ SQLite `user_version` migrates transactionally from 1 to 2 by adding:
 - `continuation_leases`: one current owner/lease per execution.
 - `continuation_lease_events`: bounded immutable acquisition history indexed by epoch.
 
+It then migrates 2 to 3 by adding `approval_reviews` (immutable, checksummed review
+contexts) and `human_confirmation_ids` (unique receipt consumption per operation).
+Review binds policy version/digest, purpose, scope, exact artifact/patch/snapshot,
+workspace, challenge and expiry. Decision metadata records both actors, timestamp
+and intent binding atomically. Existing rows without review contexts remain Team
+operations; opening them under Personal fails closed. No old decision is upgraded.
+Patch policy digest and approval policy digest remain separate bindings.
+
 Existing operation/approval/event rows, scope digests and enums are unchanged.
 Artifacts retain the original legacy policy JSON encoding as well as its canonical
 semantic content, so a reordered equivalent host policy can still verify the exact
 pre-existing policy/patch digests without changing the legacy engine contract.
 Opening validates application ID, quick/foreign-key checks, all bounded checksummed
 rows/events and lease history. Unsupported/corrupt stores are not recreated.
-Pre-v2 binaries reject v2; rollback requires a quiesced validated backup, never
+Older binaries reject unsupported v3; rollback requires a quiesced validated backup, never
 lowering user_version or dropping active authorization data in place. Tests simulate
 a genuine v1 layout and verify preserved rows and ownership restrictions after migration.
 

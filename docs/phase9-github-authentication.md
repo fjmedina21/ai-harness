@@ -39,6 +39,23 @@ callback. The code, verifier and client secret are exchanged in a POST body.
 Transport uses HTTPS, rejects redirects, caps response bodies at 64 KiB and uses
 finite request deadlines. Provider error text is never echoed to the terminal.
 
+Online identity checks tolerate only transient HTTP 500/502/503/504 responses:
+at most three attempts with 250/500 ms backoffs, sharing the original 10-second
+deadline per endpoint (including HTTP, body reads and backoff). This applies only
+to the fixed read-only App-token check, `/user` and configured organization
+membership reads. GitHub documents the POST endpoint as
+[checking token validity](https://docs.github.com/en/rest/apps/oauth-applications#check-a-token);
+it does not mint or reset a credential. Both App binding and stable user identity
+must still verify successfully. There is no cached-identity fallback.
+
+Credential/policy/rate-limit rejections, malformed responses, transport errors and
+other statuses are not retried. A `Retry-After` header or exhausted rate quota
+stops the invocation; it does not schedule another attempt. OAuth code exchange,
+refresh and revocation are single-attempt operations. Cancellation interrupts the
+backoff. Exhausted verification remains blocked as `github_unavailable` (or
+`authentication_unavailable` through the approval broker), without changing the
+local credential or issuing a decision. No uncertain operation is replayed.
+
 GitHub's current GitHub App web flow supports S256 and requires the App client
 secret in addition to PKCE. This implementation intentionally refuses token
 responses without an expiring access token and refresh token. The App must have
@@ -73,12 +90,21 @@ explicit configured stable organization IDs and active online membership; they
 do not grant roles. They additionally require reviewed organization Members read
 permission. The default identity-only setup requests no repository write access.
 
+Phase 9A.4 adds host-owned Personal/Team approval policy without changing identity
+verification. Team retains different requester/approver accounts. Personal permits
+one explicitly assigned four-role account, but requires exact patch review, typed
+confirmation and verified local human intent for each decision. Login grants no
+approval and never changes mode. See [Personal Mode](phase9-personal-mode.md).
+
 The macOS adapter stores the App secret and session in Keychain, outside the
 project. Access/refresh tokens never enter argv, project files, SQLite, artifacts,
 checkpoints or telemetry. Secret writes use bounded stdin rather than process
 arguments. The `GitHubCredentialStore` contract supports future reviewed native
 adapters; Linux/Windows have no supplied operational adapter and fail closed.
-Native Keychain behavior remains a live acceptance requirement.
+Actual login and Keychain session recovery across CLI processes, refresh and
+logout were observed in the explicitly authorized local tests. Native Personal
+approval/continuation also passed separately; these observations are scoped to
+the tested macOS host and synthetic workspace.
 
 Equivalent adapter designs, **not implemented**, are Linux Secret Service using
 an unlocked native user collection and Windows Credential Manager using OS-user
@@ -118,12 +144,14 @@ are rejected. Configuration and owner registration are described in
 [GitHub App setup](phase9-github-app-setup.md); authenticated continuation is in
 [Operational L2](phase9-operational-l2.md).
 
-Gate A is **offline verified, live pending** until an explicitly authorized smoke
-confirms actual GitHub login, native protected storage, online verification,
-refresh/revocation and output review. Mocks establish protocol behavior, not
-deployed GitHub interoperability or OS credential isolation. See
+Gate A **passed for the explicitly tested local lifecycle**: actual GitHub login,
+native protected session recovery, online identity, refresh and logout were observed,
+including the authorized official fresh login/logout smoke. Its final logout left
+the local session cleared; grant-wide remote refresh-token revocation is unverified.
+Mocks establish protocol behavior, not broader OS credential isolation. See
 [verification](VERIFICATION.md#phase-9a3-and-phase-9b).
 
 Run deterministic coverage with `pnpm test:github-auth`. The separate
 `pnpm smoke:github-auth --authorize-live-github-oauth` is owner-operated and must
-not be run automatically or in CI. No opt-in smoke has been executed in this work.
+not be run automatically or in CI. The owner explicitly authorized the successful
+live run recorded in the report; this does not authorize another attempt.

@@ -1,6 +1,7 @@
 # Phase 9B acceptance and E2E procedure
 
-**Current state: deterministic verification only; real Podman not run.** Version
+**Current state: deterministic tests and both authorized real runtime suites passed;
+full durable authenticated Gate C pending.** Version
 remains **0.8.0**. Missing opt-in prerequisites are blocked/pending, never passed.
 The current exact test counts and commands belong to
 [verification](VERIFICATION.md#phase-9a3-and-phase-9b).
@@ -35,12 +36,18 @@ pnpm test:phase9b-podman
 ```
 
 Those values express owner opt-in and host profile selection, not developer
-identity or a durable action approval. This real suite has not been executed.
+identity or a durable action approval. On 2026-11-25 both this suite and
+`test:isolation` passed on the explicitly approved dedicated local machine/image.
+The direct runtime suite does not persist/reopen coordinator evidence and has no
+explicit real output-limit fixture; those full-gate requirements remain pending.
+See the [actual observations](phase9-real-acceptance-report.md).
 
 ## Real local gate — explicit owner authorization required
 
 1. First satisfy [GitHub authentication](phase9-github-authentication.md) and
-   [Operational L2](phase9-operational-l2.md) with a second authorized identity.
+   [Operational L2](phase9-operational-l2.md) under the selected host policy:
+   a second authorized identity for Team, or explicit native human-confirmed
+   single-account approval for Personal. Neither live L2 variant is verified yet.
    Record stable account IDs and exact test execution/workspace privately, without
    storing credentials in the report.
 2. Approve this exact current-code suite and harmless fixtures. Prepare a dedicated
@@ -57,7 +64,7 @@ identity or a durable action approval. This real suite has not been executed.
    empty files, allowed byte limits and verified staging. Check rejected symlink,
    hardlink, traversal, corrupt manifest and mutated-after-approval fixtures without
    exposing unrelated files. Confirm no writable original-source mount.
-5. Independently approve each validation action and run harmless Node success,
+5. Separately approve each validation action under that policy and run harmless Node success,
    failure, timeout, output/resource exhaustion and cancellation fixtures through
    the host runtime. A general TypeScript/`pnpm` build is outside the initial fixed
    profile; do not claim it passed from the Node probes.
@@ -76,9 +83,9 @@ identity or a durable action approval. This real suite has not been executed.
 
 | Gate | Current classification | Evidence needed to pass |
 | --- | --- | --- |
-| A — GitHub authentication | Offline verified, live pending | Explicitly authorized actual OAuth + native Keychain + expiry/refresh/revocation smoke |
-| B — Operational L2 | Offline authenticated composition verified, live pending | Two authorized real stable identities, exact durable cross-session application, scoped access and no provider calls |
-| C — Podman validation | Offline components implemented, real pending; CLI disabled | Current snapshot transfer/action suite, effective isolation/resources/cancellation, durable evidence and confirmed cleanup |
+| A — GitHub authentication | Passed for the tested local lifecycle | Actual login/Keychain recovery, refresh, logout and fresh official login/logout smoke; grant-wide remote revocation unverified |
+| B — Operational L2 | Personal real local workflow passed; Team real two-account pending | Actual native human decision and exact cross-process Personal application recorded; Team still needs a second real authorized account |
+| C — Podman validation | Both real fixed runtime suites passed; complete durable authenticated gate pending; CLI disabled | Separate real sandbox decision, coordinator evidence/reopen and explicit real output-limit acceptance still required |
 | Remote dedicated Podman | Deferred | Separately authorized dedicated runner/evidence; not required to claim the narrower experimental local scope |
 
 No successful test run certifies generated code as secure. Failed validation does

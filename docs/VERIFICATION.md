@@ -1,5 +1,77 @@
 # Verification — current source version 0.8.0
 
+## Phase 9A.4 — Personal and Team approval
+
+Date: 2026-11-25. Starting SHA `6dbdc98797d3b53eacc387cd861f565cbeddb15e`;
+development branch `feat/phase9-personal-approval-mode`. Existing local formatting
+in `apps/cli/src/github-host.ts` was preserved. Node 24.18.0, pnpm 12.21.0,
+Darwin 27.0.0 arm64. Version remains **0.8.0**. Evidence covers this uncommitted
+working tree, not a published commit or a new hosted CI run.
+
+| Check | Observed result |
+| --- | --- |
+| Clean / build / full suite | Final online-verification regression: **830/830**, zero failed/cancelled/skipped; Node test duration 24.970 s |
+| Focused GitHub/Personal suite | `pnpm test:github-auth` checkpoint **130/130**, 4.791 s, zero skips; final additional generation-blocking case included in 830 |
+| Focused sandbox suite | `pnpm test:phase9b` passed **52/52**, 10.162 s, zero skips |
+| CLI | Help/version passed; 0.8.0 experimental; no approval bypass flags |
+| Offline evaluations | deterministic **19/19**, **42/42 assertions**; phase9 **10/10** scenarios/assertions |
+| Repository review | `git diff --check` passed; no staged files; AGENTS, support artifacts and .env excluded; 214 local Markdown links resolve |
+| Personal/Team behavior | Real temporary files/SQLite; mocked GitHub/presence verifier; exact review, same-account explicit decision, Team self-approval denied |
+| Cross-process continuation | Generation, approval and resume in three different processes; zero new model calls on resume; original source unchanged |
+| Security regressions | Fake/serialized intent, roles, revoked/expired sessions, identity changes after review, policy/diff/source/workspace changes, expiry, concurrency, replay and stale fencing rejected |
+| Process loss | Actual SIGKILL during Personal review leaves PendingApproval; subsequent continuation cannot approve or apply |
+| Sandbox | Mocked runtime; distinct action/scope/challenge/intent; approval alone runs no workload; patch receipt rejected |
+| SQLite migration | v1/v2 to v3; historical Team rows preserved, no Personal reinterpretation; real SQLITE_FULL rollback and reopen pass |
+| Native Personal confirmation | Real owner review and macOS confirmation passed; independently verified durable `consumed` approval and `Completed` operation |
+| Real OAuth | Actual refresh and cross-process recovery passed; authorized official browser login/Keychain/logout smoke passed; final CLI status rejects the cleared local session |
+| Real Podman | Both explicitly authorized fixed isolation and Phase 9B runtime suites passed; full durable authenticated gate remains pending |
+| Real OpenAI | One authorized gpt-5.5-pro smoke passed in 75.553 s, exactly four HTTP 200s; L1 only; cleanup/source integrity confirmed |
+
+The first full pass found a test-only capacity mismatch (128 KiB creation versus
+64 KiB reopen) after the additive v3 tables. The corrected test uses the same
+128 KiB ceiling on both opens and still reaches actual SQLITE_FULL. The production
+64 MiB ceiling is unchanged. Native device-owner confirmation was subsequently
+exercised by the owner in the successful live Personal workflow. Offline intent
+fixtures remain separate evidence and cannot prove live human presence.
+
+The earlier owner-authorized basic GitHub login and Keychain-backed `whoami`/`status`
+in new processes succeeded; the subsequent refresh also passed. The owner then
+authorized Personal policy/approver role only over the synthetic project, preserving
+other assignments and a private backup. The first live Personal attempt rejected
+authentication and applied nothing. At that checkpoint all live gates remained
+unpassed. Real Podman runtime results do not establish durable authenticated
+coordinator evidence. The second manual attempt subsequently stopped during
+generation without registering a new operation. Online diagnosis reproduced
+`github_unavailable` followed by successful identity verification; the original
+child error was not retained. A new private launcher captures safe error/HTTP
+metadata and was checked offline, without another proposal or approval retry.
+The instrumented status call then captured **HTTP 500** from App-token verification
+at 16:00:30.348 UTC; the CLI correctly failed closed as `github_unavailable`.
+The owner subsequently authorized correction and repetition. The client now allows
+at most three read-only verification attempts for 500/502/503/504 within the same
+10-second per-endpoint deadline, with bounded 250/500 ms backoffs. Credential
+rejection, server cooldown/quota, malformed responses and transport errors are not
+retried; exchange/refresh/revoke remain single-attempt. The broker distinguishes
+`authentication_unavailable` while retaining PendingApproval. At **16:26:42 UTC**,
+the corrected CLI verified the actual account with HTTP 200/200 and its protected
+existing session; that live invocation did not encounter a 5xx. Transient-recovery
+branches are verified offline, not claimed as observed in that successful live call.
+The repeated fixture then completed real Personal review/approval/continuation,
+execution `9850ba04-d5d9-4204-9322-ebf99ef6c5f9`, approval at **16:28:20.189 UTC**.
+Read-only journal/artifact inspection confirmed the exact applied patch, native
+intent metadata, same authorized GitHub account, consumed grant and original source
+intact. Three distinct processes participated and resume made zero model calls.
+This passes the tested local Personal workflow; Team's actual two-account gate
+and full durable authenticated sandbox acceptance remain pending.
+The authorized official OAuth smoke then passed actual fresh browser login,
+Keychain write/read, verified identity and logout. A new CLI process afterward
+returned `authentication_required`, as expected for the cleared local session.
+Gate A and the tested local Personal L2 workflow now have successful live evidence;
+remote grant-wide refresh-token revocation is not claimed. No additional paid
+provider or Podman workload was run during this correction.
+See [real acceptance report](phase9-real-acceptance-report.md)
+and [Personal Mode](phase9-personal-mode.md). Historical evidence follows.
+
 ## Phase 9A.3 and Phase 9B
 
 Date: 2026-11-25. Starting commit `fff4932f13f0e23fcee9797703de7295f1582f90`,

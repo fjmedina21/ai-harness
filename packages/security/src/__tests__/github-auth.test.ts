@@ -21,6 +21,72 @@ class MemoryStore implements GitHubCredentialStore {
   async exclusive<T>(action: () => Promise<T>): Promise<T> { if (this.busy) throw new GitHubAuthError("authentication_busy"); this.busy = true; try { return await action(); } finally { this.busy = false; } }
 }
 const tokens = { access_token: "ghu_fixture_token_not_real", refresh_token: "ghr_fixture_refresh_not_real", expires_in: 28800, refresh_token_expires_in: 15897600, token_type: "bearer" };
+function successfulVerification(url: string): Response {
+  return Response.json(url.includes("applications/") ? { app: { client_id: policy.clientId }, user: { id: 101 } } : { type: "User", id: 101, login: "fixture" });
+}
+test("online App-token verification retries only transient read-only responses with one shared deadline", async () => {
+  const calls: { url: string; signal: AbortSignal | null | undefined }[] = [];
+  const client = new GitHubOAuthClient(policy, (async (input, init) => {
+    calls.push({ url: String(input), signal: init?.signal }); assert.equal(init?.redirect, "error");
+    return calls.length < 3 ? new Response("PRIVATE SERVER MESSAGE", { status: calls.length === 1 ? 500 : 502 }) : successfulVerification(String(input));
+  }) as typeof fetch, () => now);
+  assert.equal((await client.identity(tokens.access_token, "fixture-only-not-real")).accountId, "101");
+  assert.equal(calls.length, 4); assert.equal(calls.slice(0, 3).every(c => c.url.endsWith("/token")), true);
+  assert.equal(calls[0]!.signal, calls[1]!.signal); assert.equal(calls[1]!.signal, calls[2]!.signal);
+});
+test("online user identity retries a transient 503 and revalidates the actual response", async () => {
+  let calls = 0;
+  const client = new GitHubOAuthClient(policy, (async input => { calls++; return calls === 2 ? new Response(null, { status: 503 }) : successfulVerification(String(input)); }) as typeof fetch, () => now);
+  assert.equal((await client.identity(tokens.access_token, "fixture-only-not-real")).accountId, "101"); assert.equal(calls, 3);
+});
+test("three transient verification failures remain unavailable and never authenticate", async () => {
+  let calls = 0;
+  const client = new GitHubOAuthClient(policy, (async () => { calls++; return new Response("PRIVATE ERROR", { status: 504 }); }) as typeof fetch, () => now);
+  await assert.rejects(client.identity(tokens.access_token, "fixture-only-not-real"), error("github_unavailable")); assert.equal(calls, 3);
+});
+for (const status of [401, 403, 404, 422, 429, 501]) test("verification does not retry credential, policy, rate or unsupported failures: " + status, async () => {
+  let calls = 0;
+  const client = new GitHubOAuthClient(policy, (async () => { calls++; return new Response("PRIVATE ERROR", { status }); }) as typeof fetch, () => now);
+  await assert.rejects(client.identity(tokens.access_token, "fixture-only-not-real"), error([401, 404].includes(status) ? "credential_invalid" : "github_unavailable")); assert.equal(calls, 1);
+});
+for (const [name, value] of [["retry-after", "60"], ["retry-after", "invalid-private-value"], ["x-ratelimit-remaining", "0"]] as const) test("server cooldown or exhausted quota stops verification retries: " + name, async () => {
+  let calls = 0;
+  const client = new GitHubOAuthClient(policy, (async () => { calls++; return new Response(null, { status: 503, headers: { [name]: value } }); }) as typeof fetch, () => now);
+  await assert.rejects(client.identity(tokens.access_token, "fixture-only-not-real"), error("github_unavailable")); assert.equal(calls, 1);
+});
+test("revocation after a transient response immediately stops verification without fallback", async () => {
+  let calls = 0;
+  const client = new GitHubOAuthClient(policy, (async () => { calls++; return new Response(null, { status: calls === 1 ? 500 : 404 }); }) as typeof fetch, () => now);
+  await assert.rejects(client.identity(tokens.access_token, "fixture-only-not-real"), error("credential_invalid")); assert.equal(calls, 2);
+});
+test("transient recovery cannot silently switch the stored GitHub account", async () => {
+  let calls = 0; const storage = new MemoryStore(); storage.session = JSON.stringify(session());
+  const client = new GitHubOAuthClient(policy, (async input => {
+    calls++; if (calls === 1) return new Response(null, { status: 500 });
+    return Response.json(String(input).includes("applications/") ? { app: { client_id: policy.clientId }, user: { id: 202 } } : { type: "User", id: 202, login: "another-synthetic" });
+  }) as typeof fetch, () => now);
+  await assert.rejects(new GitHubAuthentication(client, storage, () => now).identity(), error("session_account_changed"));
+  assert.equal(calls, 3); assert.equal(JSON.parse(storage.session!).accountId, "101");
+});
+test("cancellation interrupts verification backoff before any second HTTP request", async () => {
+  let calls = 0; const controller = new AbortController();
+  const client = new GitHubOAuthClient(policy, (async () => { calls++; setTimeout(() => controller.abort(), 10); return new Response(null, { status: 500 }); }) as typeof fetch, () => now);
+  await assert.rejects(client.identity(tokens.access_token, "fixture-only-not-real", controller.signal), error("cancelled")); assert.equal(calls, 1);
+});
+for (const action of ["exchange", "refresh", "revoke"] as const) test("credential-mutating OAuth action is never retried: " + action, async () => {
+  let calls = 0;
+  const client = new GitHubOAuthClient(policy, (async () => { calls++; return new Response(null, { status: 500 }); }) as typeof fetch, () => now);
+  const operation = action === "exchange" ? client.exchange("fixture-code", "fixture-verifier", "fixture-only-not-real") :
+    action === "refresh" ? client.refresh(tokens.refresh_token, "fixture-only-not-real") : client.revoke(tokens.access_token, "fixture-only-not-real");
+  await assert.rejects(operation, error(action === "revoke" ? "revocation_uncertain" : "github_unavailable")); assert.equal(calls, 1);
+});
+test("malformed successful responses and transport failures cannot trigger verification retries", async () => {
+  for (const malformed of [true, false]) {
+    let calls = 0;
+    const client = new GitHubOAuthClient(policy, (async () => { calls++; if (malformed) return new Response("not-json", { status: 200 }); throw new TypeError("PRIVATE TLS ERROR"); }) as typeof fetch, () => now);
+    await assert.rejects(client.identity(tokens.access_token, "fixture-only-not-real"), error("github_unavailable")); assert.equal(calls, 1);
+  }
+});
 function session(id = "101"): GitHubSession {
   return { version: 1, clientId: policy.clientId, accountId: id, login: "fixture", accessToken: tokens.access_token, refreshToken: tokens.refresh_token, createdAt: now, expiresAt: now + 3600000, tokenExpiresAt: now + 28800000, refreshExpiresAt: now + 15897600000 };
 }

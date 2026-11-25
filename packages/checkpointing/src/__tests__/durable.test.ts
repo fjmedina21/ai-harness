@@ -268,7 +268,8 @@ for (const race of ["same_request", "same_call"]) {
 
 test("real SQLITE_FULL rolls back a request and never destroys existing approvals", async t => {
   const { filename } = await fixture(t);
-  const store = await openSqliteOperationJournal(filename, { maxDatabaseBytes: 65_536 });
+  // v3 adds reviewed-intent metadata; retain a small explicit cap and real SQLITE_FULL.
+  const store = await openSqliteOperationJournal(filename, { maxDatabaseBytes: 131_072 });
   const authorized = approve(store);
   let rejected = -1;
   for (let i = 0; i < 100; i++) {
@@ -281,7 +282,7 @@ test("real SQLITE_FULL rolls back a request and never destroys existing approval
   assert.equal(store.list("execution", "", 1000).some(op => op.requestId === "capacity-" + rejected), false);
   const prior = store.list("execution", "", 1000);
   store.close();
-  const reopened = await openSqliteOperationJournal(filename, { maxDatabaseBytes: 65_536 });
+  const reopened = await openSqliteOperationJournal(filename, { maxDatabaseBytes: 131_072 });
   t.after(() => reopened.close());
   assert.deepEqual(reopened.list("execution", "", 1000), prior);
   assert.equal(reopened.approval(authorized.approvalId!)?.status, "approved");

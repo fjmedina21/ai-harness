@@ -3,7 +3,8 @@ import { constants, closeSync, fsyncSync, lstatSync, openSync, realpathSync } fr
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import {
-  assertOperationTransition, OPERATION_STATES, DurableStoreError,
+  assertOperationTransition, OPERATION_STATES, DurableStoreError, normalizeApprovalPolicy, approvalPolicyJson, canonicalProposalJson,
+  type ApprovalPolicy, type ApprovalReviewInput, type ApprovalReviewContext, type HumanIntentReceipt,
   type DurableOperation, type OperationRequest,
   type DurableApproval, type HostIdentity, type OperationEvent,
   type OperationState, type ReconciliationEvidence, type EngineeringResumeStore, type ProposalReference, type ApprovalDecisionBinding, type ContinuationLease,
@@ -78,6 +79,7 @@ export interface SqliteJournalOptions {
   approvalTtlMs?: number;
   /** Host may lower, never raise, the 64 MiB database cap. */
   maxDatabaseBytes?: number;
+  approvalPolicy?: ApprovalPolicy;
 }
 
 /** Private local filesystem only. Host directory must already exist, mode 0700.
@@ -133,7 +135,9 @@ class SqliteOperationJournal implements EngineeringResumeStore {
   private executionHealthy = true;
   private readonly now: () => number;
   private readonly ttl: number;
+  private readonly approvalPolicy: ApprovalPolicy;
   constructor(private readonly db: DatabaseSync, options: SqliteJournalOptions) {
+    this.approvalPolicy = normalizeApprovalPolicy(options.approvalPolicy);
     this.now = options.now ?? Date.now; this.ttl = options.approvalTtlMs ?? 60_000;
     check(Number.isSafeInteger(this.ttl) && this.ttl > 0 && this.ttl <= 300_000);
     db.exec("PRAGMA busy_timeout=1000; PRAGMA foreign_keys=ON; PRAGMA trusted_schema=OFF; PRAGMA synchronous=EXTRA; PRAGMA fullfsync=ON;");
@@ -170,7 +174,12 @@ class SqliteOperationJournal implements EngineeringResumeStore {
           CREATE TABLE continuation_lease_events (execution_id TEXT NOT NULL, epoch INTEGER NOT NULL, data TEXT NOT NULL CHECK(length(data)<=8192), checksum TEXT NOT NULL, PRIMARY KEY(execution_id,epoch)) STRICT, WITHOUT ROWID;
           PRAGMA user_version=2;`);
       }
-      check(db.prepare("PRAGMA user_version").get()?.user_version === 2);
+      if (db.prepare("PRAGMA user_version").get()?.user_version === 2) {
+        db.exec(`CREATE TABLE approval_reviews (operation_id TEXT PRIMARY KEY REFERENCES operations(operation_id), data TEXT NOT NULL CHECK(length(data)<=8192), checksum TEXT NOT NULL) STRICT, WITHOUT ROWID;
+          CREATE TABLE human_confirmation_ids (confirmation_id TEXT PRIMARY KEY, operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id)) STRICT, WITHOUT ROWID;
+          PRAGMA user_version=3;`);
+      }
+      check(db.prepare("PRAGMA user_version").get()?.user_version === 3);
       check(db.prepare("PRAGMA application_id").get()?.application_id === 1095321654);
     });
     this.transaction(() => {
@@ -191,6 +200,11 @@ class SqliteOperationJournal implements EngineeringResumeStore {
     for (const row of db.prepare("SELECT * FROM approvals").iterate()) this.readApproval(row);
     for (const row of db.prepare("SELECT * FROM events").iterate()) this.readEvent(row);
     for (const row of db.prepare("SELECT * FROM engineering_proposals").iterate()) this.proposal(String(row.operation_id));
+    for (const row of db.prepare("SELECT * FROM approval_reviews").iterate()) this.approvalReview(String(row.operation_id));
+    for (const row of db.prepare("SELECT * FROM human_confirmation_ids").iterate()) {
+      const op = this.get(String(row.operation_id)), grant = op?.approvalId && this.approval(op.approvalId);
+      check(grant && grant.decision?.intent?.id === row.confirmation_id);
+    }
     for (const row of db.prepare("SELECT * FROM continuation_leases").iterate()) {
       const lease = this.lease(String(row.execution_id))!;
       const history = db.prepare("SELECT * FROM continuation_lease_events WHERE execution_id=? ORDER BY epoch LIMIT 65").all(lease.executionId);
@@ -252,6 +266,20 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       (["denied", "revoked", "expired"].includes(grant.status) && op.state === "Cancelled") ||
       (grant.status === "consumed" && ["Prepared", "Running", "Completed", "Cancelled", "Uncertain"].includes(op.state))
     );
+    if (grant.decision) {
+      const c = this.approvalReview(grant.operationId), d = grant.decision;
+      check(Object.keys(d).sort().join() === ["mode", "policyVersion", "policyDigest", "challengeDigest", "patchDigest", "snapshotDigest", "workspaceId", "authorizationScope", "approvedAt", "requester", "approver", ...(d.intent ? ["intent"] : [])].sort().join());
+      check(c && grant.approver && d.mode === c.policy.mode && d.policyVersion === c.policy.version && d.policyDigest === c.policyDigest && d.challengeDigest === hash(c.challenge) &&
+        d.patchDigest === c.patchDigest && d.snapshotDigest === c.snapshotDigest && d.workspaceId === c.workspaceId && d.authorizationScope === c.scopeDigest && timestamp(d.approvedAt) &&
+        JSON.stringify(d.requester) === JSON.stringify(grant.requester) && (grant.status === "revoked" || JSON.stringify(d.approver) === JSON.stringify(grant.approver)));
+      if (d.mode === "personal") {
+        check(d.intent && Object.keys(d.intent).sort().join() === ["id", "bindingDigest", "issuedAt", "expiresAt", "method"].sort().join() && digestPattern.test(d.intent.id) && d.intent.bindingDigest === this.intentDigest(c, d.approver) &&
+          ["macos-local-auth-and-tty-v1", "reviewed-external-v1"].includes(d.intent.method) && Number.isSafeInteger(d.intent.issuedAt) && Number.isSafeInteger(d.intent.expiresAt) &&
+          d.intent.issuedAt <= Date.parse(d.approvedAt) && Date.parse(d.approvedAt) < d.intent.expiresAt && d.intent.expiresAt <= d.intent.issuedAt + 60000 && d.intent.expiresAt <= Date.parse(c.expiresAt));
+        check(this.db.prepare("SELECT operation_id FROM human_confirmation_ids WHERE confirmation_id=?").get(d.intent.id)?.operation_id === op.operationId);
+      }
+    }
+    if (this.approvalReview(grant.operationId)?.policy.mode === "personal" && ["approved", "consumed"].includes(grant.status)) check(grant.decision?.intent);
     return grant;
   }
   private readEvent(row: Record<string, unknown>): OperationEvent {
@@ -330,8 +358,8 @@ class SqliteOperationJournal implements EngineeringResumeStore {
         check(op.toolId === "sandbox.validate" && op.taskId === "sandbox-validation" && op.permission === "shell:execute" &&
           op.risk === "high" && op.safety === "side_effecting" && op.requiresApproval &&
           patch?.executionId === op.executionId && patch.toolId === "patch.apply" && patch.state === "Completed" &&
-          grant && grant.status === "consumed" && grant.approver &&
-          (grant.approver.issuer !== grant.requester.issuer || grant.approver.subject !== grant.requester.subject));
+          grant && grant.status === "consumed" && grant.approver);
+        this.assertReviewedGrant(grant, false);
       }
     }
     return op;
@@ -373,18 +401,36 @@ class SqliteOperationJournal implements EngineeringResumeStore {
   decideScoped(id: string, actor: HostIdentity, approved: boolean, binding: ApprovalDecisionBinding): DurableApproval {
     return this.decision(id, actor, approved, binding);
   }
-  private decision(id: string, actor: HostIdentity, approved: boolean, binding?: ApprovalDecisionBinding): DurableApproval {
+  decideReviewed(id: string, actor: HostIdentity, approved: boolean, intent?: HumanIntentReceipt): DurableApproval {
+    const op = this.get(this.approval(id)?.operationId ?? ""); check(op);
+    const ref = this.proposal(op.operationId);
+    return this.decision(id, actor, approved, ref ? { artifactDigest: ref.artifactDigest, challenge: ref.challenge } : undefined, intent, true);
+  }
+  private decision(id: string, actor: HostIdentity, approved: boolean, binding?: ApprovalDecisionBinding, intent?: HumanIntentReceipt, reviewed = false): DurableApproval {
     actor = identity(actor); check(typeof approved === "boolean");
     return this.transaction(() => {
       const grant = this.approval(id); check(grant && grant.status === "pending");
       const op = this.get(grant.operationId)!;
       check(this.executionHealthy && Date.parse(this.time()) < Date.parse(grant.expiresAt));
       const reference = this.proposal(op.operationId);
+      const context = this.approvalReview(op.operationId);
+      if (context) check(context.policyDigest === hash(approvalPolicyJson(this.approvalPolicy)) && reviewed);
+      else if (["patch.apply", "sandbox.validate"].includes(op.toolId)) check(this.approvalPolicy.mode === "team");
       if (reference) {
         check(binding && binding.artifactDigest === reference.artifactDigest && binding.challenge === reference.challenge);
         check(Date.parse(this.time()) < Date.parse(reference.expiresAt));
       } else check(!binding && op.ownerSession === this.session);
-      if (op.toolId === "patch.apply" && approved) check(actor.issuer !== op.requester.issuer || actor.subject !== op.requester.subject);
+      if (approved && context?.policy.mode === "personal") {
+        check(actor.issuer === "github.com" && /^[1-9][0-9]{0,19}$/.test(actor.subject));
+        const t = Date.parse(this.time());
+        check(intent && Object.keys(intent).sort().join() === ["id", "bindingDigest", "issuedAt", "expiresAt", "method"].sort().join() && digestPattern.test(intent.id) && intent.bindingDigest === this.intentDigest(context, actor) &&
+          ["macos-local-auth-and-tty-v1", "reviewed-external-v1"].includes(intent.method) && Number.isSafeInteger(intent.issuedAt) && Number.isSafeInteger(intent.expiresAt) && intent.issuedAt <= t && intent.issuedAt >= t - 60000 &&
+          intent.expiresAt > t && intent.expiresAt <= intent.issuedAt + 60000 && intent.expiresAt <= Date.parse(context.expiresAt));
+        this.db.prepare("INSERT INTO human_confirmation_ids VALUES(?,?)").run(intent.id, op.operationId);
+      } else if (approved && (op.toolId === "patch.apply" || context)) check(actor.issuer !== op.requester.issuer || actor.subject !== op.requester.subject);
+      if (approved && context) grant.decision = { mode: context.policy.mode, policyVersion: context.policy.version, policyDigest: context.policyDigest, challengeDigest: hash(context.challenge),
+        patchDigest: context.patchDigest, snapshotDigest: context.snapshotDigest, workspaceId: context.workspaceId, authorizationScope: context.scopeDigest, approvedAt: this.time(),
+        requester: op.requester, approver: actor, ...(intent ? { intent: structuredClone(intent) } : {}) };
       grant.approver = actor; grant.status = approved ? "approved" : "denied"; grant.updatedAt = this.time();
       this.move(op, approved ? "Approved" : "Cancelled", approved ? "approval.approved" : "approval.denied", actor);
       this.saveApproval(grant); return grant;
@@ -406,6 +452,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       if (op.requiresApproval) {
         check(op.state === "Approved" && approvalId === op.approvalId);
         const grant = this.approval(approvalId!)!; check(grant.status === "approved");
+        if (["patch.apply", "sandbox.validate"].includes(op.toolId)) this.assertReviewedGrant(grant);
         if (Date.parse(this.time()) >= Date.parse(grant.expiresAt)) {
           grant.status = "expired"; grant.updatedAt = this.time();
           this.move(op, "Cancelled", "approval.expired"); this.saveApproval(grant); return null;
@@ -423,6 +470,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       if (op.approvalId) {
         const grant = this.approval(op.approvalId);
         check(grant?.status === "consumed");
+        if (["patch.apply", "sandbox.validate"].includes(op.toolId)) this.assertReviewedGrant(grant);
         if (Date.parse(this.time()) >= Date.parse(grant.expiresAt))
           return this.move(op, "Cancelled", "operation.authorization_expired");
       }
@@ -456,7 +504,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       return this.move(op, evidence.kind === "confirmed_completed" ? "Completed" : "Cancelled", "recovery.resolved", actor, evidence.reference);
     });
   }
-  bindProposal(reference: ProposalReference): void {
+  bindProposal(reference: ProposalReference, review?: ApprovalReviewInput): void {
     this.transaction(() => {
       check(Object.keys(reference).sort().join() === ["operationId", "executionId", "workspaceId", "artifactDigest", "challenge", "expiresAt"].sort().join());
       const op = this.get(reference.operationId);
@@ -466,7 +514,51 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       check(timestamp(reference.expiresAt) && Date.parse(reference.expiresAt) > Date.parse(this.time()));
       check(!this.proposal(op.operationId));
       this.db.prepare("INSERT INTO engineering_proposals VALUES(?,?,?)").run(op.operationId, ...encode(reference));
+      if (review) this.bindReview(op.operationId, review, reference.challenge, reference.expiresAt);
+      else check(this.approvalPolicy.mode === "team");
     });
+  }
+  private intentDigest(context: ApprovalReviewContext, actor: HostIdentity): string { return hash(canonicalProposalJson({ review: context, actor: identity(actor) })); }
+  approvalReview(operationId: string): ApprovalReviewContext | null {
+    const row = this.db.prepare("SELECT * FROM approval_reviews WHERE operation_id=?").get(operationId);
+    if (!row) return null;
+    const c = decode<ApprovalReviewContext>(row), op = this.get(operationId);
+    check(op && c.schemaVersion === 1 && c.operationId === operationId && c.executionId === op.executionId && c.scopeDigest === op.scopeDigest && c.purpose === op.toolId && ["patch.apply", "sandbox.validate"].includes(c.purpose));
+    check(Object.keys(c).sort().join() === ["schemaVersion", "operationId", "executionId", "scopeDigest", "purpose", "policyDigest", "challenge", "expiresAt", "policy", "workspaceId", "artifactDigest", "patchDigest", "snapshotDigest", "contentDigest", ...(c.actionDigest === undefined ? [] : ["actionDigest"])].sort().join());
+    normalizeApprovalPolicy(c.policy); check(c.policyDigest === hash(approvalPolicyJson(c.policy)));
+    check(idPattern.test(c.workspaceId) && [c.artifactDigest, c.patchDigest, c.snapshotDigest, c.contentDigest, c.challenge].every(x => typeof x === "string" && digestPattern.test(x)) && timestamp(c.expiresAt));
+    check(c.purpose === "sandbox.validate" ? typeof c.actionDigest === "string" && digestPattern.test(c.actionDigest) : c.actionDigest === undefined);
+    if (c.purpose === "patch.apply") { const ref = this.proposal(operationId); check(ref && c.artifactDigest === ref.artifactDigest && c.workspaceId === ref.workspaceId && c.challenge === ref.challenge && c.expiresAt === ref.expiresAt); }
+    return c;
+  }
+  private bindReview(operationId: string, raw: ApprovalReviewInput, challenge: string, expiresAt: string): void {
+    const op = this.get(operationId), policy = normalizeApprovalPolicy(raw.policy);
+    check(op?.ownerSession === this.session && op.state === "PendingApproval" && op.requiresApproval && !this.approvalReview(operationId));
+    check(Object.keys(raw).sort().join() === ["policy", "workspaceId", "artifactDigest", "patchDigest", "snapshotDigest", "contentDigest", ...(raw.actionDigest === undefined ? [] : ["actionDigest"])].sort().join());
+    check(approvalPolicyJson(policy) === approvalPolicyJson(this.approvalPolicy));
+    const c: ApprovalReviewContext = { ...structuredClone(raw), policy, schemaVersion: 1, operationId, executionId: op.executionId, scopeDigest: op.scopeDigest,
+      purpose: op.toolId as ApprovalReviewContext["purpose"], policyDigest: hash(approvalPolicyJson(policy)), challenge, expiresAt };
+    this.db.prepare("INSERT INTO approval_reviews VALUES(?,?,?)").run(operationId, ...encode(c)); this.approvalReview(operationId);
+  }
+  bindValidationReview(operationId: string, review: ApprovalReviewInput): void {
+    this.transaction(() => {
+      const op = this.get(operationId); check(op?.toolId === "sandbox.validate" && !this.proposal(operationId));
+      const grant = op.approvalId && this.approval(op.approvalId); check(grant && grant.status === "pending");
+      this.bindReview(operationId, review, hash(randomUUID()), grant.expiresAt);
+    });
+  }
+  private assertReviewedGrant(grant: DurableApproval, current = true): void {
+    const c = this.approvalReview(grant.operationId);
+    if (c) {
+      if (current) check(c.policyDigest === hash(approvalPolicyJson(this.approvalPolicy)));
+      check(grant.decision?.policyDigest === c.policyDigest && grant.decision.mode === c.policy.mode && grant.decision.authorizationScope === c.scopeDigest);
+      if (c.policy.mode === "personal") check(grant.decision.intent && grant.approver && grant.decision.intent.bindingDigest === this.intentDigest(c, grant.approver));
+      else check(grant.approver && (grant.approver.issuer !== grant.requester.issuer || grant.approver.subject !== grant.requester.subject));
+    } else {
+      if (current) check(this.approvalPolicy.mode === "team");
+      const op = this.get(grant.operationId);
+      if (!current || op?.toolId === "patch.apply") check(grant.approver && (grant.approver.issuer !== grant.requester.issuer || grant.approver.subject !== grant.requester.subject));
+    }
   }
   proposal(id: string): ProposalReference | null {
     const row = this.db.prepare("SELECT * FROM engineering_proposals WHERE operation_id=?").get(id);
@@ -499,6 +591,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       check(op.state === "Approved" && this.proposal(id));
       const ref = this.proposal(id)!, grant = this.approval(op.approvalId!);
       check(grant?.status === "approved" && Date.parse(grant.expiresAt) > Date.parse(this.time()) && Date.parse(ref.expiresAt) > Date.parse(this.time()));
+      this.assertReviewedGrant(grant);
       const previous = this.lease(op.executionId);
       check(!previous || Date.parse(previous.expiresAt) <= Date.parse(this.time()));
       // No incomplete operation other than this exact still-effect-free proposal may be transferred.
@@ -524,6 +617,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
     check(ref && Date.parse(this.time()) < Date.parse(ref.expiresAt));
     const grant = op.approvalId && this.approval(op.approvalId);
     check(grant && ["approved", "consumed"].includes(grant.status) && Date.parse(this.time()) < Date.parse(grant.expiresAt));
+    this.assertReviewedGrant(grant);
   }
   retireSession(): void { this.executionHealthy = false; }
   close(): void { this.retireSession(); this.db.close(); }

@@ -2,8 +2,11 @@
 
 The CLI now composes GitHub authentication with the existing durable L2 protocol.
 Version **0.8.0** remains experimental. Offline multiprocess tests exercise real
-SQLite/filesystem plus mocked GitHub HTTP. Live Operational L2 acceptance remains
-pending the owner-authorized two-identity GitHub/Keychain smoke.
+SQLite/filesystem plus mocked GitHub HTTP. Live Operational L2 Personal passed for
+the owner-confirmed synthetic local workflow. Team's real two-account acceptance
+remains pending. Team requires two identities;
+explicit host-configured Personal Mode uses one authenticated GitHub account and
+a separate human decision. See [policy, review and migration](phase9-personal-mode.md).
 
 ## Request and authorize
 
@@ -28,7 +31,7 @@ pnpm harness run --workflow implement --path /ABSOLUTE/SYNTHETIC/PROJECT \
   --journal /PRIVATE/state/operations.sqlite --checkpoint-dir /PRIVATE/checkpoints --json
 ```
 
-Exit 2 indicates the exact durable proposal is awaiting an independent approval;
+Exit 2 indicates the exact durable proposal is awaiting policy-bound human approval;
 it is not applied yet. OpenAI generation retains its separate model, credentials,
 request/token/time bounds and explicit paid-call confirmation. Continuation has
 no provider port and never regenerates the proposal.
@@ -51,9 +54,23 @@ required for status/diff, approver for approve/reject/revoke and operator for
 continue. Online GitHub verification and exact resource scope are rechecked;
 unavailable authentication fails closed, including private diff access.
 
-The requester cannot approve their own patch, even through a different session or
-username. Independent approval requires a second authorized GitHub account. There
-is no single-developer shortcut. Sessions belong to an OS-user Keychain; arrange
+Transient server errors during read-only identity verification have at most three
+bounded attempts within the existing per-endpoint deadline. The broker reports
+`authentication_unavailable` after exhaustion, rather than presenting a server
+failure as a missing session. It still denies the action and preserves pending
+approval. No token exchange, refresh, patch application, approval decision or
+continuation is automatically replayed. See
+[verification transport](phase9-github-authentication.md#authorization-code--pkce).
+
+In default Team Mode, the requester cannot approve their own patch, even through a
+different session or username. Independent approval requires a second authorized
+GitHub account. In explicit Personal Mode, the same account may approve only after
+exact review, typed `APPROVE` on a TTY and fresh macOS device-owner authentication.
+All four roles must be explicitly assigned; no role or session implies approval.
+The CLI revalidates identity, permissions, host configuration and artifact after
+confirmation. Non-interactive approval requires an independently reviewed external
+host verifier; no default one or bypass flag is provided. Cancelling preserves the
+pending request. Sessions belong to an OS-user Keychain; arrange
 reviewed access to the same protected journal/artifacts rather than copying tokens.
 Login/logout when changing accounts on one OS user must fit the existing approval
 window, or use pre-authenticated reviewed host integrations. The default approval
@@ -86,3 +103,13 @@ GitHub identity mapping, self-approval rejection, scoped roles, exact applicatio
 replay rejection, original unchanged and zero provider calls on resume. This is
 separate from actual two-account GitHub interoperability and native storage
 acceptance, which remain pending. No Phase 9C repair or publication is enabled.
+
+Personal fixtures additionally prove same-account durable decisions, exact review
+binding, rejection of serialized/fake intent, policy-change rejection and continuation
+in a new process with no provider calls and original source intact. The native
+Personal dialog and live single-account workflow are not verified by those fixtures.
+They were subsequently verified in a separate owner-authorized real workflow,
+execution `9850ba04-d5d9-4204-9322-ebf99ef6c5f9`, with independent journal/artifact
+inspection after the human confirmed. See the [actual report](phase9-real-acceptance-report.md).
+An applied patch never grants `sandbox.validate`: the host coordinator requests and
+records a separate approval, while the CLI stays gated pending real Gate C evidence.

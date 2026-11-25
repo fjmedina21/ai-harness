@@ -3,7 +3,7 @@
 Generated source, project tests, build scripts, package lifecycle hooks and
 dependency code are untrusted executable data. They may run only in an explicitly
 authorized sandbox. Authentication proves the developer identity; current host
-policy, independent action approval and the dispatcher authorize each effect.
+policy, separately scoped action approval and the dispatcher authorize each effect.
 No fixture, repository setting or model output can declare a live gate passed.
 
 | Threat | Implemented control | Remaining boundary |
@@ -36,8 +36,12 @@ verification establishes snapshot identity before action execution and immutable
 host capture, not an unmodifiable guest filesystem. Stronger guest immutability
 is unresolved; this is an additional reason Gate C remains unpassed.
 
-The independent `sandbox.validate` action approval is required even after approved
-L2 patch application. The requester cannot approve their own validation action.
+The separate `sandbox.validate` action approval is required even after approved
+L2 patch application. Team retains a different requester/approver identity. Explicit
+Personal policy permits the same GitHub identity only with a new human confirmation
+bound to the action/profile/snapshot, a separate challenge and a separate durable
+grant. Patch confirmation cannot authorize sandbox execution. See
+[Personal Mode](phase9-personal-mode.md). Isolation requirements remain unchanged.
 The host acceptance verifier is a trusted integration port, not a deployed
 attestation authority; a no-op verifier would violate the operational contract.
 The CLI therefore remains disabled while live acceptance is pending.
@@ -53,6 +57,11 @@ on a disposable dedicated rootless Machine before Gate C passes. Historical
 Phase 5 evidence or standard hosted CI is not a substitute for current transport
 and generated-workload tests. Remote dedicated-runner acceptance may remain
 deferred for this experimental local scope.
+
+Both fixed real local runtime suites passed with explicit owner authorization on
+2026-11-25, including effective isolation probes and synthetic snapshot actions.
+This is scoped runtime evidence, not complete durable authenticated Gate C acceptance;
+see the [report and remaining requirements](phase9-real-acceptance-report.md).
 
 No autonomous repair, automatic retry of uncertain validation, exact-once claim,
 original-project integration, Git mutation, deployment or production-security

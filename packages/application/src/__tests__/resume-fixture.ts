@@ -28,7 +28,7 @@ export async function openFixture(base: string, options: Parameters<typeof openS
   const artifacts = new ProposalArtifactStore(path.join(base, "state"));
   return { store, artifacts };
 }
-export async function generate(base: string, supplied?: EngineeringResumeStore, twoFiles = false) {
+export async function generate(base: string, supplied?: EngineeringResumeStore, twoFiles = false, host: { approvalPolicy?: import("@ai-harness/contracts").ApprovalPolicy; requester?: import("@ai-harness/contracts").HostIdentity } = {}) {
   const opened = supplied ? undefined : await openFixture(base);
   const store = supplied ?? opened!.store, artifacts = opened?.artifacts ?? new ProposalArtifactStore(path.join(base, "state"));
   let calls = 0;
@@ -42,8 +42,8 @@ export async function generate(base: string, supplied?: EngineeringResumeStore, 
     } } });
   const result = await runEngineeringWorkflow({ projectRoot: path.join(base, "source"), request: "Replace selected constants", files: twoFiles ? ["value.ts", "second.ts"] : ["value.ts"], level: 2,
     policy, budget: { maxIterations: 1, maxRequests: 8, maxTokens: 80000, maxEstimatedCostUsd: 0, timeoutMs: 5000, maxFiles: 2, maxBytes: 8192 },
-    agent, modelAdapterAuthorized: true, allowUncertainCost: true, proposalArtifacts: artifacts, checkpoint: new EngineeringCheckpointStore(path.join(base, "state")),
-    workspace: { directory: path.join(base, "workspaces"), createAuthorized: true, ttlMs: 300_000, binding: { store, requester: { issuer: "fixture", subject: "requester" }, safetyByTool: {} } } });
+    agent, modelAdapterAuthorized: true, allowUncertainCost: true, approvalPolicy: host.approvalPolicy, proposalArtifacts: artifacts, checkpoint: new EngineeringCheckpointStore(path.join(base, "state")),
+    workspace: { directory: path.join(base, "workspaces"), createAuthorized: true, ttlMs: 300_000, binding: { store, requester: host.requester ?? { issuer: "fixture", subject: "requester" }, safetyByTool: {} } } });
   const op = store.list(result.executionId).find(op => op.toolId === "patch.apply");
   opened?.store.close();
   return { result, operationId: op?.operationId, calls };

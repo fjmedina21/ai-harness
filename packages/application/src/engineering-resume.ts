@@ -1,12 +1,12 @@
 import { lstat } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
-import { emitTelemetry, canonicalProposalJson, EngineeringResumeError, type ContinuationLease, type EngineeringPolicy, type EngineeringResumeStore, type ProposalArtifact, type ResumeIdentityVerifier } from "@ai-harness/contracts";
+import { emitTelemetry, canonicalProposalJson, normalizeApprovalPolicy, EngineeringResumeError, type ContinuationLease, type EngineeringPolicy, type EngineeringResumeStore, type ProposalArtifact, type ResumeIdentityVerifier } from "@ai-harness/contracts";
 import { ProposalArtifactStore, sealProposalArtifact } from "@ai-harness/checkpointing";
-import { ApprovalBroker, digestDurableValue } from "@ai-harness/security";
+import { ApprovalBroker, digestDurableValue, assertApprovalDecision } from "@ai-harness/security";
 import { EngineeringPatchEngine, EngineeringWorkspace, engineeringHash, openEngineeringSource, patchInvocation, createEngineeringTools } from "@ai-harness/tools";
 
 export async function persistEngineeringProposal(store: EngineeringResumeStore, artifacts: ProposalArtifactStore,
-  input: Omit<ProposalArtifact, "schemaVersion" | "artifactDigest" | "rootIdentity" | "createdAt" | "expiresAt" | "policyEncoding">): Promise<ProposalArtifact> {
+  input: Omit<ProposalArtifact, "schemaVersion" | "artifactDigest" | "rootIdentity" | "createdAt" | "expiresAt" | "policyEncoding">, approvalPolicy?: import("@ai-harness/contracts").ApprovalPolicy): Promise<ProposalArtifact> {
   try {
     const op = store.get(input.operationId), grant = op?.approvalId && store.approval(op.approvalId);
     if (!op || op.state !== "PendingApproval" || !grant || grant.status !== "pending") throw new EngineeringResumeError("approval_mismatch");
@@ -15,7 +15,9 @@ export async function persistEngineeringProposal(store: EngineeringResumeStore, 
       createdAt: new Date().toISOString(), expiresAt: new Date(Math.min(input.receipt.expiresAt, Date.parse(grant.expiresAt))).toISOString() });
     artifacts.put(artifact); // fsync + MAC/digest verification precede the SQLite reference commit.
     store.bindProposal({ operationId: op.operationId, executionId: artifact.executionId, workspaceId: artifact.workspaceId,
-      artifactDigest: artifact.artifactDigest, expiresAt: artifact.expiresAt, challenge: randomBytes(32).toString("hex") });
+      artifactDigest: artifact.artifactDigest, expiresAt: artifact.expiresAt, challenge: randomBytes(32).toString("hex") }, approvalPolicy ? {
+        policy: approvalPolicy, workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, patchDigest: artifact.patchDigest, snapshotDigest: artifact.baseSnapshot.digest, contentDigest: artifact.diffDigest,
+      } : undefined);
     // A failed/unknown commit acknowledgment is never published as ApprovalPending.
     if (store.proposal(op.operationId)?.artifactDigest !== artifact.artifactDigest) throw new EngineeringResumeError("storage_uncertain");
     return artifact;
@@ -38,6 +40,8 @@ export class EngineeringRecoveryService {
       op.argumentDigest !== digestDurableValue(patchInvocation(a.patch).arguments)) throw new EngineeringResumeError("artifact_invalid");
     if (Date.parse(a.expiresAt) <= Date.now()) throw new EngineeringResumeError("approval_expired");
     if (canonicalProposalJson(this.currentPolicy) !== canonicalProposalJson(a.policy)) throw new EngineeringResumeError("policy_changed");
+    const review = this.store.approvalReview?.(operationId);
+    if (review && (review.patchDigest !== a.patchDigest || review.snapshotDigest !== a.baseSnapshot.digest || review.contentDigest !== a.diffDigest || review.artifactDigest !== a.artifactDigest || review.workspaceId !== a.workspaceId)) throw new EngineeringResumeError("artifact_invalid");
     return a;
   }
   async reconcile(operationId: string, signal?: AbortSignal, assertFence?: () => void): Promise<{ artifact: ProposalArtifact; workspace: EngineeringWorkspace; engine: EngineeringPatchEngine; diff: string }> {
@@ -79,6 +83,7 @@ export interface ContinuationOptions {
   artifacts: ProposalArtifactStore;
   policy: EngineeringPolicy;
   verifier?: ResumeIdentityVerifier;
+  approvalPolicy?: import("@ai-harness/contracts").ApprovalPolicy;
   telemetry?: import("@ai-harness/contracts").TelemetryBinding;
 }
 export class ContinuationCoordinator {
@@ -86,8 +91,8 @@ export class ContinuationCoordinator {
   private readonly recovery: EngineeringRecoveryService;
   private readonly leases: ExecutionLeaseManager;
   constructor(private readonly options: ContinuationOptions) {
-    this.options = { ...options, policy: structuredClone(options.policy) };
-    this.broker = new ApprovalBroker(options.store, options.verifier);
+    this.options = { ...options, policy: structuredClone(options.policy), approvalPolicy: normalizeApprovalPolicy(options.approvalPolicy) };
+    this.broker = new ApprovalBroker(options.store, options.verifier, Date.now, options.approvalPolicy);
     this.recovery = new EngineeringRecoveryService(options.store, options.artifacts, options.policy);
     this.leases = new ExecutionLeaseManager(options.store);
   }
@@ -99,11 +104,15 @@ export class ContinuationCoordinator {
     await this.broker.authenticate(operationId, "diff", credential);
     return this.recovery.artifact(operationId).diff;
   }
-  async decide(operationId: string, credential: string, approved: boolean): Promise<void> {
+  async decide(operationId: string, credential: string, approved: boolean, confirmation?: import("@ai-harness/contracts").HumanApprovalPort, signal?: AbortSignal): Promise<void> {
     await this.broker.decide(operationId, credential, approved, async () => {
       if (approved) await this.recovery.reconcile(operationId);
       else this.recovery.artifact(operationId);
-    });
+    }, confirmation ? async (actor, context) => {
+      const artifact = this.recovery.artifact(operationId);
+      return confirmation.confirm({ context, actor: { issuer: actor.issuer, subject: actor.subject }, diff: artifact.diff,
+        files: artifact.patch.changes.map(c => ({ path: c.path, operation: c.operation })), workspace: artifact.receipt.root, risk: this.options.store.get(operationId)!.risk + ": code modification in isolated workspace" }, signal);
+    } : undefined);
     this.event(operationId, approved ? "approval.granted" : "approval.rejected");
   }
   async continue(operationId: string, credential: string, timeoutMs: number, cancellation?: AbortSignal): Promise<{
@@ -136,7 +145,9 @@ export class ContinuationCoordinator {
         this.event(operationId, e instanceof EngineeringResumeError && e.code === "approval_expired" ? "approval.expired" : "reconciliation.failed"); throw e;
       }
       const op = this.options.store.get(operationId)!, grant = op.approvalId && this.options.store.approval(op.approvalId);
-      if (!grant || grant.status !== "approved" || !grant.approver || canonicalProposalJson(grant.approver) === canonicalProposalJson(op.requester)) throw new EngineeringResumeError("approval_mismatch");
+      if (!grant || grant.status !== "approved") throw new EngineeringResumeError("approval_mismatch");
+      try { assertApprovalDecision(grant, this.options.store.approvalReview?.(operationId), this.options.approvalPolicy); }
+      catch { throw new EngineeringResumeError("approval_mismatch"); }
       checkDeadline();
       let lease: ContinuationLease;
       try { lease = this.leases.acquire(operationId, timeoutMs, { issuer: actor.issuer, subject: actor.subject }); }

@@ -1,5 +1,35 @@
 # Phase 9A OpenAI live-smoke evidence and runbook
 
+## Phase 9A.4 authorized follow-up — 2026-11-25
+
+Base source `6dbdc98797d3b53eacc387cd861f565cbeddb15e`, uncommitted working tree
+on `feat/phase9-personal-approval-mode`, version 0.8.0. The owner authorized one
+new run with the existing protected local key, `gpt-5.5-pro`, at most four requests,
+512 output tokens/request, 360 s global, 180 s HTTP/role and unknown cost accepted.
+The host supplied only the approved key to the child environment; the smoke itself
+does not automatically load project credentials. No credential value was printed.
+
+| Observation | Result |
+| --- | --- |
+| UTC start / finish | 2026-11-25T15:39:09.821Z / 2026-11-25T15:40:25.377Z |
+| Execution | b0c970ba-ecbd-423f-8ad4-7ffc560dac9c |
+| Duration | 75552.580 ms |
+| Requests | Exactly four sequential HTTP 200s; no retries/fallback |
+| Roles | requirements-analyst, planner, backend-developer, code-reviewer; all ok |
+| Usage | 2160 input / 824 output; 536 reasoning included in output; cache read/write 0 |
+| Cost | Unknown, missing reviewed host rate; explicitly accepted, no amount invented |
+| Proposal / semantics / advisory review | Passed / passed / completed |
+| Diff | 129 bytes; digest 1753d505f0c34f71949ab72fefb484f9b5c36a9d0dae740a53199a912e9d2d09 |
+| Patch | 0bea8b95269a84c4bda7d7fa0a288eff9f006538d6fd9b3aa46ae5ab2ab598db |
+| Source / cleanup | Unchanged / confirmed |
+| Applied / executed generated code | No / no |
+
+This is the fixed synthetic **L1** smoke, not real Personal approval, L2 application
+or evidence of code security. The authorization is consumed; another paid run
+requires a new explicit scope. Runtime/identity acceptance is recorded separately
+in the [real acceptance report](phase9-real-acceptance-report.md). Older evidence
+below retains its original SHAs, budgets and outcomes.
+
 ## Stabilization acceptance
 
 Source **2ce871777b987bcbf262f9eca4f8787a328b4dec**, feat/phase9a-stabilization,

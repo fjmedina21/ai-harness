@@ -143,6 +143,8 @@ credential status fields rather than interpreting logout as grant-wide invalidat
 | `forbidden_scope` / `organization_not_allowed` | Review numeric-ID assignments and exact current resource; do not widen automatically |
 | `revocation_uncertain` | Local session is cleared; inspect GitHub authorized Apps and revoke there if necessary |
 
-Do not extend an approval's expiry to compensate for login time. Establish the
-second identity's session before generating the proposal; the existing durable
-approval defaults to 60 seconds. See [Operational L2](phase9-operational-l2.md).
+Do not extend an existing approval's expiry to compensate for login time. In Team
+Mode, establish the second identity's session before generating the proposal; the
+existing durable approval defaults to 60 seconds. Explicit Personal policy instead
+requires one scoped four-role account and a fresh human decision; see
+[Personal Mode](phase9-personal-mode.md) and [Operational L2](phase9-operational-l2.md).

@@ -227,11 +227,11 @@ test("schema v1 migrates additively; legacy ownership/state guarantees remain un
   const store = await openSqliteOperationJournal(filename);
   const legacy = store.register({ executionId: "old", taskId: "task", requestId: "request", projectRoot: path.join(base, "source"), toolId: "file.read", argumentDigest: "a".repeat(64), permission: "files:read", risk: "low", safety: "read_only", requester: { issuer: "fixture", subject: "old" }, requiresApproval: false }).operation;
   store.close();
-  const db = new DatabaseSync(filename); db.exec("DROP TABLE engineering_proposals; DROP TABLE continuation_leases; DROP TABLE continuation_lease_events; PRAGMA user_version=1;"); db.close();
+  const db = new DatabaseSync(filename); db.exec("DROP TABLE human_confirmation_ids; DROP TABLE approval_reviews; DROP TABLE engineering_proposals; DROP TABLE continuation_leases; DROP TABLE continuation_lease_events; PRAGMA user_version=1;"); db.close();
   const migrated = await openSqliteOperationJournal(filename); t.after(() => migrated.close());
   assert.deepEqual(migrated.get(legacy.operationId), legacy); assert.equal(migrated.proposal(legacy.operationId), null);
   assert.throws(() => migrated.prepare(legacy.operationId, legacy.version, legacy.scopeDigest));
-  const check = new DatabaseSync(filename); assert.equal(check.prepare("PRAGMA user_version").get()!.user_version, 2); check.close();
+  const check = new DatabaseSync(filename); assert.equal(check.prepare("PRAGMA user_version").get()!.user_version, 3); check.close();
 });
 test("canonical artifact JSON rejects authority-bearing non-JSON data and is key-order stable", () => {
   assert.equal(canonicalProposalJson({ b: 2, a: 1 }), canonicalProposalJson({ a: 1, b: 2 }));

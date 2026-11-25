@@ -1,5 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
+import { setTimeout as backoff } from "node:timers/promises";
 import type { HostIdentity, ResumeIdentityChallenge, ResumeIdentityVerifier, VerifiedResumeIdentity } from "@ai-harness/contracts";
 
 export class GitHubAuthError extends Error {
@@ -127,18 +128,36 @@ export async function receiveGitHubCode(policy: GitHubAuthPolicy, state: string,
 export class GitHubOAuthClient {
   readonly policy: GitHubAuthPolicy;
   constructor(policy: GitHubAuthPolicy, private readonly http: typeof fetch = fetch, private readonly now: () => number = Date.now) { this.policy = validateGitHubAuthPolicy(policy); }
-  private async request(url: string, init: RequestInit, signal?: AbortSignal): Promise<any> {
+  private async request(url: string, init: RequestInit, signal?: AbortSignal, verification = false): Promise<any> {
     const parsed = new URL(url);
     if (!["https://api.github.com", "https://github.com"].includes(parsed.origin) || parsed.username || parsed.password || parsed.hash) deny("invalid_endpoint");
     const timeout = AbortSignal.timeout(10000), combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    // GitHub's POST check-token endpoint is read-only. Never replay code exchange,
+    // refresh, revoke, or a caller-selected endpoint when verification is unavailable.
+    const readOnlyVerification = verification && parsed.origin === "https://api.github.com" && (
+      init.method === "POST" && parsed.pathname === `/applications/${this.policy.clientId}/token` ||
+      (init.method === undefined || init.method === "GET") && ["/user", "/user/memberships/orgs"].includes(parsed.pathname));
     try {
-      combined.throwIfAborted();
-      const response = await abortable(this.http(url, { ...init, redirect: "error", signal: combined, headers: { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...init.headers } }), combined);
-      if (!response.ok || !response.body) { void response.body?.cancel().catch(() => {}); deny(response.status === 401 || response.status === 404 ? "credential_invalid" : "github_unavailable"); }
-      const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = [];
-      try { while (true) { combined.throwIfAborted(); const { done, value } = await abortable(reader.read(), combined); if (done) break; size += value.byteLength; if (size > 65536) deny("response_limit"); chunks.push(value); } }
-      finally { void reader.cancel().catch(() => {}); }
-      return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      for (let attempt = 0; attempt < (readOnlyVerification ? 3 : 1); attempt++) {
+        combined.throwIfAborted();
+        const response = await abortable(this.http(url, { ...init, redirect: "error", signal: combined, headers: { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...init.headers } }), combined);
+        if (!response.ok || !response.body) {
+          void response.body?.cancel().catch(() => {});
+          if (readOnlyVerification && attempt < 2 && [500, 502, 503, 504].includes(response.status) &&
+            !response.headers.has("retry-after") && response.headers.get("x-ratelimit-remaining") !== "0") {
+            // One deadline covers HTTP, body reads and both bounded backoffs. A
+            // server cooldown/limit stops this invocation instead of scheduling a retry.
+            await backoff(250 * 2 ** attempt, undefined, { signal: combined });
+            continue;
+          }
+          deny(response.status === 401 || response.status === 404 ? "credential_invalid" : "github_unavailable");
+        }
+        const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = [];
+        try { while (true) { combined.throwIfAborted(); const { done, value } = await abortable(reader.read(), combined); if (done) break; size += value.byteLength; if (size > 65536) deny("response_limit"); chunks.push(value); } }
+        finally { void reader.cancel().catch(() => {}); }
+        return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      }
+      deny("github_unavailable");
     } catch (e) { if (e instanceof GitHubAuthError) throw e; return deny(signal?.aborted ? "cancelled" : "github_unavailable"); }
   }
   private basic(secret: string) {
@@ -163,8 +182,8 @@ export class GitHubOAuthClient {
   async identity(token: string, secret: string, signal?: AbortSignal): Promise<{ accountId: string; login: string }> {
     if (!/^ghu_[A-Za-z0-9_]{8,512}$/.test(token)) deny("credential_invalid");
     // App-bound validation plus independently fetched user identity; tokens are not JWTs.
-    const checked = await this.request(`https://api.github.com/applications/${this.policy.clientId}/token`, { method: "POST", headers: { Authorization: this.basic(secret), "Content-Type": "application/json" }, body: JSON.stringify({ access_token: token }) }, signal);
-    const user = await this.request("https://api.github.com/user", { headers: { Authorization: "Bearer " + token } }, signal);
+    const checked = await this.request(`https://api.github.com/applications/${this.policy.clientId}/token`, { method: "POST", headers: { Authorization: this.basic(secret), "Content-Type": "application/json" }, body: JSON.stringify({ access_token: token }) }, signal, true);
+    const user = await this.request("https://api.github.com/user", { headers: { Authorization: "Bearer " + token } }, signal, true);
     if (!user || user.type !== "User" || !Number.isSafeInteger(user.id) || user.id <= 0 || typeof user.login !== "string" || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(user.login) ||
       checked?.app?.client_id !== this.policy.clientId || checked?.user?.id !== user.id) deny("invalid_identity");
     const accountId = String(user.id);
@@ -172,7 +191,7 @@ export class GitHubOAuthClient {
     if (this.policy.allowedOrganizationIds?.length) {
       let allowed = false;
       for (let page = 1; page <= 5 && !allowed; page++) {
-        const memberships = await this.request(`https://api.github.com/user/memberships/orgs?per_page=100&page=${page}`, { headers: { Authorization: "Bearer " + token } }, signal);
+        const memberships = await this.request(`https://api.github.com/user/memberships/orgs?per_page=100&page=${page}`, { headers: { Authorization: "Bearer " + token } }, signal, true);
         if (!Array.isArray(memberships) || memberships.length > 100) deny("invalid_identity");
         allowed = memberships.some((m: any) => m?.state === "active" && Number.isSafeInteger(m.organization?.id) && this.policy.allowedOrganizationIds!.includes(String(m.organization.id)));
         if (memberships.length < 100) break;

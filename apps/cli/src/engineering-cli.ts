@@ -6,6 +6,7 @@ import { EngineeringCheckpointStore, ProposalArtifactStore, openSqliteOperationJ
 import { canonicalProposalJson, EngineeringResumeError, type DurableOperationStore, type EngineeringResumeStore, type EngineeringBudget, type EngineeringPolicy } from "@ai-harness/contracts";
 import { ApprovalBroker, GitHubAuthError } from "@ai-harness/security";
 import { loadGitHubHost, type GitHubHost } from "./github-host.js";
+import { createInteractiveApprovalPort } from "./human-approval.js";
 import { readPrivateCostRates } from "./rates.js";
 const valued = ["--workflow", "--path", "--request", "--provider", "--autonomy", "--files", "--fixture-file", "--fixture-content", "--workspace-dir", "--journal", "--checkpoint-dir", "--max-iterations", "--timeout-ms",
   "--request-timeout-ms", "--role-timeout-ms", "--finalization-timeout-ms", "--model", "--allowed-paths", "--operations", "--max-provider-requests", "--max-output-tokens", "--max-total-tokens", "--max-agent-turns", "--max-context-bytes", "--max-context-tokens", "--rates", "--max-cost-usd"];
@@ -21,6 +22,7 @@ function integer(raw: string | undefined, fallback: number | undefined, maximum:
 }
 export async function engineeringCommand(args: string[], cwd: string, output: (text: string) => void, signal?: AbortSignal, loadHost: () => Promise<GitHubHost> = loadGitHubHost): Promise<number> {
   let store: DurableOperationStore | undefined, agent: EngineeringAgentPort | undefined;
+  let approvalPolicy: import("@ai-harness/contracts").ApprovalPolicy | undefined;
   const json = args.includes("--json");
   try {
     const options = new Map<string, string>();
@@ -93,29 +95,31 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
       const configured = host.configuration.workspaces.find(w => w.sourceRoot === projectRoot && w.workspaceDirectory === directory && w.journalFile === journal && w.checkpointDirectory === checkpoints);
       if (!configured || canonicalProposalJson(configured.policy) !== canonicalProposalJson(policy)) fail("forbidden_scope", "Workspace and patch policy must match trusted host configuration");
       const identity = await host.authentication.authorize("harness:requester", { sourceRoot: projectRoot, workspaceDirectory: directory }, signal);
-      store = await openSqliteOperationJournal(journal);
+      approvalPolicy = configured.approval ?? host.configuration.approval;
+      store = await openSqliteOperationJournal(journal, { approvalPolicy });
       proposalArtifacts = new ProposalArtifactStore(path.dirname(journal));
       workspace = { directory, binding: { store, requester: { issuer: identity.issuer, subject: identity.subject }, safetyByTool: {} }, createAuthorized: true, ttlMs: 3_600_000 };
       checkpoint = new EngineeringCheckpointStore(checkpoints);
     }
-    const result = await runEngineeringWorkflow({ projectRoot, request, files, level, budget, policy, agent, workspace, checkpoint, proposalArtifacts, signal, timing: { roleTimeoutMs, finalizationTimeoutMs },
+    const result = await runEngineeringWorkflow({ projectRoot, request, files, level, budget, policy, agent, workspace, checkpoint, proposalArtifacts, signal, approvalPolicy, timing: { roleTimeoutMs, finalizationTimeoutMs },
       ...(provider === "openai" ? { modelAdapterAuthorized: true, allowUncertainCost: true } : {}), sensitive: options.has("--sensitive") });
     if (json) output(JSON.stringify(result, null, 2));
     else {
       const safe = (text: string) => stripVTControlCharacters(text).replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, "");
       output(`Execution: ${result.executionId}\nProvider: ${result.provider}\nModel: ${result.model ?? "fixture"}\nAutonomy: ${autonomy}\nWorkspace: ${result.workspace?.root ?? "none; source read-only"}`);
-      output(`Permissions: ${level === 1 ? "read selected files; propose only" : "private copy; application requires independent durable approval"}\nBudget: ${JSON.stringify(budget)}\nTiming: ${JSON.stringify(result.timing)}`);
+      output(`Permissions: ${level === 1 ? "read selected files; propose only" : "private copy; explicit " + (approvalPolicy?.mode ?? "team") + " durable approval required"}\nBudget: ${JSON.stringify(budget)}\nTiming: ${JSON.stringify(result.timing)}`);
       output(`Plan: ${safe(result.plan.join("\n"))}\nStates: ${result.events.join(" -> ")}\nStatus: ${result.state} (${result.termination})\nPatch validation: ${result.proposalValidation}`);
       output(`Diff:\nScope: ${result.diffScope}\n${safe(result.diff)}\nValidations executed: ${result.validations.length}; L3 gate: blocked`);
       output(`Requests: ${result.usage.requests}; known tokens: ${result.usage.tokens}; usage complete: ${result.usageComplete}\nEstimated cost: ${result.cost.status === "estimated" ? result.cost.amount + " " + result.cost.currency : "unknown"}`);
       if (result.providerFailure) output(`Provider failure: ${JSON.stringify(result.providerFailure)}`);
-      for (const id of result.pendingApprovals) output(`Pending durable approval: ${id}; use engineering diff/approve with an independent GitHub account`);
+      for (const id of result.pendingApprovals) output(`Pending durable approval: ${id}; use engineering diff/approve under the trusted host approval policy`);
       for (const risk of result.risks) output(`Risk: ${risk}`);
       output("Original project unchanged; no integration performed. Proposed code has not been executed or tested.");
     }
     return ["proposed", "completed", "review_pending"].includes(result.termination) ? 0 : result.termination === "approval_required" ? 2 : result.termination === "cancelled" ? 130 : result.termination === "timeout" ? 124 : 1;
   } catch (error) {
-    const detail = error instanceof CliError ? { code: error.code, message: error.message } : error instanceof GitHubAuthError ? { code: error.code, message: "GitHub authentication and scoped requester authorization required" } : { code: "engineering_rejected", message: "Engineering workflow rejected; verify explicit scope, private paths and budgets. Real L3 remains disabled." };
+    const detail = error instanceof CliError ? { code: error.code, message: error.message } : error instanceof GitHubAuthError ? { code: error.code, message:
+      error.code === "github_unavailable" ? "GitHub verification unavailable; proposal generation remains blocked" : "GitHub authentication and scoped requester authorization required" } : { code: "engineering_rejected", message: "Engineering workflow rejected; verify explicit scope, private paths and budgets. Real L3 remains disabled." };
     output(json ? JSON.stringify({ state: "Failed", error: detail }) : "Error: " + detail.message); return 1;
   } finally { try { agent?.close?.(); store?.close(); } catch { /* No reuse after lifecycle faults. */ } }
 }
@@ -144,7 +148,7 @@ export async function engineeringLifecycleCommand(args: string[], output: (text:
       if (!host.configuration.auth.assignments.some(a => a.accountId === identity.subject && a.roles.includes(role) && a.resources.some(r =>
         r.sourceRoot === workspace.sourceRoot && r.workspaceDirectory === workspace.workspaceDirectory && (!r.executionIds || r.executionIds.includes(executionId!))))) continue;
       try { await lstat(workspace.journalFile); } catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") continue; throw e; }
-      const store = await openSqliteOperationJournal(workspace.journalFile); stores.push(store);
+      const store = await openSqliteOperationJournal(workspace.journalFile, { approvalPolicy: workspace.approval ?? host.configuration.approval }); stores.push(store);
       const operations = store.list(executionId!, undefined, 1000);
       if (operations.length === 1000) throw new EngineeringResumeError("reconciliation_required");
       for (const op of operations) if (store.proposal(op.operationId)) {
@@ -157,22 +161,38 @@ export async function engineeringLifecycleCommand(args: string[], output: (text:
     const ref = store.proposal(operationId)!;
     const session = host.authentication.resumeVerifier({ sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, executionId: executionId!, workspaceId: ref.workspaceId }, signal);
     // Authenticate resource/action before reading the private proposal body.
-    const broker = new ApprovalBroker(store, session.verifier);
+    const approvalPolicy = workspace.approval ?? host.configuration.approval;
+    const broker = new ApprovalBroker(store, session.verifier, Date.now, approvalPolicy);
     await broker.authenticate(operationId, command === "validate" ? "continue" : command as import("@ai-harness/contracts").ResumeAction, session.credential);
     const artifacts = new ProposalArtifactStore(path.dirname(workspace.journalFile), false);
     const artifact = artifacts.get(ref.artifactDigest);
     if (artifact.requester.issuer !== "github.com" || artifact.receipt.sourceRoot !== workspace.sourceRoot ||
       path.dirname(path.dirname(artifact.receipt.root)) !== workspace.workspaceDirectory || artifact.receipt.workspaceId !== ref.workspaceId || artifact.executionId !== executionId) throw new EngineeringResumeError("forbidden_scope");
-    const coordinator = new ContinuationCoordinator({ store, artifacts, policy: workspace.policy, verifier: session.verifier });
+    const coordinator = new ContinuationCoordinator({ store, artifacts, policy: workspace.policy, verifier: session.verifier, approvalPolicy });
     let result: unknown;
     if (command === "status") result = await coordinator.status(operationId, session.credential);
     else if (command === "diff") result = { diff: stripVTControlCharacters(await coordinator.diff(operationId, session.credential)).replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, "") };
-    else if (command === "approve" || command === "reject") { await coordinator.decide(operationId, session.credential, command === "approve"); result = { decision: command === "approve" ? "approved" : "rejected" }; }
+    else if (command === "approve" || command === "reject") {
+      const native = createInteractiveApprovalPort();
+      const confirmation: import("@ai-harness/contracts").HumanApprovalPort = { async confirm(review, cancellation) {
+        const receipt = await native.confirm(review, cancellation);
+        if (!receipt) return null;
+        const fresh = await loadHost();
+        if (canonicalProposalJson(fresh.configuration) !== canonicalProposalJson(host.configuration)) throw new EngineeringResumeError("policy_changed");
+        const approver = await fresh.authentication.authorize("harness:approver", { sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, executionId: executionId!, workspaceId: ref.workspaceId }, cancellation);
+        if (approver.issuer !== review.actor.issuer || approver.subject !== review.actor.subject) throw new EngineeringResumeError("authentication_required");
+        return receipt;
+      } };
+      await coordinator.decide(operationId, session.credential, command === "approve", command === "approve" ? confirmation : undefined, signal); result = { decision: command === "approve" ? "approved" : "rejected" };
+    }
     else if (command === "revoke") { await broker.revoke(operationId, session.credential); result = { decision: "revoked" }; }
     else if (command === "validate") throw new GitHubAuthError("validation_acceptance_pending");
     else result = await coordinator.continue(operationId, session.credential, 60000, signal);
     output(JSON.stringify({ executionId, ...result as object })); return 0;
   } catch (e) {
-    output(JSON.stringify({ error: { code: e instanceof GitHubAuthError || e instanceof EngineeringResumeError ? e.code : "reconciliation_required", message: "Lifecycle rejected; verify GitHub session, resource policy, durable proposal and acceptance gates" } })); return 1;
+    output(JSON.stringify({ error: { code: e instanceof GitHubAuthError || e instanceof EngineeringResumeError ? e.code : "reconciliation_required", message:
+      e instanceof GitHubAuthError && e.code === "github_unavailable" || e instanceof EngineeringResumeError && e.code === "authentication_unavailable"
+        ? "GitHub verification unavailable; protected operation remains blocked"
+        : "Lifecycle rejected; verify GitHub session, resource policy, durable proposal and acceptance gates" } })); return 1;
   } finally { for (const store of stores) try { store.close(); } catch { /* No automatic replay after uncertain close. */ } }
 }

@@ -52,3 +52,4 @@ export { DurableApprovalService, digestDurableValue } from "./durable-approval.j
 
 export { ApprovalBroker } from "./engineering-approval-broker.js";
 export * from "./github-auth.js";
+export * from "./approval-policy.js";

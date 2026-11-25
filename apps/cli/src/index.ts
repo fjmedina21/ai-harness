@@ -283,6 +283,7 @@ function help(): string {
   \n       [--timeout-ms N] [--json]
   \n  auth login|whoami|status|refresh|logout [--json]   GitHub App authentication with protected host sessions
   \n  engineering status|diff|approve|reject|revoke|continue --id ID [--json] (GitHub scoped roles required)
+  \n       Team approval is default; host opt-in Personal requires interactive review + macOS owner authentication.
   \n  engineering validate --id ID --profile PROFILE --action ACTION (real acceptance pending)
   \n  run --workflow implement --autonomy propose|isolated --path DIR --request TEXT --provider fixture
   \n       --files FILES_CSV --fixture-file FILE --fixture-content TEXT [--json]
@@ -301,7 +302,7 @@ function help(): string {
 
   \n  inspect supports only host-authorized read-only file access; it does not edit files or run tests.
   \nReal-provider calls can incur charges and require --confirm-provider-call, --model, an output/request budget and a host environment credential.
-  \nImplement supports fixture recipes or OpenAI with --model, --max-provider-requests, --max-output-tokens, --confirm-provider-call and --allow-uncertain-cost. Independent --timeout-ms (global), --request-timeout-ms, --role-timeout-ms and --finalization-timeout-ms select finite host deadlines. Optional --max-total-tokens, --max-context-tokens, --max-context-bytes, --max-agent-turns, --allowed-paths and --operations narrow host limits. Isolated mode requires a GitHub requester and trusted host policy and stops pending independent approval; real Podman validation is blocked.\nNot exposed by the CLI: deployment, Git writes, arbitrary shell, real validation workloads, dashboard.`;
+  \nImplement supports fixture recipes or OpenAI with --model, --max-provider-requests, --max-output-tokens, --confirm-provider-call and --allow-uncertain-cost. Independent --timeout-ms (global), --request-timeout-ms, --role-timeout-ms and --finalization-timeout-ms select finite host deadlines. Optional --max-total-tokens, --max-context-tokens, --max-context-bytes, --max-agent-turns, --allowed-paths and --operations narrow host limits. Isolated mode requires a GitHub requester and trusted host policy and stops pending policy-bound human approval; real Podman validation is blocked.\nNot exposed by the CLI: deployment, Git writes, arbitrary shell, real validation workloads, dashboard.`;
 }
 
 function limitOutput(value: string): string {
