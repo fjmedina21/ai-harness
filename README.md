@@ -1,10 +1,10 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Version **0.8.0**, experimental; **not production-ready autonomy**. This work starts
-at `2746500e6787` on feat/phase9-l2-durable-approval-resume. L3 remains blocked.
+Version **0.8.0**, experimental; **not production-ready autonomy**. Current work
+starts at `fff4932f13f0` on `feat/phase9-github-auth-podman-validation`.
 
-## Phase 9A.2 — durable L2 core
+## Phase 9A.3 and Phase 9B — current boundary
 
 Isolated requests now preserve exact proposals and diffs in private host-authenticated
 artifacts with SQLite bindings. An embedding host can independently approve and
@@ -13,15 +13,32 @@ leases, monotonic fencing and complete source/workspace/policy revalidation.
 Continuation makes **zero provider calls**, executes no generated code and changes
 only the private workspace. Completed/uncertain effects are never automatically replayed.
 
-**Core L2 Resume** is validated using deterministic authentication fixtures, real
-SQLite/filesystem and independent processes. **Operational L2 Resume remains blocked**:
-no deployed independent authenticator/credential channel is included. Lifecycle
-commands `engineering status|diff|approve|reject|continue --id ID` return structured
-`authentication_required`; they do not accept credentials in arguments. They are not
-yet end-user approval/resume features. See [L2 design](docs/phase9-l2-approval-resume-design.md)
-and [verification](docs/VERIFICATION.md#phase-9a2-durable-l2-resume) for migration,
-identity integration, retention and known limits. The default SDD/inspect and L0/L1
-workflows remain compatible. Anthropic engineering is deferred; no Phase 9B/9C begins.
+GitHub App Authorization Code + PKCE S256 now supplies developer identity to the
+durable lifecycle. The CLI verifies app-bound user tokens online, stores sessions
+in macOS Keychain and enforces explicit numeric-account/resource role assignments.
+`auth login|whoami|status|refresh|logout` and authenticated
+`engineering status|diff|approve|reject|revoke|continue --id ID` are implemented.
+New isolated requests require `harness:requester`; a second authorized stable
+GitHub identity is required for approval. Tokens/credentials are never accepted
+in arguments. See [GitHub App setup](docs/phase9-github-app-setup.md),
+[authentication](docs/phase9-github-authentication.md) and
+[Operational L2](docs/phase9-operational-l2.md).
+
+**Authentication/Operational L2: offline verified, live pending.** Mocked GitHub
+HTTP, real SQLite/filesystem and independent processes do not replace an explicitly
+authorized actual GitHub/native Keychain smoke. Linux/Windows native credential
+adapters are not supplied and fail closed. No legacy requester identity migration
+or self-approval shortcut is introduced.
+
+Phase 9B adds closed snapshot transfer by bounded stdin, a host action registry,
+separate durable action approval, Podman-only runtime and private bounded evidence.
+The first profile retains network denial, rootless execution, no host mounts and
+the existing 10-second/resource limits; it supports restricted Node actions, not
+general dependency builds. **Real Podman acceptance is pending; the validation CLI
+remains blocked.** See [runtime](docs/phase9b-validation-runtime.md),
+[snapshot transfer](docs/phase9b-snapshot-transfer.md) and
+[verification](docs/VERIFICATION.md#phase-9a3-and-phase-9b). Phase 9C autonomous repair,
+Phase 9D portal, Anthropic engineering and publication remain deferred.
 
 The preceding stabilization milestone has 592 local tests and a separately authorized
 synthetic OpenAI run in 262.44s under a 360s/180s/180s host profile. That historical
@@ -38,8 +55,8 @@ The original `run --workflow implement` fixture recipe remains available:
 SQLite approval. A trusted host API can apply approved changes and exercise the
 bounded repair loop with fixture validation. The original project stays unchanged.
 OpenAI engineering is integrated in the audited `main` and offline E2E tested.
-Anthropic engineering is deferred; real sandbox validation and Gate C remain
-unavailable. Existing inspection provider support is unchanged.
+Anthropic engineering is deferred; sandbox validation components are implemented
+behind the unpassed real acceptance gate. Existing inspection provider support is unchanged.
 No arbitrary request implementation or production autonomy is established by fixtures.
 See [CLI examples](docs/phase9-e2e.md), [design](docs/phase9-architecture.md) and
 [security](docs/phase9-security.md). Version remains **0.8.0**.
@@ -97,11 +114,13 @@ was implemented.
 
 | Area | Current behavior |
 |---|---|
-| Workflow | Existing SDD/inspection plus opt-in fixture/OpenAI engineering; private L2 application through trusted host approvals |
+| Workflow | Existing SDD/inspection plus opt-in fixture/OpenAI engineering; GitHub-authenticated private L2 approval/resume |
+| Developer identity | GitHub App OAuth + PKCE, online account verification, macOS Keychain and scoped host RBAC; live smoke pending |
 | Providers | Fixture offline mode; explicit OpenAI engineering/inspection; Anthropic Messages inspection retained |
 | Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
 | Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
 | Isolation | Explicit rootless Podman Machine profile; Docker runtime execution was removed in 0.6.0 |
+| Sandbox validation | Bounded snapshot transfer, restricted host Node profiles, independent action approval and private evidence; real gate pending, CLI disabled |
 | Observability | Opt-in bounded telemetry, in-memory/private rotating JSONL sinks, traces and metrics |
 | Evaluations | Existing deterministic suite plus independent phase9 offline filesystem/SQLite/repair scenarios; known fixtures only |
 
@@ -205,6 +224,8 @@ documented in [DEDICATED-PODMAN-RUNNER.md](docs/DEDICATED-PODMAN-RUNNER.md).
 - [Repository map](docs/REPOSITORY.md) — implemented workspace packages
 - [Roadmap](docs/ROADMAP.md) — status through partial Phase 9
 - [Verification](docs/VERIFICATION.md) — local evidence, hosted CI and isolation status
+- [GitHub authentication](docs/phase9-github-authentication.md) · [App setup](docs/phase9-github-app-setup.md) · [Operational L2](docs/phase9-operational-l2.md)
+- [Phase 9B runtime](docs/phase9b-validation-runtime.md) · [snapshot transfer](docs/phase9b-snapshot-transfer.md) · [security](docs/phase9b-security.md) · [acceptance](docs/phase9b-e2e.md)
 - [Versioning](docs/VERSIONING.md) — pre-1.0 policy
 - [Phase 8 integration](docs/phase8-integration.md) · [security](docs/phase8-security.md) · [E2E](docs/phase8-e2e.md) · [release checklist](docs/RELEASE-CHECKLIST.md)
 - [Phase 4 providers](docs/phase4-security.md) · [Phase 5 Podman](docs/phase5-security.md)

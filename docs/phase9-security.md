@@ -1,13 +1,18 @@
 # Phase 9 threat model
 
-## Phase 9A.2 security boundary
+## Phase 9A.3 authentication and Phase 9B boundary
 
 Core L2 Resume adds private authenticated artifacts, SQLite v2 immutable proposal
 bindings, scoped decisions through the existing approval service, and leased
 apply-only continuation. Host state stays outside the source project. HMAC keys are
 0600 host-owned random material; no identity is authenticated with a content hash.
-Independent per-action/resource identity verification is an injected port, without
-a deployed production implementation. CLI lifecycle commands remain disabled.
+GitHub App OAuth + PKCE now supplies per-action/resource identity verification.
+The host verifies app-bound OAuth credentials and `/user` online; no JWT claim is
+an authenticated identity. Numeric account IDs, current scoped role assignments and
+expiration are rechecked. macOS Keychain protects access/refresh tokens and the App
+secret outside the project; other OS adapters fail closed. CLI lifecycle access
+requires that verified session and does not accept credentials in argv. Live
+GitHub/native Keychain acceptance remains pending. See [authentication](phase9-github-authentication.md).
 Requester self-approval, challenge/patch/policy/snapshot substitution and consumption
 replay fail closed. Reader, approver and operator entitlements are separate.
 
@@ -24,9 +29,14 @@ Artifacts include sensitive patch/diff only in private files, never telemetry. T
 new engineering.resume observer event admits closed labels/operation IDs only;
 observer failure cannot authorize or alter durable state. No credentials, private
 paths, SQL, source or patch bodies enter error/telemetry messages. Original source is
-read-only and generated code is not executed. Fixtures validate core behavior, not
-real IdP/IPC security. Operational authentication, key rotation/backup/retention and
-independent review remain gates. See [implemented threat/protocol details](phase9-l2-approval-resume-design.md).
+read-only. Ordinary tests do not execute generated code. Phase 9B supplies a bounded
+stdin snapshot transport and fixed host Node validation profiles through the
+existing Podman-only restrictions, separate independent shell action approval and
+durable evidence. The CLI remains gated pending actual isolation/transfer/workload
+acceptance. Fixtures validate composition, not live identity/storage or VM safety.
+Key rotation/backup/retention and independent review remain operational duties.
+See [implemented threat/protocol details](phase9-l2-approval-resume-design.md) and
+[Phase 9B threat model](phase9b-security.md).
 
 
 Experimental local engineering, trusted host and private same-user filesystem.
@@ -66,7 +76,7 @@ receipt against the durable creation digest and never grants retry. Cleanup is a
 separate exact-snapshot host-only operation and preserves uncertain workspaces.
 Current evidence and unpassed gates are listed in [verification](phase9-e2e.md).
 
-## Phase 9A OpenAI security review
+## Historical Phase 9A OpenAI security review
 
 The model receives only explicitly selected source text/hashes, bounded advisory
 history, diagnostic identity and relative-path/operation policy. It receives no

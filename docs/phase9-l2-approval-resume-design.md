@@ -1,11 +1,13 @@
-# Phase 9A.2 — durable independent approval and continuation
+# Phase 9 — durable independent approval and continuation
 
-Implementation baseline: `2746500e6787`, version **0.8.0**, branch
-`feat/phase9-l2-durable-approval-resume`. This document supersedes the preceding
-design-only proposal. **Core L2 Resume** is implemented for a trusted embedding host
-with deterministic authentication fixtures in tests. **Operational L2 Resume is
-blocked**: no deployed independent authenticator or authenticated CLI/IPC endpoint
-is supplied. Local verification is recorded in [VERIFICATION](VERIFICATION.md#phase-9a2-durable-l2-resume).
+Core implementation baseline: `2746500e6787`; GitHub authentication development
+starts at `fff4932f13f0` on `feat/phase9-github-auth-podman-validation`. Version
+remains **0.8.0**. **Core L2 Resume** persists private exact proposals and resumes
+independently approved patches across processes. Phase 9A.3 supplies GitHub App
+OAuth + PKCE, macOS Keychain, online App/user verification and exact host role scope
+to the existing broker/coordinator. Authenticated CLI composition is offline
+verified; actual two-identity GitHub/native Keychain acceptance remains pending.
+Current verification is recorded in [VERIFICATION](VERIFICATION.md#phase-9a3-and-phase-9b).
 No production autonomy, L3, uncertain replay, external exactly-once effects, or
 original-project integration is claimed.
 
@@ -20,7 +22,8 @@ original-project integration is claimed.
 | EngineeringRecoveryService | application: artifact/policy/operation/receipt/source/inventory/patch/diff reconciliation |
 | ExecutionLeaseManager | application: sanitized wrapper over transactional journal lease operations |
 | ContinuationCoordinator | application: authenticated apply-only orchestration through existing `ToolDispatcher` |
-| CLI | persists isolated proposals; lifecycle group refuses access without deployed authentication |
+| GitHub authentication | security-owned protocol/identity/RBAC and CLI-owned protected host/session adapters |
+| CLI | requires authenticated scoped requester, resolves execution IDs through trusted host journals and exposes authenticated lifecycle |
 
 Application composes checkpointing, security and tools. Checkpointing depends only
 on contracts. No provider-specific data appears in approval/resume contracts.
@@ -204,11 +207,14 @@ pnpm harness engineering reject --id EXECUTION_ID
 pnpm harness engineering continue --id EXECUTION_ID
 ```
 
-All lifecycle commands currently return structured `authentication_required` without
-reading private data or writing state. They do not accept credentials/identities in
-arguments. This is intentional: **there is no configured deployed authenticator**.
-The embedding API uses exact operation IDs after host resolution of an execution;
-it is not an end-user authentication or execution-ID authorization shortcut.
+Lifecycle commands require the fixed private GitHub host configuration and an online
+verified session. They do not accept credentials/identities in arguments. Without a
+valid session they return structured `authentication_required`; scoped role and
+resource failures remain closed. The embedding API still uses exact operation IDs
+after trusted execution-ID resolution. New proposals persist canonical GitHub IDs;
+legacy `cli-host` records are never silently migrated or attributed to an account.
+`engineering revoke` is also available to an authorized approver. See
+[authentication](phase9-github-authentication.md) and [Operational L2](phase9-operational-l2.md).
 
 ## Acceptance and remaining gates
 
@@ -222,7 +228,13 @@ partial effects, ambiguous commit acknowledgment, cancellation, timeout, legacy
 migration and bounded telemetry are covered. [Verification](VERIFICATION.md#phase-9a2-durable-l2-resume)
 records exact commands/counts; fixtures do not prove real deployed authentication.
 
-Operational L2 requires selecting/reviewing a real independent identity and credential
-channel, effective access/replay controls, host backup/retention/key procedures,
-security review and operational tests before CLI/IPC activation. Phase 9B/9C, L3,
-Podman changes, Anthropic engineering, publication and integration are outside this work.
+The new GitHub composition retains the same approval/lease/storage boundaries and
+adds online app/account, role and resource checks. Operational acceptance still
+requires the authorized actual GitHub/native Keychain smoke and two independent
+accounts; fixture HTTP cannot satisfy it. Host backup/retention/key procedures and
+same-UID filesystem limits remain. The existing default approval window is 60
+seconds; login time never extends it. Phase 9B adds a separate approved validation
+operation only after completed consumed patch application, without replaying the
+patch or granting shell authority from its approval. Current live sandbox acceptance
+is pending; Phase 9C repair, Anthropic engineering, publication and source integration
+remain deferred.

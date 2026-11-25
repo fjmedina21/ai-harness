@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { main } from "../index.js";
+import { main as cliMain } from "../index.js";
+import { GitHubAuthError } from "@ai-harness/security";
+const main: typeof cliMain = (argv, cwd, output, signal) => cliMain(argv, cwd, output, signal, async () => { throw new GitHubAuthError("authentication_required"); });
 for (const action of ["status", "diff", "approve", "reject", "continue"]) test("engineering " + action + " fails closed without a deployed authenticator", async () => {
   const output: string[] = [];
   assert.equal(await main(["engineering", action, "--id", "execution-id", "--json"], process.cwd(), text => output.push(text)), 1);

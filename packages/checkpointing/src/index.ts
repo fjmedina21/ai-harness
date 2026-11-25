@@ -97,3 +97,4 @@ export type { SqliteJournalOptions } from "./sqlite-journal.js";
 export { EngineeringCheckpointStore } from "./engineering-checkpoint.js";
 
 export { ProposalArtifactStore, sealProposalArtifact } from "./proposal-artifact-store.js";
+export { FileValidationEvidenceStore } from "./validation-evidence-store.js";

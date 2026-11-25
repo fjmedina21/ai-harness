@@ -14,10 +14,14 @@ export class NodeProcessRunner implements ProcessRunner {
       throw new ProcessExecutionError("start_failed");
     }
     if (options.signal?.aborted) throw new ProcessExecutionError("cancelled");
+    if (options.stdinBytes !== undefined && (!(options.stdinBytes instanceof Uint8Array) || options.stdinBytes.byteLength > 6 * 1024 * 1024)) {
+      throw new ProcessExecutionError("start_failed");
+    }
+    const input = options.stdinBytes === undefined ? undefined : Buffer.from(options.stdinBytes);
     return new Promise((resolve, reject) => {
       const child = spawn(executable, [...args], {
         shell: false, detached: process.platform !== "win32", windowsHide: true,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
         // Preserve the host temp directory: Podman Machine derives its macOS
         // socket identity from it. Never forward ambient provider/runtime options.
         env: { PATH: "/usr/local/bin:/usr/bin:/bin", HOME: process.env.HOME ?? "", TMPDIR: tmpdir() },
@@ -47,7 +51,7 @@ export class NodeProcessRunner implements ProcessRunner {
         } catch { /* close still determines whether termination is confirmed */ }
         killDeadline = setTimeout(() => {
           failure = "termination_unconfirmed";
-          child.stdout.destroy(); child.stderr.destroy(); child.unref();
+          child.stdin?.destroy(); child.stdout!.destroy(); child.stderr!.destroy(); child.unref();
           finish(null);
         }, 1000);
       };
@@ -59,12 +63,14 @@ export class NodeProcessRunner implements ProcessRunner {
         if (bytes > 4096) { stop("output_limit"); return; }
         chunks.push(Buffer.from(data));
       };
-      child.stdout.on("data", (data: Buffer) => capture(stdout, data));
-      child.stderr.on("data", (data: Buffer) => capture(stderr, data));
+      child.stdout!.on("data", (data: Buffer) => capture(stdout, data));
+      child.stderr!.on("data", (data: Buffer) => capture(stderr, data));
+      child.stdin?.on("error", () => stop("start_failed"));
       child.on("error", () => { failure ??= "start_failed"; finish(null); });
       child.on("close", (code) => finish(code));
       options.signal?.addEventListener("abort", abort, { once: true });
       if (options.signal?.aborted) abort();
+      if (input !== undefined) child.stdin!.end(input);
     });
   }
 }

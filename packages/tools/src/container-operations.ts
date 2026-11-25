@@ -1,4 +1,5 @@
 /** Fixed host test probes. Never registered as model tools or accepted as source text. */
+import { VALIDATION_RECEIVER } from "./validation-receiver.js";
 const DENIED_NETWORK_ERROR_CODES = ["EACCES", "EPERM", "ENETUNREACH", "EHOSTUNREACH", "ENETDOWN"] as const;
 export function isNetworkDeniedError(code: unknown): boolean {
   return typeof code === "string" && DENIED_NETWORK_ERROR_CODES.includes(code as typeof DENIED_NETWORK_ERROR_CODES[number]);
@@ -31,5 +32,6 @@ export const FIXED_CONTAINER_OPERATIONS = Object.freeze({
   "node.version": Object.freeze(["--version"] as const),
   "isolation.inspect": Object.freeze(["-e", inspection] as const),
   "isolation.wait": Object.freeze(["-e", "setInterval(()=>{},1000)"] as const),
+  "engineering.validate": Object.freeze(["-e", VALIDATION_RECEIVER] as const),
 } as const);
 export type FixedContainerOperation = keyof typeof FIXED_CONTAINER_OPERATIONS;

@@ -1,26 +1,36 @@
 # AI Harness — implementation roadmap
 
-## Phase 9A.2 — durable approval/resume core
+## Phase 9A.3 and Phase 9B — current development
 
-Implemented locally from `2746500e6787` on feat/phase9-l2-durable-approval-resume;
-version remains 0.8.0. Core: private HMAC proposal/diff artifacts, immutable SQLite
+Implemented locally from `fff4932f13f0` on `feat/phase9-github-auth-podman-validation`;
+version remains 0.8.0. Existing core: private HMAC proposal/diff artifacts, immutable SQLite
 references, scoped independent decisions through DurableApprovalService, CAS leases
 with monotonic epochs/history, revalidated apply-only continuation and conservative
 crash recovery. No provider call or generated-code execution occurs on resume.
 Three-process and failure/concurrency/security coverage uses fixture authentication;
 see [verification](VERIFICATION.md#phase-9a2-durable-l2-resume).
 
-Operational L2 is blocked pending deployed independent authentication, access/replay
-controls, host storage/key/retention procedures and operational security acceptance.
-Lifecycle CLI commands are recognized but disabled; isolated generation persists
-proposals. Phase 9B/9C and L3 have not started. No Podman/Anthropic engineering or
-version milestone/publication is included. Full details: [L2 design](phase9-l2-approval-resume-design.md).
+GitHub-only App OAuth + PKCE, protected macOS sessions, online App/user validation,
+stable numeric-ID scoped RBAC and authenticated L2 CLI are implemented. Offline
+GitHub HTTP plus real multiprocess journal/artifact tests verify composition.
+Actual GitHub/native Keychain and two-identity Operational L2 acceptance remain
+pending explicit owner authorization. Other OS credential adapters remain deferred.
+
+Phase 9B implements closed snapshot stdin transfer, a restricted Node action
+registry, separately approved dispatcher execution, existing Podman isolation and
+durable private evidence. Real workload/isolation acceptance remains pending and
+`engineering validate` stays blocked. General package-manager/native builds are
+outside this initial unchanged noexec/resource profile. Phase 9C autonomous repair
+and Phase 9D documentation portal have not started. No push, merge, tag, release,
+deployment, package publication or 0.9.0 promotion is included. See
+[Operational L2](phase9-operational-l2.md), [runtime](phase9b-validation-runtime.md)
+and [current gates](VERIFICATION.md#phase-9a3-and-phase-9b).
 
 
 This status follows the implemented code. Earlier broad architecture proposals
 are targets, not evidence that those capabilities were delivered.
 
-## Phase 9A stabilization — local work
+## Historical Phase 9A stabilization — local work
 
 Starting at 082d46fa6d48, feat/phase9a-stabilization adds finite layered deadlines,
 monotonic acceptance checks, bounded phase/role telemetry and a real-filesystem/
@@ -71,7 +81,7 @@ of this work; 0.8.0 remains experimental.
 | 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Implemented and integrated; experimental foundations; real local SQLite tests passed |
 | 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Implemented and integrated; experimental foundations; historical CI/evaluations retained |
 | 8 | Read-only CLI, three-agent integration, explicit providers, authorized tools, optional persistence/diagnostics, offline E2E, standard CI and documented security | **Implemented — offline E2E validated; external validation gates deferred** |
-| 9 | Private workspaces, controlled patches/approvals, bounded fixture repair and fixture/OpenAI CLI | **Integrated partial L1/L2, offline tested; synthetic OpenAI live pass under temporary long profile; L3 blocked** |
+| 9 | Private workspaces, controlled patches/approvals, fixture/OpenAI CLI, GitHub authenticated L2 and restricted sandbox components | **Partial, experimental; new auth/L2 offline verified, live GitHub/Podman gates pending; validation CLI blocked; 9C/9D deferred** |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through

@@ -322,7 +322,17 @@ class SqliteOperationJournal implements EngineeringResumeStore {
     check(op && op.version === version && (!own || (this.executionHealthy && op.ownerSession === this.session)));
     if (own && this.lease(op.executionId)) {
       const lease = this.lease(op.executionId)!;
-      check(lease.operationId === op.operationId); this.assertLease(lease);
+      if (lease.operationId === op.operationId) this.assertLease(lease);
+      else {
+        // A historical completed patch lease is never transferred to validation.
+        // Only a new independently approved, session-owned sandbox operation may follow it.
+        const patch = this.get(lease.operationId), grant = patch?.approvalId && this.approval(patch.approvalId);
+        check(op.toolId === "sandbox.validate" && op.taskId === "sandbox-validation" && op.permission === "shell:execute" &&
+          op.risk === "high" && op.safety === "side_effecting" && op.requiresApproval &&
+          patch?.executionId === op.executionId && patch.toolId === "patch.apply" && patch.state === "Completed" &&
+          grant && grant.status === "consumed" && grant.approver &&
+          (grant.approver.issuer !== grant.requester.issuer || grant.approver.subject !== grant.requester.subject));
+      }
     }
     return op;
   }

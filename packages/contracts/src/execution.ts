@@ -18,6 +18,8 @@ export type ProcessFailureKind =
 export type CleanupStatus = "not_needed" | "confirmed" | "uncertain";
 export interface ProcessRunOptions {
   signal?: AbortSignal;
+  /** Bounded host-owned input, never source in argv or a model-selected shell. */
+  stdinBytes?: Uint8Array;
 }
 export interface ProcessResult {
   exitCode: number;

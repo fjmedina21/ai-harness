@@ -208,3 +208,6 @@ export * from "./engineering-validation.js";
 export * from "./engineering-recovery.js";
 export * from "./engineering-cleanup.js";
 export { parseEngineeringModelOutput } from "./engineering-model-output.js";
+export * from "./validation-snapshot.js";
+export * from "./snapshot-validation-runtime.js";
+export * from "./validation-coordinator.js";

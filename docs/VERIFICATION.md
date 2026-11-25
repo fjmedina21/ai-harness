@@ -1,5 +1,52 @@
 # Verification — current source version 0.8.0
 
+## Phase 9A.3 and Phase 9B
+
+Date: 2026-11-25. Starting commit `fff4932f13f0e23fcee9797703de7295f1582f90`,
+clean `main` synchronized with `origin/main` after fetch. Development branch:
+`feat/phase9-github-auth-podman-validation`. Version remains **0.8.0**.
+The baseline build and **647/647 tests** passed before these changes.
+
+| Evidence | Scope / status |
+| --- | --- |
+| Baseline | Build and 647/647 tests passed |
+| Final clean/build/full suite | Clean/build passed; final build/test rerun **763/763 passed**, zero failures/cancellations/skips |
+| CLI help/version checkpoint | Passed; version 0.8.0 experimental |
+| Deterministic evaluation checkpoint | 19/19 scenarios, 42/42 assertions |
+| Phase 9 evaluation checkpoint | 10/10 scenarios/assertions |
+| OAuth | Deterministic GitHub HTTP and local loopback callbacks; no real GitHub login |
+| Operational L2 | Real temporary filesystem/SQLite and separate CLI processes, mocked app/user HTTP; exact approved patch, independent stable identities, zero provider calls on resume |
+| Snapshot/Podman components | Deterministic manifests, staging/profiles/coordinator/evidence tests; mocked Podman metadata/lifecycle |
+| Actual GitHub / macOS Keychain | **NOT RUN — owner-authorized live smoke pending** |
+| Actual Podman workload/isolation | **NOT RUN — owner-authorized opt-in Gate C pending** |
+| Validation CLI | Recognizes target arguments; **blocked** at live acceptance gate |
+| Paid provider calls | **NOT RUN**; native provider HTTP is mocked |
+| Hosted CI / publication | Owner authorized merge/push after local verification; post-publication CI must be verified for the resulting commit |
+
+The new focused cases comprise 42 OAuth/session tests, 16 authentication CLI and
+private-profile cases, 8 GitHub-authenticated multiprocess L2 cases, 47 snapshot/
+validation cases and 3 receiver/transport/opt-in-guard cases. The remaining 647
+baseline cases also pass, with unauthenticated isolated CLI expectations updated
+to the required GitHub gate. Local Node is 24.18.0 and pnpm is 12.21.0.
+`git diff --check` passes. All 194 local Markdown file links checked resolve.
+No credentials or generated files are included in the publication scope. The owner
+subsequently authorized commit, merge and push; that publication does not satisfy
+the live OAuth or Podman gates. No release, tag, package publication or real
+provider call is authorized by this change.
+
+Gate A is **offline verified, live pending**. Gate B has offline authenticated
+cross-process composition evidence; actual two-account operational acceptance is
+pending. Gate C has offline components, with real local isolation/transfer/action/
+resource/cancellation/cleanup acceptance pending. Remote dedicated Podman may remain
+deferred for the experimental local-first scope. Missing opt-in tests are not
+reported as passed. No production-safety claim follows.
+
+Setup and protocol: [GitHub App](phase9-github-app-setup.md),
+[authentication](phase9-github-authentication.md), [Operational L2](phase9-operational-l2.md).
+Validation: [snapshot](phase9b-snapshot-transfer.md), [runtime](phase9b-validation-runtime.md),
+[security](phase9b-security.md), [real acceptance procedure](phase9b-e2e.md).
+The sections below retain historical evidence for their named commits and phases.
+
 ## Phase 9A.2 durable L2 resume
 
 Date: 2026-11-25. Baseline `2746500e6787` (`main == origin/main` after fetch and

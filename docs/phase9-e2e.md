@@ -1,5 +1,53 @@
 # Phase 9 verification and delivery report
 
+## Phase 9A.3 and Phase 9B — current evidence
+
+Starting commit `fff4932f13f0`; development branch
+`feat/phase9-github-auth-podman-validation`; version **0.8.0**. The baseline build
+and **647/647** tests passed. Current final command results are in
+[verification](VERIFICATION.md#phase-9a3-and-phase-9b).
+
+GitHub tests exercise authorization URL/PKCE, state/path/Host checking, one-use
+callback/timeout/cancellation/concurrent login, sanitized token errors, missing/
+expired/revoked/wrong identity, secure-storage port behavior and current scoped
+roles. Actual CLI worker processes compose the real OAuth client with mocked
+GitHub app/user responses, real SQLite/private artifacts and exact continuation.
+They check stable-account self-approval rejection, independent approval, wrong
+scope/role/account, denial/revocation/replay, original unchanged and zero provider
+calls during resume. Provider-generation HTTP is mocked; no paid call is made.
+
+Phase 9B tests cover closed manifest/bytes, canonical path/link/digest checks,
+profile selection, separate dispatcher approval, changed workspace, replay,
+claims, bounded output and conservative cleanup/evidence. Podman calls are mocked.
+This is offline composition evidence only: real GitHub/native Keychain and real
+Podman workloads have **not run**. The validation CLI remains gated. No skipped
+opt-in run is a pass; Phase 9C autonomous repair is not implemented.
+
+```sh
+pnpm harness auth login
+pnpm harness auth whoami
+pnpm harness engineering diff --id EXECUTION_ID
+pnpm harness engineering approve --id EXECUTION_ID
+pnpm harness engineering continue --id EXECUTION_ID
+```
+
+These are owner-operated live commands after [App registration](phase9-github-app-setup.md),
+not commands executed by offline tests. Approval needs a second authorized stable
+GitHub identity. Follow [Operational L2](phase9-operational-l2.md) for prerequisites,
+TTL and exact private host policy. Real smokes require separate authorization:
+
+```sh
+pnpm smoke:github-auth --authorize-live-github-oauth
+HARNESS_AUTHORIZE_PHASE9B_SMOKE=1 HARNESS_ISOLATION_PROFILE=/PRIVATE/approved-profile.json \
+  pnpm test:phase9b-podman
+```
+
+The flags are explicit owner consent for those integrations, not identity or
+approval credentials. Do not run these in ordinary CI. The Podman test does not
+bootstrap a Machine; its profile must already be reviewed. See the
+[real acceptance procedure](phase9b-e2e.md). Historical sections below concern
+their named earlier phases and do not supersede the current implementation.
+
 ## Phase 9A.2 — cross-process durable L2 evidence
 
 Starting commit `2746500e6787`; development branch feat/phase9-l2-durable-approval-resume;

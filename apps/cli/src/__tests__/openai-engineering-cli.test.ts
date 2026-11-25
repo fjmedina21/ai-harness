@@ -16,7 +16,7 @@ async function fixture(t: TestContext) {
     "--max-provider-requests", "6", "--max-output-tokens", "512", "--confirm-provider-call", "--allow-uncertain-cost"];
   const run = (options: { args?: string[]; scenario?: string; credential?: boolean; cancel?: boolean } = {}) => new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", preload, executable, ...(options.args ?? [...args, "--json"])], {
-      cwd: source, env: { PATH: process.env.PATH, ...(options.credential === false ? {} : { OPENAI_API_KEY: "fixture-not-real" }), HARNESS_TEST_OPENAI_SCENARIO: options.scenario ?? "valid" }, stdio: ["ignore", "pipe", "pipe"] });
+      cwd: source, env: { PATH: process.env.PATH, HOME: root, ...(options.credential === false ? {} : { OPENAI_API_KEY: "fixture-not-real" }), HARNESS_TEST_OPENAI_SCENARIO: options.scenario ?? "valid" }, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "", stderr = "", cancelled = false;
     const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("Fixture CLI subprocess deadline")); }, 10000);
     child.stdout.on("data", chunk => { stdout += String(chunk); if (stdout.length > 100000) child.kill("SIGKILL"); });
@@ -43,11 +43,12 @@ test("actual CLI text shows provider, budget, proposal validation, diff and unkn
   const f = await fixture(t), p = await f.run({ args: f.args }); assert.equal(p.code, 0);
   for (const text of ["Provider: openai", "Model: fixture-model", "Budget:", "Patch validation: passed", "Diff:", "Estimated cost: unknown", "L3 gate: blocked"]) assert.ok(p.stdout.includes(text), text);
 });
-test("actual CLI L2 uses real SQLite and remains pending independent approval", async t => {
+test("actual CLI L2 requires GitHub host authentication before creating workspace or calling provider", async t => {
   const f = await fixture(t); const dirs = ["workspace", "journal", "checkpoints"].map(name => path.join(f.root, name)); for (const dir of dirs) await mkdir(dir, { mode: 0o700 });
   const args = [...replace(f.args, "--autonomy", "isolated"), "--authorize-workspace", "--workspace-dir", dirs[0]!, "--journal", path.join(dirs[1]!, "ops.sqlite"), "--checkpoint-dir", dirs[2]!, "--json"];
-  const p = await f.run({ args }); assert.equal(p.code, 2, p.stdout); const r = JSON.parse(p.stdout); assert.equal(r.termination, "approval_required"); assert.equal(r.pendingApprovals.length, 1); assert.equal(r.patches[0].status, "proposed");
-  assert.equal(await readFile(path.join(r.workspace.root, "value.ts"), "utf8"), "export const value = 1;\n");
+  const p = await f.run({ args }); assert.equal(p.code, 1, p.stdout); assert.equal(JSON.parse(p.stdout).error.code, "authentication_required");
+  for (const dir of dirs) assert.deepEqual(await readdir(dir), []);
+  assert.equal(await readFile(path.join(f.source, "value.ts"), "utf8"), "export const value = 1;\n");
 });
 for (const [flag, valued, code] of [["--model", true, "missing_model"], ["--confirm-provider-call", false, "confirmation_required"], ["--allow-uncertain-cost", false, "cost_policy_required"], ["--max-provider-requests", true, "missing_budget"], ["--max-output-tokens", true, "missing_budget"]] as const) test(`CLI requires ${flag} before HTTP`, async t => {
   const f = await fixture(t), p = await f.run({ args: [...remove(f.args, flag, valued), "--json"] }); assert.equal(p.code, 1); assert.equal(JSON.parse(p.stdout).error.code, code);

@@ -24,8 +24,12 @@ function listArgs(filter: string) { return ["container", "ls", "--all", "--no-tr
 /** Host-only fixed operations; the public executor permits node.version only. */
 export async function executeFixedContainer(
   options: ExecutionRuntimeOptions, runner: ProcessRunner, operation: FixedContainerOperation, signal?: AbortSignal,
+  stdinBytes?: Uint8Array,
 ): Promise<HardenedContainerResult> {
   if (!Object.hasOwn(FIXED_CONTAINER_OPERATIONS, operation)) throw new ContainerExecutionError("unsupported_operation", "not_needed", []);
+  if (operation === "engineering.validate" ? !(stdinBytes instanceof Uint8Array) || stdinBytes.byteLength > 6 * 1024 * 1024 : stdinBytes !== undefined) {
+    throw new ContainerExecutionError("invalid_input", "not_needed", []);
+  }
   const states: RuntimeOperationState[] = ["preflight"];
   const deadline = AbortSignal.timeout(10_000);
   const combined = AbortSignal.any([deadline, ...(signal ? [signal] : [])]);
@@ -47,6 +51,7 @@ export async function executeFixedContainer(
     attemptedCreation = true;
     const creation = await runner.run(runtimeExecutable(options), [...prefix,
       "container", "create", "--pull", "never", "--platform", verified.platform,
+      ...(stdinBytes === undefined ? [] : ["--interactive"]),
       "--http-proxy=false", "--image-volume=ignore", "--init=false", "--read-only-tmpfs=false", "--systemd=false",
       "--name", name, "--restart", "no", "--label", `${OWNER_LABEL}=${owner}`, "--network", "none", "--read-only", "--cap-drop", "ALL",
       "--security-opt", "no-new-privileges", "--pids-limit", "64", "--memory", "256m", "--memory-swap", "256m", "--cpus", "0.5",
@@ -74,7 +79,7 @@ export async function executeFixedContainer(
       throw new Error("effective_configuration_mismatch");
     }
     check(); states.push("running");
-    output = await runner.run(runtimeExecutable(options), [...prefix, "container", "start", "--attach", id], 10_000, { signal: combined });
+    output = await runner.run(runtimeExecutable(options), [...prefix, "container", "start", "--attach", ...(stdinBytes === undefined ? [] : ["--interactive"]), id], 10_000, { signal: combined, ...(stdinBytes === undefined ? {} : { stdinBytes }) });
     check();
     if (output.exitCode !== 0) throw new Error("nonzero_exit");
     if (Buffer.byteLength(output.stdout) + Buffer.byteLength(output.stderr) > 4096) throw new Error("output_limit");

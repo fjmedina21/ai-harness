@@ -144,3 +144,4 @@ export * from "./telemetry.js";
 export * from "./engineering.js";
 
 export * from "./engineering-resume.js";
+export * from "./phase9-validation.js";

@@ -1,8 +1,8 @@
 # AI Harness — Especificación maestra de arquitectura
 
-## Phase 9A.2 — durable L2 core
+## Phase 9A.3 and Phase 9B — current implementation
 
-Baseline `2746500e6787`, version 0.8.0. Contracts now describe authenticated private
+Baseline `fff4932f13f0`, version 0.8.0. Contracts describe authenticated private
 proposal artifacts, scoped decisions, independent identity challenges and fenced
 continuation leases. Checkpointing owns canonical HMAC artifacts and the additive
 SQLite v1-to-v2 migration. Security's ApprovalBroker reuses DurableApprovalService;
@@ -11,15 +11,31 @@ apply the exact persisted patch through the existing dispatcher. Host identity,
 receipt/device/inode, selected source inventory, policy and full workspace inventory
 are checked again before effects. Prepared/Running/Uncertain cannot transfer leases.
 
-Core L2 Resume is tested with independent authentication fixtures and actual
-multiprocess filesystem/SQLite; continuation has no provider port. Operational L2
-remains blocked without a deployed authenticator. CLI isolated requests persist
-proposals, while lifecycle commands return authentication_required. Existing L0/L1,
-complete(), source read-only behavior and same-session approvals remain compatible.
-No generated code execution, original-project mutation, L3 or publication is enabled.
+GitHub authentication now precedes the existing durable services. Security owns
+Authorization Code + PKCE, app-bound token and `/user` verification, stable numeric
+identity and scoped host RBAC. CLI owns fixed private host-profile loading and the
+macOS Keychain/browser adapters. New isolated requests store canonical GitHub
+requesters; lifecycle commands supply an ephemeral host handle to ApprovalBroker,
+which revalidates the session online and retains exact action/resource binding.
+Model providers remain independent, and continuation still has no provider port.
+
+Phase 9B contracts/tools add a closed manifest/byte snapshot, bounded stdin transfer
+to a fixed Node receiver, an immutable host action registry and a coordinator using
+the same ToolDispatcher/journal. Checkpointing owns private create-only validation
+evidence. Separate independent `shell:execute` action approval and a trusted host
+live-acceptance verifier are required. The rootless Podman-only security profile
+is reused; no Docker runtime, host binds or generated command strings are added.
+
+Mocked GitHub/Podman tests and actual multiprocess filesystem/SQLite verify offline
+composition. Real GitHub/native Keychain and current-code Podman acceptance remain
+pending; the validation CLI stays blocked. Existing L0/L1, complete(), read-only
+source and trusted same-session APIs remain compatible. No original-project
+mutation, autonomous sandbox repair, publication or production safety is claimed.
 See the [implemented design](phase9-l2-approval-resume-design.md) for contracts,
 schema, migration/rollback, lease history, authentication and limits. Later sections
 retain architecture targets and historical implementation snapshots.
+See [GitHub authentication](phase9-github-authentication.md) and
+[validation runtime](phase9b-validation-runtime.md) for the new host boundaries.
 
 
 > **Alcance:** este documento conserva decisiones y objetivos de arquitectura
@@ -51,7 +67,7 @@ retain architecture targets and historical implementation snapshots.
   despliegues. Las decisiones siguientes describen objetivos y restricciones;
   no certifican que cada capacidad exista.
 
-### Cierre experimental de Fase 8 y preparación de Fase 9
+### Historical Phase 8 closure and Phase 9 preparation
 
 Baseline integrado: `c87d22f` (PR #3); CI estándar
 [45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893)

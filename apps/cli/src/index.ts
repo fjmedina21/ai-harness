@@ -2,6 +2,7 @@
 import path from "node:path";
 import { engineeringCommand, engineeringLifecycleCommand } from "./engineering-cli.js";
 import { diagnosticCommand } from "./diagnostics-cli.js";
+import { authCommand, loadGitHubHost, type GitHubHost } from "./github-host.js";
 import { readPrivateCostRates } from "./rates.js";
 import { executeRun, getRunStatus } from "./runtime-cli.js";
 import { inspectWorkflowOperations, runReadOnlyWorkflow, type ProviderSelection } from "@ai-harness/application";
@@ -17,6 +18,7 @@ export async function main(
   cwd = process.cwd(),
   output = console.log,
   signal?: AbortSignal,
+  hostLoader: () => Promise<GitHubHost> = loadGitHubHost,
 ): Promise<number> {
   const [command, ...args] = argv;
   if (
@@ -77,10 +79,11 @@ export async function main(
         return 0;
       }
 
-      case "engineering": return engineeringLifecycleCommand(args, output);
+      case "auth": return authCommand(args, output, signal, hostLoader);
+      case "engineering": return engineeringLifecycleCommand(args, output, signal, hostLoader);
 
       case "run": {
-        if (optionValue(args, "--workflow") === "implement") return engineeringCommand(args, cwd, output, signal);
+        if (optionValue(args, "--workflow") === "implement") return engineeringCommand(args, cwd, output, signal, hostLoader);
         rejectUnknown(args, ["--path", "--request", "--provider", "--workflow", "--model", "--fixture-file", "--journal", "--telemetry-dir", "--timeout-ms", "--rates", "--max-output-tokens", "--max-provider-requests"], ["--confirm-provider-call", "--json"]);
 
         const request = optionValue(args, "--request");
@@ -278,7 +281,10 @@ function help(): string {
   \n       [--fixture-file FILE]
   \n       [--journal ABSOLUTE_FILE] [--telemetry-dir PRIVATE_DIR] [--rates PRIVATE_JSON]
   \n       [--timeout-ms N] [--json]
-  \n  engineering status|diff|approve|reject|continue --id ID (requires independent host authentication; disabled)\n  run --workflow implement --autonomy propose|isolated --path DIR --request TEXT --provider fixture
+  \n  auth login|whoami|status|refresh|logout [--json]   GitHub App authentication with protected host sessions
+  \n  engineering status|diff|approve|reject|revoke|continue --id ID [--json] (GitHub scoped roles required)
+  \n  engineering validate --id ID --profile PROFILE --action ACTION (real acceptance pending)
+  \n  run --workflow implement --autonomy propose|isolated --path DIR --request TEXT --provider fixture
   \n       --files FILES_CSV --fixture-file FILE --fixture-content TEXT [--json]
   \n       [--workspace-dir PRIVATE_DIR --journal PRIVATE_FILE --checkpoint-dir PRIVATE_DIR --authorize-workspace]
   \n       [--max-iterations N] [--timeout-ms N]
@@ -295,7 +301,7 @@ function help(): string {
 
   \n  inspect supports only host-authorized read-only file access; it does not edit files or run tests.
   \nReal-provider calls can incur charges and require --confirm-provider-call, --model, an output/request budget and a host environment credential.
-  \nImplement supports fixture recipes or OpenAI with --model, --max-provider-requests, --max-output-tokens, --confirm-provider-call and --allow-uncertain-cost. Independent --timeout-ms (global), --request-timeout-ms, --role-timeout-ms and --finalization-timeout-ms select finite host deadlines. Optional --max-total-tokens, --max-context-tokens, --max-context-bytes, --max-agent-turns, --allowed-paths and --operations narrow host limits. Isolated mode stops pending approval; real Podman validation is blocked.\nNot exposed by the CLI: resume, approval decisions, deployment, Git writes, shell, real isolated execution, dashboard.`;
+  \nImplement supports fixture recipes or OpenAI with --model, --max-provider-requests, --max-output-tokens, --confirm-provider-call and --allow-uncertain-cost. Independent --timeout-ms (global), --request-timeout-ms, --role-timeout-ms and --finalization-timeout-ms select finite host deadlines. Optional --max-total-tokens, --max-context-tokens, --max-context-bytes, --max-agent-turns, --allowed-paths and --operations narrow host limits. Isolated mode requires a GitHub requester and trusted host policy and stops pending independent approval; real Podman validation is blocked.\nNot exposed by the CLI: deployment, Git writes, arbitrary shell, real validation workloads, dashboard.`;
 }
 
 function limitOutput(value: string): string {

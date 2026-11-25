@@ -13,9 +13,13 @@
     "check": "tsc -b --pretty false",
     "test": "pnpm run build && node --test packages/*/dist/__tests__/*.test.js apps/*/dist/__tests__/*.test.js",
     "test:isolation": "pnpm run build && node packages/tools/dist/integration/isolation.js",
+    "test:phase9b-podman": "pnpm run build && node packages/tools/dist/integration/phase9-validation.js",
+    "test:github-auth": "pnpm run build && node --test packages/security/dist/__tests__/github-auth.test.js apps/cli/dist/__tests__/github-auth-cli.test.js apps/cli/dist/__tests__/github-operational-l2.test.js",
+    "test:phase9b": "pnpm run build && node --test packages/tools/dist/__tests__/phase9-validation.test.js packages/tools/dist/__tests__/validation-transfer-process.test.js",
     "bench:engineering": "pnpm run build && node packages/application/dist/engineering-benchmark.js",
     "smoke:engineering-openai": "pnpm run build && node apps/cli/dist/engineering-provider-smoke.js",
     "smoke:real-provider": "pnpm run build && node apps/cli/dist/real-provider-smoke.js",
+    "smoke:github-auth": "pnpm run build && node apps/cli/dist/github-auth-smoke.js",
     "harness": "node apps/cli/dist/index.js",
     "dev": "pnpm run build && pnpm harness --help"
   },

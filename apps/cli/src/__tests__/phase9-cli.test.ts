@@ -3,7 +3,9 @@ import test, { type TestContext } from "node:test";
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { main } from "../index.js";
+import { main as cliMain } from "../index.js";
+import { GitHubAuthError } from "@ai-harness/security";
+const main: typeof cliMain = (argv, cwd, output, signal) => cliMain(argv, cwd, output, signal, async () => { throw new GitHubAuthError("authentication_required"); });
 async function setup(t: TestContext) {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), "harness-phase9-cli-"))), source = path.join(root, "source");
   await mkdir(source, { mode: 0o700 }); await writeFile(path.join(source, "value.ts"), "before\n", { mode: 0o600 });
@@ -24,15 +26,15 @@ test("CLI L1 text shows plan, scope, provider, budget, diff, risk and states", a
   assert.equal(await main(f.args, f.root, line => output.push(line)), 0);
   for (const word of ["Plan:", "Permissions:", "Provider:", "Budget:", "Diff:", "Risk:", "States:", "L3 gate: blocked"]) assert.ok(output.join("\n").includes(word));
 });
-test("CLI isolated mode creates external workspace but pauses at independent durable approval", async t => {
+test("CLI isolated mode without GitHub configuration fails before workspace creation", async t => {
   const f = await setup(t), output: string[] = [];
   const directories = ["workspaces", "journal", "checkpoints"].map(name => path.join(f.root, name));
   for (const directory of directories) await mkdir(directory, { mode: 0o700 });
   const args = f.args.map(a => a === "propose" ? "isolated" : a);
   const code = await main([...args, "--workspace-dir", directories[0]!, "--journal", path.join(directories[1]!, "ops.sqlite"), "--checkpoint-dir", directories[2]!, "--authorize-workspace", "--json"], f.root, line => output.push(line));
-  assert.equal(code, 2); const result = JSON.parse(output.join(""));
-  assert.equal(result.termination, "approval_required"); assert.equal(result.pendingApprovals.length, 1); assert.equal(result.patches[0].status, "proposed");
-  assert.ok(result.workspace.root.startsWith(directories[0])); assert.equal(await readFile(path.join(result.workspace.root, "value.ts"), "utf8"), "before\n");
+  assert.equal(code, 1); const result = JSON.parse(output.join(""));
+  assert.equal(result.error.code, "authentication_required");
+  for (const directory of directories) assert.deepEqual(await readdir(directory), []);
   assert.deepEqual(await readdir(f.source), ["value.ts"]);
 });
 for (const extra of [["--provider", "openai"], ["--autonomy", "repair"], ["--autonomy", "isolated"], ["--files", "../escape"], ["--max-iterations", "0"], ["--unexpected", "true"]]) test(`CLI rejects unsupported authority or malformed option ${extra.join(" ")}`, async t => {
