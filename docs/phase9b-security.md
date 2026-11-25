@@ -59,13 +59,15 @@ prove effective VM networking/cgroups/seccomp or native cancellation/cleanup.
 The [real acceptance suite](phase9b-e2e.md) must be explicitly authorized and run
 on a disposable dedicated rootless Machine before Gate C passes. Historical
 Phase 5 evidence or standard hosted CI is not a substitute for current transport
-and generated-workload tests. Remote dedicated-runner acceptance may remain
-deferred for this experimental local scope.
+and generated-workload tests. Remote dedicated-runner acceptance is **DEFERRED** for the current local-first
+scope; ordinary remote CI does not certify it.
 
 Both fixed real local runtime suites passed with explicit owner authorization on
 2026-11-25, including effective isolation probes and synthetic snapshot actions.
-This is scoped runtime evidence, not complete durable authenticated Gate C acceptance;
-see the [report and remaining requirements](phase9-real-acceptance-report.md).
+The [actual report](phase9-real-acceptance-report.md) additionally records native
+human approval, durable multiprocess coordination and fresh actual CLI validation.
+Those results accept only the documented local fixed Node scope; they neither
+accept remote infrastructure nor renew a private acceptance after expiry.
 
 No autonomous repair, automatic retry of uncertain validation, exact-once claim,
 original-project integration, Git mutation, deployment or production-security

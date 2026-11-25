@@ -1,7 +1,11 @@
 # Real acceptance — single developer and durable Podman
 
-Date **2026-11-25**. Version **0.8.0**. Implementation commit `0e0d9cd`, base `df501d8`, local feature branch
-`feat/single-developer-podman-gate`. No push, merge, tag, release or remote CI claim.
+Date **2026-11-25**. Version **0.8.0**. Implementation commit `0e0d9cd`, base `df501d8`, original feature branch
+`feat/single-developer-podman-gate`. The original local report preceded publication.
+The owner later authorized merge/push to main at `6148e9e`; [ordinary remote CI
+run 45708916081](https://github.com/fjmedina21/ai-harness/actions/runs/45708916081)
+passed build-test, Build, Test and CLI smoke for that exact SHA. No tag or release
+is claimed. Dedicated remote Podman validation remains **DEFERRED**.
 
 **Gate C: LIVE VERIFIED / accepted only for the local registered gatec-synthetic
 project and exact local-podman fixed Node profiles.** This accepts no other project,
@@ -115,7 +119,8 @@ original source unchanged. Private evidence is in the excluded development folde
 
 BLOCKED: every other project/profile without its own accepted scope; expired/
 changed acceptance; arbitrary shell/native/dependency builds; automatic uncertain
-recovery; remote dedicated-runner acceptance; production autonomy and Phase 9C/9D.
+recovery; production autonomy and Phase 9C/9D. Dedicated remote-runner acceptance
+is **DEFERRED**, with no runner or isolation workflow run observed.
 Same-UID hostile races, compromised host/verifier/runtime, cross-store transactionality
 and exactly-once execution are not guaranteed. Historical evidence is preserved in
 [the earlier report](history/phase9-acceptance-before-single-developer.md).

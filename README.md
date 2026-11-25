@@ -33,6 +33,21 @@ Read [architecture](docs/ARCHITECTURE.md), [project policy](docs/project-authori
 [GitHub setup](docs/phase9-github-app-setup.md), [Podman](docs/phase9b-validation-runtime.md)
 and [verification](docs/VERIFICATION.md). Private profiles are never migrated automatically.
 
+## CI and isolation status
+
+| Scope | Verified state |
+| --- | --- |
+| Ordinary remote CI | **VERIFIED** for `6148e9e`: [run 45708916081](https://github.com/fjmedina21/ai-harness/actions/runs/45708916081), build-test / Build / Test / CLI smoke passed |
+| Local Gate C | **LIVE VERIFIED** for the documented gatec-synthetic/local-podman fixed Node scope; current execution still requires valid owner/session/policy and unexpired exact acceptance |
+| Dedicated remote Podman isolation | **DEFERRED**; no registered repository runner or isolation workflow run observed at this closeout |
+
+This single-developer local-first tool does not require new remote infrastructure
+for its separately accepted local scope. Remote workloads still require their own
+explicitly authorized dedicated setup and real acceptance. See
+[verification](docs/VERIFICATION.md#ci-and-dedicated-remote-isolation) and
+[remote prerequisites](docs/DEDICATED-PODMAN-RUNNER.md). The manual workflow remains
+available without provisioning or dispatching it automatically.
+
 ## Phase 9A OpenAI engineering
 
 ```sh
@@ -189,7 +204,7 @@ guarantee a dollar ceiling.
 
 ## Documentation
 
-Dedicated remote Podman isolation setup and its pending acceptance gate are
+Dedicated remote Podman isolation setup and its explicitly **DEFERRED** acceptance gate are
 documented in [DEDICATED-PODMAN-RUNNER.md](docs/DEDICATED-PODMAN-RUNNER.md).
 
 - [Architecture](docs/ARCHITECTURE.md) — implemented foundations and target design

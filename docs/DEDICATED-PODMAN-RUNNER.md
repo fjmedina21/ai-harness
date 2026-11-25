@@ -1,13 +1,22 @@
 # Dedicated Podman isolation runner
 
-**Preparation integrated:** PR #3 is on `main` at `c87d22f`.
-**Validation status: Deferred — dedicated remote infrastructure validation**.
-The real remote gate has not been run from a dedicated GitHub Actions runner.
-Historical local Podman Machine evidence does not satisfy remote acceptance.
-This gate does not block Phase 8 offline read-only inspection, which executes
-no agent code in containers. It remains required before future untrusted-code
-execution, with a separate risk analysis. This closure configures no remote
-infrastructure and runs no real isolation suite.
+**Preparation integrated:** PR #3 is on main at `c87d22f`.
+**Dedicated remote validation: DEFERRED** for the current local-first product scope.
+No dedicated remote Podman run is recorded. At this closeout GitHub returned zero
+registered repository runners and zero runs of phase5-isolation.yml. Environment
+and Environment-variable lookups returned HTTP 404; this is not a verified usable
+Environment/profile configuration.
+
+Ordinary remote CI passed for `6148e9e` in
+[run 45708916081](https://github.com/fjmedina21/ai-harness/actions/runs/45708916081),
+including Build, Test and CLI smoke. Separately, [local Gate C](phase9-real-acceptance-report.md)
+records actual native/durable/Podman acceptance for its exact fixed Node scope.
+Neither result establishes remote container isolation. Deferring this remote gate
+does not invalidate the independently accepted local scope or renew its expiry.
+
+Retain the manual restrictive workflow. Resume remote setup only for an actual
+remote-execution requirement with separate infrastructure/budget authorization and
+real remote acceptance. This closeout provisions nothing and dispatches no workflow.
 
 ## Trust model
 
@@ -157,13 +166,12 @@ workflow run page is the source for workflow metadata. Restrict log access and
 configure retention to the repository's approved minimum; review content before
 adding any artifact upload in the future.
 
-The evidence state is **Deferred — dedicated remote infrastructure validation**.
-The Phase 5 real Podman evidence in `docs/VERIFICATION.md` was local and is retained.
-The integrated baseline `c87d22f` passed standard CI run
-[45095776893](https://github.com/fjmedina21/ai-harness/actions/runs/45095776893).
-The verified 18-run Actions history contains no isolation workflow run; standard
-CI and deterministic fixtures do not satisfy this gate. Closure-branch checks
-remain local evidence, not a newly published CI or isolation result.
+The current remote isolation evidence state is **DEFERRED**. No registered
+repository runner or dedicated workflow run was observed at this closeout; future
+setup must be checked live. The historical preparation CI for `c87d22f` and current
+ordinary [CI for 6148e9e](https://github.com/fjmedina21/ai-harness/actions/runs/45708916081)
+are separate from local Gate C and from the unexecuted remote isolation workflow.
+See [current verification](VERIFICATION.md#ci-and-dedicated-remote-isolation).
 
 ## Failure handling
 

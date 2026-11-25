@@ -2,7 +2,7 @@
 
 ## Current single-developer scope
 
-Version **0.8.0**, base `df501d8`, branch `feat/single-developer-podman-gate`.
+Version **0.8.0**, base `df501d8`, published main snapshot `6148e9e`.
 One GitHub owner, independently authorized local projects and mandatory Personal
 human approval replace multiuser administration. Full project fingerprints bind
 new proposals to current host policy. Historical records remain audit-only; see
@@ -13,8 +13,9 @@ effect-free sandbox operations and verifies evidence after reopening. Offline te
 cover real private FS/SQLite and independent processes with mocked GitHub/Podman.
 Current real GitHub/native/Podman acceptance was separately and explicitly authorized.
 Gate C is **LIVE VERIFIED for gatec-synthetic/local-podman fixed Node profiles**;
-the actual CLI test passed. Other scopes remain BLOCKED. No release, push,
-merge, tags, Phase 9C Autonomous Repair or Phase 9D is included.
+the actual CLI test passed. Other unaccepted execution scopes remain BLOCKED.
+The owner subsequently authorized merge/push to main; [ordinary remote CI passed](https://github.com/fjmedina21/ai-harness/actions/runs/45708916081)
+for `6148e9e`. No release, tags, Phase 9C Autonomous Repair or Phase 9D is included.
 
 Current scoped acceptance is backed by a private domain-HMAC record of exact project,
 code, runtime, effective probes and native-approved durable outcomes. The CLI
@@ -22,6 +23,21 @@ revalidates it and keeps validation_acceptance_pending elsewhere. Cancellation's
 Uncertain state still needs explicit reconciliation; no automatic replay exists.
 See [report](phase9-real-acceptance-report.md) and [verification](VERIFICATION.md).
 Earlier milestones below are historical snapshots, superseded by this scope.
+
+## Dedicated remote isolation — DEFERRED
+
+The current product focus is a single developer's local workflow. Keep ordinary
+CI and the independently accepted local Podman scope; provision remote execution
+only when a concrete requirement justifies it. The dedicated workflow remains
+manual and restrictive. At this closeout GitHub returned zero registered repository
+runners and zero dedicated-isolation workflow runs. Environment/profile/host/image
+setup and actual remote acceptance remain prerequisites, not completed work.
+
+The original CI branch's patch was already squashed into main at `c87d22f`.
+Its redundant local branch has been removed; its remote ref is retained. No merge
+of that old branch or remote infrastructure operation is needed for this closeout.
+See [current evidence](VERIFICATION.md#ci-and-dedicated-remote-isolation) and
+[remote setup requirements](DEDICATED-PODMAN-RUNNER.md).
 
 ## Historical Phase 9A stabilization — local work
 
