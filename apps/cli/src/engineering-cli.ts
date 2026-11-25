@@ -2,7 +2,7 @@ import path from "node:path";
 import { realpath } from "node:fs/promises";
 import { stripVTControlCharacters } from "node:util";
 import { FixtureEngineeringAgent, createOpenAIEngineeringAgent, runEngineeringWorkflow, type EngineeringAgentPort } from "@ai-harness/application";
-import { EngineeringCheckpointStore, openSqliteOperationJournal } from "@ai-harness/checkpointing";
+import { EngineeringCheckpointStore, ProposalArtifactStore, openSqliteOperationJournal } from "@ai-harness/checkpointing";
 import type { DurableOperationStore, EngineeringBudget, EngineeringPolicy } from "@ai-harness/contracts";
 import { readPrivateCostRates } from "./rates.js";
 const valued = ["--workflow", "--path", "--request", "--provider", "--autonomy", "--files", "--fixture-file", "--fixture-content", "--workspace-dir", "--journal", "--checkpoint-dir", "--max-iterations", "--timeout-ms",
@@ -75,6 +75,7 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
       policy = { version: "cli-openai-v1", allowedPaths, allowedOperations: allowedOperations as EngineeringPolicy["allowedOperations"], maxFiles: 16, maxBytes: 8192 };
       budget = { maxIterations: iterations, maxRequests: Math.min(maxRequests, maxTurns), maxTokens, maxEstimatedCostUsd: maxCost, timeoutMs, maxFiles: 16, maxBytes: 8192 };
     }
+    let proposalArtifacts: ProposalArtifactStore | undefined;
     let workspace: Parameters<typeof runEngineeringWorkflow>[0]["workspace"], checkpoint: EngineeringCheckpointStore | undefined;
     if (level === 1 && ["--workspace-dir", "--journal", "--checkpoint-dir", "--authorize-workspace"].some(key => options.has(key))) fail("invalid_scope", "Propose mode creates no workspace, journal or checkpoints");
     if (level === 2) {
@@ -87,10 +88,11 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
       };
       const directory = await external("--workspace-dir"), journal = await external("--journal", true), checkpoints = await external("--checkpoint-dir");
       store = await openSqliteOperationJournal(journal);
+      proposalArtifacts = new ProposalArtifactStore(path.dirname(journal));
       workspace = { directory, binding: { store, requester: { issuer: "cli-host", subject: "engineering-requester" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 3_600_000 };
       checkpoint = new EngineeringCheckpointStore(checkpoints);
     }
-    const result = await runEngineeringWorkflow({ projectRoot, request, files, level, budget, policy, agent, workspace, checkpoint, signal, timing: { roleTimeoutMs, finalizationTimeoutMs },
+    const result = await runEngineeringWorkflow({ projectRoot, request, files, level, budget, policy, agent, workspace, checkpoint, proposalArtifacts, signal, timing: { roleTimeoutMs, finalizationTimeoutMs },
       ...(provider === "openai" ? { modelAdapterAuthorized: true, allowUncertainCost: true } : {}), sensitive: options.has("--sensitive") });
     if (json) output(JSON.stringify(result, null, 2));
     else {
@@ -101,7 +103,7 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
       output(`Diff:\nScope: ${result.diffScope}\n${safe(result.diff)}\nValidations executed: ${result.validations.length}; L3 gate: blocked`);
       output(`Requests: ${result.usage.requests}; known tokens: ${result.usage.tokens}; usage complete: ${result.usageComplete}\nEstimated cost: ${result.cost.status === "estimated" ? result.cost.amount + " " + result.cost.currency : "unknown"}`);
       if (result.providerFailure) output(`Provider failure: ${JSON.stringify(result.providerFailure)}`);
-      for (const id of result.pendingApprovals) output(`Pending durable approval: ${id}; requires trusted host approval UI in the live session`);
+      for (const id of result.pendingApprovals) output(`Pending durable approval: ${id}; persisted for a separately authenticated host; approval CLI is disabled`);
       for (const risk of result.risks) output(`Risk: ${risk}`);
       output("Original project unchanged; no integration performed. Proposed code has not been executed or tested.");
     }
@@ -110,4 +112,15 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
     const detail = error instanceof CliError ? { code: error.code, message: error.message } : { code: "engineering_rejected", message: "Engineering workflow rejected; verify explicit scope, private paths and budgets. Real L3 remains disabled." };
     output(json ? JSON.stringify({ state: "Failed", error: detail }) : "Error: " + detail.message); return 1;
   } finally { try { agent?.close?.(); store?.close(); } catch { /* No reuse after lifecycle faults. */ } }
+}
+
+/** No deployed independent authenticator exists. Never accept identity/credential argv or implicit OS identity. */
+export async function engineeringLifecycleCommand(args: string[], output: (text: string) => void): Promise<number> {
+  const [command, ...options] = args;
+  const allowed = ["status", "diff", "approve", "reject", "continue"];
+  const valid = allowed.includes(command ?? "") && (options.length === 2 || options.length === 3 && options[2] === "--json") &&
+    options[0] === "--id" && /^[A-Za-z0-9-]{1,80}$/.test(options[1] ?? "");
+  output(JSON.stringify({ error: { code: valid ? "authentication_required" : "invalid_arguments",
+    message: valid ? "Independent host authentication is not configured; engineering lifecycle access is disabled" : "Use engineering status|diff|approve|reject|continue --id EXECUTION_ID [--json]" } }));
+  return 1;
 }

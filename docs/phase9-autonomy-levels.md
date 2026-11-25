@@ -1,5 +1,24 @@
 # Phase 9 autonomy levels and release gates
 
+## Phase 9A.2 — current L2 continuation boundary
+
+Version 0.8.0; implementation starts at `2746500e6787`. **Core L2 Resume** now
+persists exact authenticated proposals/diffs and resumes an independently approved
+operation in another process after complete source/workspace/policy reconciliation.
+CAS lease ownership and monotonic fencing prevent concurrent or obsolete applicators;
+Prepared/Running/Uncertain remain blocked. Resume never calls a provider or executes
+generated code. Success is ReviewPending with inventory-only verification and no
+source integration. Existing L0/L1 and same-session L2 retain their prior behavior.
+
+**Operational L2 Resume is blocked**: fixture identities are test-only and there is
+no deployed independent authenticator. CLI lifecycle status/diff/approve/reject/
+continue commands are recognized but return authentication_required. A host embedding
+must supply verified exact reader/approver/operator authority. L3 remains unavailable,
+Phase 9B/9C is not started, Anthropic engineering is deferred and Podman is unchanged.
+The following stabilization sections are historical snapshots. Current details and
+migration limits are in the [L2 design](phase9-l2-approval-resume-design.md).
+
+
 Starting main: **082d46fa6d48267c96e92e7feba4f068396e2b4f**, verified on
 2026-11-23. Stabilization runtime: **2ce871777b987bcbf262f9eca4f8787a328b4dec**,
 local branch feat/phase9a-stabilization. Version remains **0.8.0**; Phase 9 is
@@ -9,8 +28,7 @@ Stabilization at 2ce8717, based on integrated 082d46f, adds finite layered deadl
 bounded phase/role metrics and offline benchmarks. Configurable maxima: 900s global /
 300s HTTP or role; defaults: 120s OpenAI CLI global / 30s HTTP. One real 360s/180s/180s
 acceptance run passed in 262437.172 ms on 2ce8717. The old 600s pass remains historical, not a new gate.
-L2 approve/continue is [design only](phase9-l2-approval-resume-design.md); independent
-approval authority and CLI pending behavior are unchanged. L3 remains blocked.
+L2 approve/continue now has the separately documented Core implementation above; independent authentication and privileged CLI activation remain operational gates. L3 remains blocked.
 
 | Level | Implemented capability | Verified evidence | Authorized scope / gate |
 | --- | --- | --- | --- |

@@ -1,5 +1,33 @@
 # Phase 9 verification and delivery report
 
+## Phase 9A.2 — cross-process durable L2 evidence
+
+Starting commit `2746500e6787`; development branch feat/phase9-l2-durable-approval-resume;
+version 0.8.0. New application tests use an actual private temporary source,
+workspace, HMAC artifact store and SQLite journal. Process A invokes the existing
+OpenAI adapter against mocked native HTTP (four calls), persists the validated exact
+patch/diff and exits. Process B independently verifies fixture approval. Process C
+reopens the journal/artifact, acquires a fenced lease and applies through dispatcher
+with **zero provider calls**. The original selected files and unselected secret fixture
+remain unchanged. No generated project code is imported or executed.
+
+Other real-process cases race approvers/continuers, keep an obsolete owner alive,
+SIGKILL after artifact publication/before SQLite commit and at Prepared/Running/
+after-effect boundaries, then verify blocked replay. Core tests cover artifact modes,
+MAC/digest/incomplete/missing/corrupt data, changed policy/source/workspace/receipt/root,
+identity signature/audience/expiry/role/scope, self-approval, denial/revocation/expiry,
+lease expiry/fencing, partial effects, ambiguous commit acknowledgments, cancellation,
+timeout, key loss, SQLite migration/corruption and metadata-only telemetry. Existing
+journal tests additionally cover transaction rollback, locked/full SQLite and physical
+corruption. CLI tests verify authentication-required gates and credential-argv rejection.
+
+This is Core L2 evidence using deterministic fixture authentication, not Operational
+L2 acceptance or deployed IdP/IPC validation. No paid calls, generated-code execution,
+Podman, L3 or source integration runs here. [Current command results](VERIFICATION.md#phase-9a2-durable-l2-resume)
+and the [implemented protocol](phase9-l2-approval-resume-design.md) describe limits.
+Earlier entries below retain historical Phase 9 evidence.
+
+
 Date: 2026-11-23. Starting commit:
 `fdcb1130e91ac37212e41253103b7b01f6415040`.
 Branch: `feat/phase9-autonomous-engineering-runtime`.

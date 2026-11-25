@@ -1,8 +1,8 @@
-import { AGENT_ROLES, OPERATION_STATES, ENGINEERING_STATES } from "@ai-harness/contracts";
+import { AGENT_ROLES, OPERATION_STATES, ENGINEERING_STATES, RESUME_TELEMETRY_EVENTS } from "@ai-harness/contracts";
 import type { ProviderHttpErrorCategory, TelemetryAttributes, TelemetryErrorClass, TokenUsage } from "@ai-harness/contracts";
 
 export const SPANS = ["engineering.phase","execution", "task", "agent", "model.turn", "provider.request", "provider.http", "tool.dispatch", "tool.handler"] as const;
-export const EVENTS = ["engineering.context", "engineering.budget", "engineering.proposal_validation", "engineering.state", "engineering.workspace", "engineering.patch", "engineering.approval", "engineering.validation", "engineering.repair", "engineering.review", "engineering.completion", "task.blocked", "agent.tools_requested", "agent.tools_rejected", "agent.limit", "tool.validation", "tool.policy", "tool.authorization"] as const;
+export const EVENTS = ["engineering.resume", "engineering.context", "engineering.budget", "engineering.proposal_validation", "engineering.state", "engineering.workspace", "engineering.patch", "engineering.approval", "engineering.validation", "engineering.repair", "engineering.review", "engineering.completion", "task.blocked", "agent.tools_requested", "agent.tools_rejected", "agent.limit", "tool.validation", "tool.policy", "tool.authorization"] as const;
 export const STATUSES = ["ok", "error", "cancelled", "timeout", "denied", "blocked", "uncertain"] as const;
 export const ERRORS: readonly TelemetryErrorClass[] = ["cancelled", "timeout", "invalid_response", "limit", "policy", "approval", "storage", "tool", "dependency", "runtime", "http", "invalid_input"];
 export const PROVIDER_HTTP_ERROR_CATEGORIES: readonly ProviderHttpErrorCategory[] = ["rate_limit", "quota_or_billing", "authentication", "permission", "model_access", "invalid_request", "unknown"];
@@ -15,6 +15,7 @@ export function boundedInteger(value: unknown, max = Number.MAX_SAFE_INTEGER): v
 }
 export function attributes(raw: TelemetryAttributes = {}): TelemetryAttributes {
   const out: TelemetryAttributes = {};
+  if (RESUME_TELEMETRY_EVENTS.includes(raw.resumeEvent!)) out.resumeEvent = raw.resumeEvent;
   if (["role", "context.read", "context.serialize", "request.serialize", "transport.parse", "response.parse", "patch.validate", "checkpoint.persist", "report.prepare"].includes(raw.phase!)) out.phase = raw.phase;
   if (boundedInteger(raw.requestIndex, 32) && raw.requestIndex > 0) out.requestIndex = raw.requestIndex;
   if (boundedInteger(raw.remainingMs, 900_000)) out.remainingMs = raw.remainingMs;

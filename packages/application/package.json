@@ -19,6 +19,7 @@
     "@ai-harness/orchestrator": "workspace:*",
     "@ai-harness/tools": "workspace:*",
     "@ai-harness/checkpointing": "workspace:*",
-    "@ai-harness/observability": "workspace:*"
+    "@ai-harness/observability": "workspace:*",
+    "@ai-harness/security": "workspace:*"
   }
 }

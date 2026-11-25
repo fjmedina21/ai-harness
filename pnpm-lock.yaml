@@ -260,6 +260,9 @@ importers:
       '@ai-harness/providers':
         specifier: workspace:*
         version: link:../providers
+      '@ai-harness/security':
+        specifier: workspace:*
+        version: link:../security
       '@ai-harness/tools':
         specifier: workspace:*
         version: link:../tools

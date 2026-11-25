@@ -1,5 +1,52 @@
 # Verification — current source version 0.8.0
 
+## Phase 9A.2 durable L2 resume
+
+Date: 2026-11-25. Baseline `2746500e6787` (`main == origin/main` after fetch and
+safe ff-only pull); development branch `feat/phase9-l2-durable-approval-resume`.
+Version remains **0.8.0**. Baseline build and **592/592** tests passed before changes.
+
+| Check | Local result |
+| --- | --- |
+| pnpm clean | Passed |
+| pnpm build | Passed |
+| pnpm test | **647/647 passed**, 0 failed/skipped/cancelled |
+| Focused application resume + lifecycle CLI suites | **55/55 passed**, included in full suite |
+| pnpm harness --help | Passed; lifecycle group explicitly disabled pending authentication |
+| pnpm harness version | 0.8.0 (experimental) |
+| pnpm harness eval run --suite deterministic | 19/19 scenarios, 42/42 assertions; offline |
+| pnpm harness eval run --suite phase9 | 10/10 scenarios and assertions; offline |
+| git diff --check | Passed |
+| git status --short | Reviewed; only intended source/tests/docs/manifests/lockfile before local commit |
+
+**Core L2 Resume: locally validated with fixture authentication. Operational L2
+Resume: blocked**, without a deployed independent authenticator/credential channel.
+Three independent processes exercise mocked native OpenAI generation (four calls),
+independent fixture approval and exact patch application from durable storage.
+Approval/continuation processes make **zero HTTP/provider calls**. Source selected
+and unselected files remain unchanged. Generated project code is never executed.
+
+Tests cover corruption/missing/incomplete/MAC/digest failures, private modes, scope/
+policy/source/workspace/receipt/root changes, forged/audience/expiry/role/resource
+identities, self-approval, denial/revocation/replay, concurrent approvers/continuers,
+expired/stale leases and a living old owner, real SIGKILL between artifact and journal
+commit and at Prepared/Running/after-effect boundaries, partial application,
+ambiguous prepare/final commit acknowledgment, key loss, cancellation/timeout,
+SQLite corruption/v1 migration, preserved legacy ownership and metadata-only telemetry.
+The existing real SQLITE_FULL test found an initial layout regression; the new
+STRICT WITHOUT ROWID tables preserve the **64 KiB existing minimum**. The full
+suite above passed after that fix. A full legacy database may conservatively reject
+migration without increasing its host cap; no automatic expansion or data loss occurs.
+
+Detailed contracts, storage protocol, HMAC key handling, state/lease migration,
+expiry/retention limits and operational gates are in the
+[implemented L2 design](phase9-l2-approval-resume-design.md). No paid calls, real
+IdP/IPC, Podman, L3, Anthropic engineering changes or publication were performed.
+Hosted CI for these changes has **not run**; the baseline CI is not new evidence.
+Private command logs and a 21-point delivery report are in excluded
+`harness-development/phase9a2/`. Earlier verification sections are historical.
+
+
 
 ## Phase 9A stabilization
 

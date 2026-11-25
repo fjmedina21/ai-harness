@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { engineeringCommand } from "./engineering-cli.js";
+import { engineeringCommand, engineeringLifecycleCommand } from "./engineering-cli.js";
 import { diagnosticCommand } from "./diagnostics-cli.js";
 import { readPrivateCostRates } from "./rates.js";
 import { executeRun, getRunStatus } from "./runtime-cli.js";
@@ -76,6 +76,8 @@ export async function main(
         output(JSON.stringify(await loadProjectConfig(resolved), null, 2));
         return 0;
       }
+
+      case "engineering": return engineeringLifecycleCommand(args, output);
 
       case "run": {
         if (optionValue(args, "--workflow") === "implement") return engineeringCommand(args, cwd, output, signal);
@@ -276,7 +278,7 @@ function help(): string {
   \n       [--fixture-file FILE]
   \n       [--journal ABSOLUTE_FILE] [--telemetry-dir PRIVATE_DIR] [--rates PRIVATE_JSON]
   \n       [--timeout-ms N] [--json]
-  \n  run --workflow implement --autonomy propose|isolated --path DIR --request TEXT --provider fixture
+  \n  engineering status|diff|approve|reject|continue --id ID (requires independent host authentication; disabled)\n  run --workflow implement --autonomy propose|isolated --path DIR --request TEXT --provider fixture
   \n       --files FILES_CSV --fixture-file FILE --fixture-content TEXT [--json]
   \n       [--workspace-dir PRIVATE_DIR --journal PRIVATE_FILE --checkpoint-dir PRIVATE_DIR --authorize-workspace]
   \n       [--max-iterations N] [--timeout-ms N]

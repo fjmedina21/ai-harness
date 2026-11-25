@@ -4,9 +4,9 @@ import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import {
   assertOperationTransition, OPERATION_STATES, DurableStoreError,
-  type DurableOperationStore, type DurableOperation, type OperationRequest,
+  type DurableOperation, type OperationRequest,
   type DurableApproval, type HostIdentity, type OperationEvent,
-  type OperationState, type ReconciliationEvidence,
+  type OperationState, type ReconciliationEvidence, type EngineeringResumeStore, type ProposalReference, type ApprovalDecisionBinding, type ContinuationLease,
 } from "@ai-harness/contracts";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -85,7 +85,7 @@ export interface SqliteJournalOptions {
  */
 export async function openSqliteOperationJournal(
   filename: string, options: SqliteJournalOptions = {},
-): Promise<DurableOperationStore> {
+): Promise<EngineeringResumeStore> {
   let db: DatabaseSync | undefined;
   try {
     check(path.isAbsolute(filename));
@@ -127,7 +127,7 @@ export async function openSqliteOperationJournal(
   }
 }
 
-class SqliteOperationJournal implements DurableOperationStore {
+class SqliteOperationJournal implements EngineeringResumeStore {
   private readonly session = randomUUID();
   private inTransaction = false;
   private executionHealthy = true;
@@ -164,7 +164,13 @@ class SqliteOperationJournal implements DurableOperationStore {
           "PRAGMA application_id=1095321654; PRAGMA user_version=1;",
         ].join("\n"));
       }
-      check(db.prepare("PRAGMA user_version").get()?.user_version === 1);
+      if (db.prepare("PRAGMA user_version").get()?.user_version === 1) {
+        db.exec(`CREATE TABLE engineering_proposals (operation_id TEXT PRIMARY KEY REFERENCES operations(operation_id), data TEXT NOT NULL CHECK(length(data)<=8192), checksum TEXT NOT NULL) STRICT, WITHOUT ROWID;
+          CREATE TABLE continuation_leases (execution_id TEXT PRIMARY KEY, data TEXT NOT NULL CHECK(length(data)<=8192), checksum TEXT NOT NULL) STRICT, WITHOUT ROWID;
+          CREATE TABLE continuation_lease_events (execution_id TEXT NOT NULL, epoch INTEGER NOT NULL, data TEXT NOT NULL CHECK(length(data)<=8192), checksum TEXT NOT NULL, PRIMARY KEY(execution_id,epoch)) STRICT, WITHOUT ROWID;
+          PRAGMA user_version=2;`);
+      }
+      check(db.prepare("PRAGMA user_version").get()?.user_version === 2);
       check(db.prepare("PRAGMA application_id").get()?.application_id === 1095321654);
     });
     this.transaction(() => {
@@ -184,6 +190,19 @@ class SqliteOperationJournal implements DurableOperationStore {
     }
     for (const row of db.prepare("SELECT * FROM approvals").iterate()) this.readApproval(row);
     for (const row of db.prepare("SELECT * FROM events").iterate()) this.readEvent(row);
+    for (const row of db.prepare("SELECT * FROM engineering_proposals").iterate()) this.proposal(String(row.operation_id));
+    for (const row of db.prepare("SELECT * FROM continuation_leases").iterate()) {
+      const lease = this.lease(String(row.execution_id))!;
+      const history = db.prepare("SELECT * FROM continuation_lease_events WHERE execution_id=? ORDER BY epoch LIMIT 65").all(lease.executionId);
+      check(history.length === lease.epoch && history.length <= 64);
+      history.forEach((event, index) => {
+        const previous = decode<ContinuationLease>(event);
+        check(previous.executionId === lease.executionId && previous.epoch === index + 1 && event.epoch === index + 1);
+        this.validateLease(previous, lease.executionId);
+      });
+      check(JSON.stringify(decode(history.at(-1)!)) === JSON.stringify(lease));
+    }
+    check(db.prepare("SELECT execution_id FROM continuation_lease_events WHERE execution_id NOT IN (SELECT execution_id FROM continuation_leases) LIMIT 1").get() === undefined);
     });
   }
   private transaction<T>(fn: () => T): T {
@@ -300,7 +319,12 @@ class SqliteOperationJournal implements DurableOperationStore {
   }
   private current(id: string, version: number, own = true): DurableOperation {
     const op = this.get(id);
-    check(op && op.version === version && (!own || (this.executionHealthy && op.ownerSession === this.session))); return op;
+    check(op && op.version === version && (!own || (this.executionHealthy && op.ownerSession === this.session)));
+    if (own && this.lease(op.executionId)) {
+      const lease = this.lease(op.executionId)!;
+      check(lease.operationId === op.operationId); this.assertLease(lease);
+    }
+    return op;
   }
   register(input: OperationRequest) {
     check(this.executionHealthy);
@@ -334,11 +358,22 @@ class SqliteOperationJournal implements DurableOperationStore {
     });
   }
   decide(id: string, actor: HostIdentity, approved: boolean): DurableApproval {
+    return this.decision(id, actor, approved);
+  }
+  decideScoped(id: string, actor: HostIdentity, approved: boolean, binding: ApprovalDecisionBinding): DurableApproval {
+    return this.decision(id, actor, approved, binding);
+  }
+  private decision(id: string, actor: HostIdentity, approved: boolean, binding?: ApprovalDecisionBinding): DurableApproval {
     actor = identity(actor); check(typeof approved === "boolean");
     return this.transaction(() => {
       const grant = this.approval(id); check(grant && grant.status === "pending");
       const op = this.get(grant.operationId)!;
-      check(this.executionHealthy && op.ownerSession === this.session && Date.parse(this.time()) < Date.parse(grant.expiresAt));
+      check(this.executionHealthy && Date.parse(this.time()) < Date.parse(grant.expiresAt));
+      const reference = this.proposal(op.operationId);
+      if (reference) {
+        check(binding && binding.artifactDigest === reference.artifactDigest && binding.challenge === reference.challenge);
+        check(Date.parse(this.time()) < Date.parse(reference.expiresAt));
+      } else check(!binding && op.ownerSession === this.session);
       if (op.toolId === "patch.apply" && approved) check(actor.issuer !== op.requester.issuer || actor.subject !== op.requester.subject);
       grant.approver = actor; grant.status = approved ? "approved" : "denied"; grant.updatedAt = this.time();
       this.move(op, approved ? "Approved" : "Cancelled", approved ? "approval.approved" : "approval.denied", actor);
@@ -357,6 +392,7 @@ class SqliteOperationJournal implements DurableOperationStore {
   prepare(id: string, version: number, scopeDigest: string, approvalId?: string): DurableOperation | null {
     return this.transaction(() => {
       const op = this.current(id, version); check(op.scopeDigest === scopeDigest);
+      if (this.proposal(id)) check(this.lease(op.executionId)?.ownerSession === this.session);
       if (op.requiresApproval) {
         check(op.state === "Approved" && approvalId === op.approvalId);
         const grant = this.approval(approvalId!)!; check(grant.status === "approved");
@@ -409,6 +445,75 @@ class SqliteOperationJournal implements DurableOperationStore {
       check(op.state === "Uncertain" && ["confirmed_completed", "confirmed_no_effect"].includes(evidence.kind));
       return this.move(op, evidence.kind === "confirmed_completed" ? "Completed" : "Cancelled", "recovery.resolved", actor, evidence.reference);
     });
+  }
+  bindProposal(reference: ProposalReference): void {
+    this.transaction(() => {
+      check(Object.keys(reference).sort().join() === ["operationId", "executionId", "workspaceId", "artifactDigest", "challenge", "expiresAt"].sort().join());
+      const op = this.get(reference.operationId);
+      check(this.executionHealthy && op?.ownerSession === this.session && op.toolId === "patch.apply" && op.state === "PendingApproval");
+      check(op.executionId === reference.executionId && idPattern.test(reference.workspaceId));
+      check(digestPattern.test(reference.artifactDigest) && /^[a-f0-9]{64}$/.test(reference.challenge));
+      check(timestamp(reference.expiresAt) && Date.parse(reference.expiresAt) > Date.parse(this.time()));
+      check(!this.proposal(op.operationId));
+      this.db.prepare("INSERT INTO engineering_proposals VALUES(?,?,?)").run(op.operationId, ...encode(reference));
+    });
+  }
+  proposal(id: string): ProposalReference | null {
+    const row = this.db.prepare("SELECT * FROM engineering_proposals WHERE operation_id=?").get(id);
+    if (!row) return null;
+    const ref = decode<ProposalReference>(row), op = this.get(id);
+    check(Object.keys(ref).sort().join() === ["operationId", "executionId", "workspaceId", "artifactDigest", "challenge", "expiresAt"].sort().join());
+    check(op && ref.operationId === id && ref.executionId === op.executionId && op.toolId === "patch.apply");
+    check(idPattern.test(ref.workspaceId) && digestPattern.test(ref.artifactDigest) && digestPattern.test(ref.challenge) && timestamp(ref.expiresAt));
+    return ref;
+  }
+  private lease(executionId: string): ContinuationLease | null {
+    const row = this.db.prepare("SELECT * FROM continuation_leases WHERE execution_id=?").get(executionId);
+    if (!row) return null;
+    const lease = decode<ContinuationLease>(row);
+    return this.validateLease(lease, executionId);
+  }
+  private validateLease(lease: ContinuationLease, executionId: string): ContinuationLease {
+    check(Object.keys(lease).sort().join() === ["leaseId", "executionId", "operationId", "ownerSession", "epoch", "version", "stateVersion", "operator", "expiresAt"].sort().join());
+    check(lease.executionId === executionId && idPattern.test(lease.leaseId) && /^[a-f0-9-]{36}$/.test(lease.ownerSession));
+    check(Number.isSafeInteger(lease.epoch) && lease.epoch > 0 && Number.isSafeInteger(lease.version) && lease.version > 0 && timestamp(lease.expiresAt));
+    check(Number.isSafeInteger(lease.stateVersion) && lease.stateVersion >= 0); identity(lease.operator);
+    check(this.get(lease.operationId)?.executionId === executionId);
+    return lease;
+  }
+  acquireLease(id: string, version: number, ttlMs: number, operator: HostIdentity): ContinuationLease {
+    operator = identity(operator);
+    check(Number.isSafeInteger(ttlMs) && ttlMs > 0 && ttlMs <= 300_000 && this.executionHealthy);
+    return this.transaction(() => {
+      let op = this.current(id, version, false);
+      check(op.state === "Approved" && this.proposal(id));
+      const ref = this.proposal(id)!, grant = this.approval(op.approvalId!);
+      check(grant?.status === "approved" && Date.parse(grant.expiresAt) > Date.parse(this.time()) && Date.parse(ref.expiresAt) > Date.parse(this.time()));
+      const previous = this.lease(op.executionId);
+      check(!previous || Date.parse(previous.expiresAt) <= Date.parse(this.time()));
+      // No incomplete operation other than this exact still-effect-free proposal may be transferred.
+      const others = this.list(op.executionId, undefined, 1000);
+      check(others.length < 1000 && others.every(x => x.operationId === id || x.state === "Completed"));
+      const lease: ContinuationLease = { leaseId: randomUUID(), executionId: op.executionId, operationId: id, ownerSession: this.session,
+        epoch: (previous?.epoch ?? 0) + 1, stateVersion: op.version, operator, version: (previous?.version ?? 0) + 1, expiresAt: new Date(Date.parse(this.time()) + ttlMs).toISOString() };
+      check(Number.isSafeInteger(lease.epoch) && lease.epoch <= 64);
+      this.db.prepare("INSERT INTO continuation_lease_events VALUES(?,?,?,?)").run(lease.executionId, lease.epoch, ...encode(lease));
+      this.db.prepare("INSERT INTO continuation_leases VALUES(?,?,?) ON CONFLICT(execution_id) DO UPDATE SET data=excluded.data,checksum=excluded.checksum")
+        .run(op.executionId, ...encode(lease));
+      op = { ...op, ownerSession: this.session };
+      check(this.db.prepare("UPDATE operations SET data=?,checksum=? WHERE operation_id=? AND version=?").run(...encode(op), id, version).changes === 1);
+      return lease;
+    });
+  }
+  assertLease(expected: ContinuationLease): void {
+    check(this.executionHealthy);
+    const current = this.lease(expected.executionId), op = this.get(expected.operationId);
+    check(current && JSON.stringify(current) === JSON.stringify(expected) && current.ownerSession === this.session &&
+      op?.ownerSession === this.session && ["Approved", "Prepared", "Running"].includes(op.state) && op.version >= current.stateVersion && Date.parse(this.time()) < Date.parse(current.expiresAt));
+    const ref = this.proposal(expected.operationId);
+    check(ref && Date.parse(this.time()) < Date.parse(ref.expiresAt));
+    const grant = op.approvalId && this.approval(op.approvalId);
+    check(grant && ["approved", "consumed"].includes(grant.status) && Date.parse(this.time()) < Date.parse(grant.expiresAt));
   }
   retireSession(): void { this.executionHealthy = false; }
   close(): void { this.retireSession(); this.db.close(); }

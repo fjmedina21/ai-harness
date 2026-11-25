@@ -1,188 +1,228 @@
-# L2 independent approval and continuation — design only
+# Phase 9A.2 — durable independent approval and continuation
 
-Status: proposed, no approval/continue CLI or privileged continuation API enabled.
-Baseline 082d46fa6d48, version 0.8.0. Existing in-session trusted-host L2 remains
-available; the CLI still stops pending approval. No OpenAI/native session is resumed.
+Implementation baseline: `2746500e6787`, version **0.8.0**, branch
+`feat/phase9-l2-durable-approval-resume`. This document supersedes the preceding
+design-only proposal. **Core L2 Resume** is implemented for a trusted embedding host
+with deterministic authentication fixtures in tests. **Operational L2 Resume is
+blocked**: no deployed independent authenticator or authenticated CLI/IPC endpoint
+is supplied. Local verification is recorded in [VERIFICATION](VERIFICATION.md#phase-9a2-durable-l2-resume).
+No production autonomy, L3, uncertain replay, external exactly-once effects, or
+original-project integration is claimed.
 
-## Actual gaps and trust boundaries
+## Components and dependency direction
 
-DurableApprovalService already verifies an injected independent credential verifier
-and harness:approver role. SQLite binds requester, operation/argument scope, approval,
-expiry and single-use consumption. patch.apply rejects requester self-approval.
-However ownerSession in decide/prepare/start prevents reopening an old operation
-as executable. EngineeringPatchEngine proposals live only in an in-memory map;
-get rejects unknown proposals. Checkpoints store bounded state/counts, not full
-proposals/policies/receipts. inspectEngineeringRecovery deliberately blocks any
-non-Completed operation, including a pending approval. Removing those restrictions
-would create a bypass, not safe continuation. No deployed IdP exists in the repository.
+| Component | Implementation / responsibility |
+| --- | --- |
+| Contracts | `packages/contracts/src/engineering-resume.ts`: artifact/reference, decision binding, identity challenge/verifier, lease, reconciliation/error types and bounded canonical JSON |
+| ProposalArtifactStore | checkpointing: private authenticated canonical artifacts, exclusive publication, fsync, bounds and integrity checks |
+| SQLite journal v2 | checkpointing: immutable proposal references, scoped decisions, exclusive leases, monotonic epochs, lease history, ownership transfer and atomic approval consumption |
+| ApprovalBroker | security: independent per-action/resource authentication and role authorization; delegates decisions to existing `DurableApprovalService` |
+| EngineeringRecoveryService | application: artifact/policy/operation/receipt/source/inventory/patch/diff reconciliation |
+| ExecutionLeaseManager | application: sanitized wrapper over transactional journal lease operations |
+| ContinuationCoordinator | application: authenticated apply-only orchestration through existing `ToolDispatcher` |
+| CLI | persists isolated proposals; lifecycle group refuses access without deployed authentication |
 
-The model, project files and diagnostic IDs are untrusted. A local execution ID,
-boolean --approve, OS login name, telemetry span or checkpoint cannot authenticate
-an approver or grant a continuation lease. Host filesystem/journal/verifier remain
-trusted. Same-UID hostile races remain outside the demonstrated boundary.
+Application composes checkpointing, security and tools. Checkpointing depends only
+on contracts. No provider-specific data appears in approval/resume contracts.
+`ModelProviderAdapter.complete()` and the default inspect/SDD workflows are retained.
+There is no model/provider/session port in the continuation coordinator.
 
-## Host services and conceptual commands
+## Private artifact format and persistence protocol
 
-Commands would follow the existing harness status conventions under an explicit
-engineering group: status --id, diff --id, approve --id and continue --id. They are
-not currently commands. Host configuration selects a private state root and IdP;
-model/project paths cannot choose it. Status/diff require authenticated read access
-for that workspace, bounded sanitized output, and redacted diagnostics. Viewing a
-sensitive full diff is an explicit authorized action, never telemetry.
+Artifact schema version 1 contains execution/requester/operation/workspace IDs;
+workspace receipt and root device/inode; original selected-source revision; full
+bounded base inventory/digest; exact structured patch and patch digest; exact diff
+and diff digest; allowed paths/operations; policy/version/digest; original finite
+budget and request/token/usage/cost accounting; creation/expiry and artifact digest.
+`sourceRevision`/`baseRevision` are content inventory digests, **not Git commit SHAs**
+and not an attestation over unselected repository files. Unknown billing remains
+unknown after restart. Credentials, API keys and approver tokens are absent.
 
-Approval uses DurableApprovalService through a host broker or authenticated local
-IPC endpoint with peer binding. A production verifier must validate issuer, audience,
-signature, expiry, nonce/replay and authorized role/workspace entitlement. Prefer an
-OS-protected channel or short-lived credential from a separate login flow; no bearer
-credential in argv, environment dumps, checkpoints or SQLite. Browser/IdP integration
-requires separate selection and review; fixture identities are not authentication.
-Authentication occurs outside SQLite transactions; a short-lived verified actor is
-bound to the exact decision challenge. Requester and approver must differ by issuer
-and subject; issuer aliases need a host identity-normalization policy.
+The host selects an already canonical 0700 state directory outside the source
+project. `proposals/` is 0700; artifacts and the separate `proposal-host.key` are
+0600, owned by the host UID. IDs are validated SHA-256 digests, never arbitrary
+paths. The file envelope is at most 64 KiB; patches retain the engine's stricter
+12,000-byte limit and diff output retains its 16,000-byte JSON limit. Canonical JSON
+rejects unsupported values, excessive depth/nodes/bytes and reserved keys. Files
+must be regular, single-linked, bounded, no-follow opened and identity rechecked.
+Content hashes identify data; **HMAC-SHA256 with a private random host key**
+authenticates the artifact. Hashes do not authenticate people. The host key is
+outside the project, never a credential accepted by the approval broker. Missing
+keys with retained artifacts fail closed instead of silently replacing authority.
 
-## Durable proposal artifact and binding
+Persistence order:
 
-A future host-only ProposalArtifactStore must persist a versioned, bounded canonical
-artifact before reporting ApprovalPending: execution/requester identity; operation
-ID/task/request IDs; workspace receipt ID and ownership; current full snapshot digest;
-source/base revision; exact StructuredPatch and patch digest; affected normalized
-paths and operations; exact policy/version/digest; content/result/base hashes; diff
-digest; creation/expiry; host manifest version and artifact digest. Sensitive code
-belongs only in a private content-addressed 0600 artifact under a 0700 host root,
-not telemetry or public logs. No arbitrary source path is accepted from --id.
-No raw approver credential is persisted. Verified approver identity, decision time,
-challenge/artifact/scope digests and expiry are durably audited.
+1. Host PatchEngine validates patch and computes exact diff.
+2. Existing dispatcher registers the exact `patch.apply` operation pending approval.
+3. Seal bounded canonical artifact; write an exclusive random temporary file and fsync.
+4. Publish by exclusive hard link, unlink temporary name, fsync directory, reread and verify MAC/digest.
+5. Commit immutable artifact reference, random decision challenge and expiry in SQLite.
+6. Read back binding; only then publish the pending result to the requester.
 
-Persist artifact by bounded no-follow/exclusive operations, fsync file and directory
-where supported, then bind its digest in the journal transaction. Filesystem/SQLite
-are not one atomic transaction. An orphan or mismatched artifact is preserved and
-blocked; missing or partially written data cannot be regenerated by a model. Retention
-and confidential deletion require explicit host policy. An authenticated manifest
-or host-secret MAC held outside the project is needed if tamper detection beyond
-same-user file ownership is required; a content hash alone is not authentication.
+Filesystem and SQLite do not share an atomic transaction. A crash after publication
+but before the journal commit leaves a preserved orphan. Missing/partial/corrupt
+artifacts or missing references block continuation. Failed or unknown persistence
+acknowledgment retires the original execution session. No proposal is reconstructed
+by a provider. The coordinator's explicit reconciliation checks are necessary even
+when both stores appear valid.
 
-## Continuation state machine and fencing
+Retention is bounded to 10,000 directory entries and per-file size, with finite
+artifact admission expiry. The store never automatically evicts evidence. Orphans,
+failed temporary files and expired proposals remain private for host review;
+confidential deletion/backup/key rotation and a production retention procedure
+remain host operational responsibilities. A full store rejects new proposals.
 
-Proposed host lifecycle: ProposalPersisted -> ApprovalPending -> Approved ->
-ReconciliationRequired -> ContinuationReady -> Applying -> Applied -> ReviewPending.
-These are design states, not additions to existing engineering/durable enums.
-Denied/Expired/Revoked/Cancelled stop; Uncertain blocks; Completed is never replayed.
-A future journal schema/API extension must atomically acquire an execution lease with
-monotonic fencing epoch, previous owner/version, actor, expiry and artifact/snapshot
-binding. The current ownerSession check stays until that migration is implemented
-and validated. A live old worker must be fenced; process absence alone is insufficient.
-Stale locks or Running/Prepared/Uncertain require independent quiescence/effect
-reconciliation. Never reassign their lease and rerun merely because time elapsed.
+## Independent authentication and approval
 
-continue authenticates an authorized operator, opens/validates SQLite integrity and
-all bounded rows/events, resolves the host manifest by ID, locks the workspace,
-checks owner/receipt/TTL, rehashes the complete real inventory, and checks original
-base identity, patch/artifact/diff digests, exact paths/operations, current policy and
-approval actor/expiry/revocation. No new calls to OpenAI occur. A policy change,
-concurrent edit, changed revision, missing artifact or expired approval stops before
-permission consumption; a revised proposal needs a fresh human decision.
+`ResumeIdentityVerifier.verify(credential, challenge)` is an injected trusted host
+port. An integration must independently validate issuer, signature, audience,
+expiry, nonce/replay and exact resource/action entitlement, returning canonical
+issuer/subject, roles, expiry and the verified challenge binding. The returned
+identity is accepted for at most five minutes. Credential transport and any IdP or
+OS-protected IPC implementation are **not supplied**. No boolean, OS username,
+execution ID, model text, telemetry ID or production fixture can authenticate.
+Issuer aliases must be normalized by the host's real identity integration.
 
-Only an authenticated unconsumed approval for a reconciled Pending/Approved operation
-with no possible prior application can become ContinuationReady. A reviewed future
-import API may load the exact persisted patch into a new engine after recomputing
-all hashes and policy; it must not masquerade as a new model proposal. Dispatcher
-remains mandatory. Within a short transaction, CAS validates lease/epoch/version,
-actor and exact scope, consumes the one-use approval and records Prepared. No model,
-filesystem I/O or verifier runs inside that transaction. Recheck fencing and expiry
-before Running and at each mutation boundary. A concurrent loser gets conflict, never
-an alternative request ID with duplicate effects. Multi-file application stays
-non-atomic; uncertain outcomes retain evidence and require host reconciliation.
+The challenge binds action, execution, workspace, immutable artifact digest and
+random approval challenge. The artifact transitively binds requester, operation,
+base inventory, exact patch/diff, paths/operations, budgets and policy. SQLite also
+binds the original tool argument digest, scope and approval expiry. Approver identity
+and decision timestamp are in the existing durable approval/events audit.
+`harness:reader` gates status/diff, `harness:approver` gates approve/reject/revoke,
+and a separate `harness:operator` gates continuation. Approver authority alone does
+not permit application. Requester and approver must differ by canonical issuer/subject.
 
-After effects, verify full resulting inventory and durably record Completed before
-claiming applied. A commit acknowledgment gap, crash, partial write, late persistence,
-lease loss or uncertain cleanup produces Uncertain; no automatic replay. Checkpoints
-are derived progress evidence and cannot overrule journal/workspace reality. Final
-review and any later promotion into the original repository are separate approvals.
+ApprovalBroker authenticates once before review and delegates the verified,
+short-lived exact-scope actor to `DurableApprovalService`; the journal's
+`decideScoped` transaction admits only a pending matching challenge/artifact.
+Concurrent/replayed decisions cannot both succeed. Legacy decisions keep their
+ownerSession restrictions; a bound proposal cannot use the unscoped decision path.
+Preparation consumes approval and records Prepared in the existing transaction.
+Revocation, expiry, altered scopes and previous consumption prevent application.
+No raw approver credential is persisted or logged.
 
-## Errors, recovery and acceptance plan
+Default approval TTL remains 60 seconds; the existing host option can select at
+most 300 seconds. Artifact expiry cannot exceed approval or workspace expiry.
+Restart does not extend a deadline. Expired/denied/revoked/cancelled proposals cannot
+be revived; automatic reapproval and child operation generations are not implemented.
+Authenticated status reports effective expiry without writing durable state.
 
-Fixed errors: authentication_required, forbidden_scope, artifact_missing,
-artifact_invalid, approval_expired, approval_mismatch, policy_changed,
-snapshot_changed, lease_conflict, reconciliation_required, storage_uncertain.
-Never include credentials, raw SQL, private paths or patch contents in errors.
+## Journal migration, lease and mutation fencing
 
-Required future tests use real temporary files and SQLite reopen plus fake trusted
-IdP only in deterministic tests: forged/wrong-audience/expired credentials; self-
-approval; changed patch/base/policy/paths; changed workspace inventory/links; missing
-artifact; expiry/revocation at consume/start; simultaneous approvers/continuers;
-old live worker fenced; crash before/after each artifact/journal boundary; consumed
-approval replay; Running/Prepared/Uncertain reopen; partial effects; unknown commit
-acknowledgment; bounded logs; zero provider calls on continuation; unchanged original
-project. At least two real processes must test lease ownership and crash races.
-No test model determines that a security gate passed. A production IdP/IPC threat
-review, migration/rollback plan and independent security acceptance precede enabling
-approve/continue. L3 and promotion/deployment remain out of scope.
+SQLite `user_version` migrates transactionally from 1 to 2 by adding:
 
+- `engineering_proposals`: one immutable checked reference per patch operation.
+- `continuation_leases`: one current owner/lease per execution.
+- `continuation_lease_events`: bounded immutable acquisition history indexed by epoch.
 
-## Expiry and revision details
+Existing operation/approval/event rows, scope digests and enums are unchanged.
+Artifacts retain the original legacy policy JSON encoding as well as its canonical
+semantic content, so a reordered equivalent host policy can still verify the exact
+pre-existing policy/patch digests without changing the legacy engine contract.
+Opening validates application ID, quick/foreign-key checks, all bounded checksummed
+rows/events and lease history. Unsupported/corrupt stores are not recreated.
+Pre-v2 binaries reject v2; rollback requires a quiesced validated backup, never
+lowering user_version or dropping active authorization data in place. Tests simulate
+a genuine v1 layout and verify preserved rows and ownership restrictions after migration.
 
-The current baseRevision is a digest of the host-selected file inventory, not a
-Git commit SHA or a full-repository attestation. Continuation may re-read only that
-authorized source scope and the bounded private workspace inventory; it grants no
-unrestricted scan of the original repository. Origin metadata and any optional Git
-revision must be separately host-recorded and cannot replace content hashes.
+Lease acquisition uses `BEGIN IMMEDIATE` plus expected operation version CAS. Only
+Approved, still-unconsumed, unexpired bound operations qualify. All other operations
+in the execution must be Completed. An active lease conflicts; an expired lease can
+be replaced only while the operation remains effect-free Approved. Each lease binds
+ID, execution, operation, ownerSession, independently verified operator identity,
+monotonic epoch/version, acquisition state version and finite expiry. History is
+capped at 64 acquisitions per execution. Transfer updates ownerSession atomically.
 
-An expired/denied/revoked approval cannot be revived by a boolean or by changing
-a deadline. The current terminal Cancelled operation stays terminal. A future
-explicit reapproval request can create a distinct child operation/request generation
-under the same execution, linked to the original operation and immutable artifact,
-only after fresh authenticated review, full reconciliation and CAS under the fenced
-execution lease. It must record why the predecessor is known to have no effects.
-Running/Prepared/Uncertain predecessors cannot use this path; they remain blocked
-until trusted effect/quiescence reconciliation. No model call or hidden duplicate
-request ID is used to reconstruct an already persisted patch.
+`prepare`, `start` and `finish` enforce current ownership/lease. The patch engine
+receives a synchronous fence/deadline/identity check immediately before each mkdir,
+temporary write, link, unlink and rename boundary and after inventory verification.
+The existing exclusive persistent workspace mutation lock remains mandatory.
+A stale living worker cannot prepare after transfer. Once Prepared/Running/Uncertain,
+**no lease transfer is allowed**, even after expiry. Thus an old in-flight filesystem
+call cannot coexist with a newly authorized applicator. Stale locks/uncertain markers
+block reopen and require separate trusted effect/quiescence reconciliation.
 
-This design does not claim tested cross-session execution: only conservative
-reopen/expiry/stale-workspace rejection is implemented and validated in this phase.
-The proposed authentication broker, artifact import and lease/migration mechanisms
-need a separate reviewed implementation before activation.
+Fencing is cooperative admission, not an OS guarantee against hostile same-UID
+writes or completion of an already submitted syscall. Multi-file changes remain
+non-atomic. No claim of race-free sandboxing or exactly-once external effects follows.
 
+## Apply-only continuation and reviewable result
 
-## Proposed interaction (not enabled)
+A trusted host opens the private integrity-validated journal and constructs the
+coordinator with host-selected artifact root, current policy and independent verifier.
+No public endpoint opens user-selected journals or derives authority from a project.
+Within that embedding:
 
-```mermaid
-sequenceDiagram
-    participant Human
-    participant Broker as Trusted host broker
-    participant IdP as Independent authenticator
-    participant Artifact as Private proposal store
-    participant Journal as SQLite journal
-    participant Workspace as Isolated workspace
-    Human->>Broker: Review exact diff and request approval
-    Broker->>IdP: Verify fresh identity, role and decision challenge
-    Broker->>Artifact: Verify immutable proposal and scope digest
-    Broker->>Journal: Record authenticated exact-scope decision
-    Human->>Broker: Explicit continue request
-    Broker->>IdP: Verify operator and workspace entitlement
-    Broker->>Workspace: Fence old workers, lock and rehash inventory
-    Broker->>Journal: CAS lease/version/epoch and consume approval
-    Broker->>Workspace: Apply through controlled dispatcher
-    Broker->>Journal: Confirm result or record Uncertain
-    Broker-->>Human: Diff and evidence, no source integration
+1. Authenticate and authorize operator for exact challenge/workspace/execution.
+2. Recover authenticated artifact/reference and unconsumed independent approval.
+3. Reconcile operation states, original receipt/creation journal record, device/inode,
+   workspace TTL/markers, selected-source revision and complete workspace inventory.
+4. Compare current host policy, paths/operations and all patch/scope/diff digests.
+5. Acquire exclusive lease by CAS; repeat reconciliation under that lease.
+6. Reimport the exact structured patch through PatchEngine validation, never a model.
+7. Dispatch the original tool/request identity; atomically consume authorization and
+   record Prepared; verify lease/expiry and record Running.
+8. Apply only in the private workspace, checking fence at mutation boundaries; verify
+   complete expected resulting inventory; record Completed before claiming success.
+9. Return `ReviewPending`, exact diff, patch/snapshot digests, `inventory_only` evidence
+   and `integrated:false`. Human final review/promotion remains separate.
+
+Continuation has a fresh finite host timeout of at most 300 seconds, bounded async
+authentication and cancellation, with monotonic checks before effects. It does not
+reset model accounting or run build/test/package scripts. Generated code is never
+executed, original project files are only read, and no OpenAI/native session is reused.
+The authenticated diff operation reads the exact private stored diff, including
+after Completed while its admission scope remains valid; it does not regenerate it.
+
+## Recovery and errors
+
+Existing durable states remain Created, PendingApproval, Approved, Prepared, Running,
+Completed, Failed, Cancelled and Uncertain. Approval statuses separately distinguish
+pending, approved, expired, denied, revoked and consumed. No broad enum rewrite or
+automatic retry is introduced. Completed is never reapplied. Prepared/Running/
+Uncertain, partial mutation, stale lock and unknown commit outcomes preserve evidence
+and block replay. An unknown final acknowledgment may leave Completed durably recorded;
+the caller receives an error and later inspection can observe completion, never rerun it.
+
+Fixed error codes include authentication_required, forbidden_scope, artifact_missing,
+artifact_invalid, approval_expired, approval_mismatch, policy_changed, snapshot_changed,
+lease_conflict, reconciliation_required, storage_uncertain, cancelled and timeout.
+Errors omit private paths, SQL, source, raw verifier errors and credentials.
+
+## CLI and operational gate
+
+`run --workflow implement --autonomy isolated` persists proposals automatically in
+the private external journal state directory. Programmatic callers explicitly supply
+`proposalArtifacts`; legacy same-session flows remain compatible and cannot be mixed
+with this deferred approval mode. Persisted mode is L2 only.
+
+```bash
+pnpm harness engineering status --id EXECUTION_ID
+pnpm harness engineering diff --id EXECUTION_ID
+pnpm harness engineering approve --id EXECUTION_ID
+pnpm harness engineering reject --id EXECUTION_ID
+pnpm harness engineering continue --id EXECUTION_ID
 ```
 
-Continue would require a separately configured operator entitlement (for example,
-harness:operator plus exact workspace/execution scope). An approver role alone does
-not imply operator authority. Role names beyond existing harness:approver remain
-proposed, with no deployed authenticator or grant in this phase.
+All lifecycle commands currently return structured `authentication_required` without
+reading private data or writing state. They do not accept credentials/identities in
+arguments. This is intentional: **there is no configured deployed authenticator**.
+The embedding API uses exact operation IDs after host resolution of an execution;
+it is not an end-user authentication or execution-ID authorization shortcut.
 
-A fencing epoch is cooperative admission, not an OS guarantee that an old process
-cannot finish an in-flight rename. Host-mediated quiescence/worker exclusion and
-reconciliation remain mandatory. If they cannot be proved, continuation stays
-blocked. Same-UID hostile filesystem races and non-atomic multi-file effects remain
-explicit limits; no lease or success test establishes exactly-once external effects.
+## Acceptance and remaining gates
 
+Core L2 tests use real files/SQLite, mocked native OpenAI HTTP and independent fixture
+identity verification confined to `src/__tests__`. Three independent processes prove
+initial generation, independent approval and exact continuation; resume HTTP count is
+zero and original selected/unselected source is unchanged. Concurrency, old living
+owners, SIGKILL at FS/journal and apply boundaries, corruption, missing artifacts,
+invalid identities/scopes, changed policy/base/workspace, denial/revocation/expiry,
+partial effects, ambiguous commit acknowledgment, cancellation, timeout, legacy
+migration and bounded telemetry are covered. [Verification](VERIFICATION.md#phase-9a2-durable-l2-resume)
+records exact commands/counts; fixtures do not prove real deployed authentication.
 
-The artifact also needs a bounded copy/digest of original host budgets, consumed
-request/token/iteration counters, reported-versus-unknown usage and cost provenance.
-Continuing an apply-only operation uses a newly authorized finite host deadline;
-it does not reset original accounting or permit another provider turn. Unknown
-past billing cannot become zero after reopen. An artifact/budget change invalidates
-the decision scope. Proposed total artifact size is at most 64 KiB, while the patch
-must still satisfy the existing stricter 12 KiB serialized engine limit and current
-path/file/byte policy. These are proposed admission limits, not implemented ports.
+Operational L2 requires selecting/reviewing a real independent identity and credential
+channel, effective access/replay controls, host backup/retention/key procedures,
+security review and operational tests before CLI/IPC activation. Phase 9B/9C, L3,
+Podman changes, Anthropic engineering, publication and integration are outside this work.

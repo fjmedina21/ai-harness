@@ -120,6 +120,25 @@ export class EngineeringWorkspace {
       throw new EngineeringWorkspaceUncertain();
     }
   }
+  /** Host-only reopening from an authenticated artifact, never a model-chosen path. */
+  static async reopen(receipt: WorkspaceReceipt, rootIdentity: { dev: string; ino: string }, store: import("@ai-harness/contracts").DurableOperationStore): Promise<EngineeringWorkspace> {
+    const { executionId, workspaceId, sourceRoot, baseRevision, root, expiresAt, ownerUid } = receipt;
+    const ordered = { executionId, workspaceId, sourceRoot, baseRevision, root, expiresAt, ownerUid };
+    const control = path.dirname(root);
+    if (path.basename(root) !== "files" || path.basename(control) !== workspaceId || ownerUid !== process.getuid?.()) throw new Error("Workspace receipt invalid");
+    const metadata = path.join(control, "receipt.json");
+    const raw = await readVerifiedFile(metadata, await lstat(metadata, { bigint: true }));
+    if (raw.length > 4096 || engineeringHash(raw) !== engineeringHash(JSON.stringify(ordered))) throw new Error("Workspace receipt changed");
+    const operations = store.list(executionId, undefined, 1000);
+    if (operations.length === 1000 || !operations.some(op => op.toolId === "workspace.create" && op.state === "Completed" && op.projectRoot === path.dirname(control) && op.argumentDigest === engineeringHash(JSON.stringify(ordered)))) throw new Error("Workspace creation not confirmed");
+    const identity = await lstat(root, { bigint: true });
+    if (identity.dev.toString() !== rootIdentity.dev || identity.ino.toString() !== rootIdentity.ino) throw new Error("Workspace identity changed");
+    const workspace = new EngineeringWorkspace(ordered, control, identity, { files: 256, bytes: 4 * 1024 * 1024 });
+    await workspace.assertOwned();
+    const markers = await readdir(control);
+    if (markers.includes("mutation.lock") || markers.includes("uncertain")) throw new Error("Workspace requires reconciliation");
+    return workspace;
+  }
   async assertOwned(signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted();
     const st = await lstat(this.receipt.root, { bigint: true });

@@ -1,34 +1,34 @@
 # AI Harness
 
 Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Version **0.8.0** is an experimental source milestone. Starting main
-**082d46fa6d48** includes OpenAI engineering and
-[baseline CI](https://github.com/fjmedina21/ai-harness/actions/runs/45215617846).
-The stabilization branch adds layered deadlines and safe performance metrics,
-with 592 local tests and one newly authorized four-role OpenAI smoke passed
-in 262.44s under an explicit 360s/180s/180s profile. The default 120s workflow
-profile has no passing real evidence for this slow model. L2 still needs
-independent approval; L3 stays blocked. This is **not production-ready autonomy**.
-See [verification](docs/VERIFICATION.md#phase-9a-stabilization).
+Version **0.8.0**, experimental; **not production-ready autonomy**. This work starts
+at `2746500e6787` on feat/phase9-l2-durable-approval-resume. L3 remains blocked.
 
-## Phase 9A stabilization
+## Phase 9A.2 — durable L2 core
 
-Starting main: **082d46fa6d48**, version 0.8.0. The stabilization branch separates
-finite global, HTTP and role deadlines from terminal persistence; adds safe phase/
-role metrics and a reproducible offline benchmark. OpenAI engineering defaults to
-120s global / 30s HTTP; explicit host settings allow at most 900s global / 300s HTTP
-or role. A slow-model profile is 360s global / 180s HTTP / 180s per role, selected
-with --timeout-ms, --request-timeout-ms and --role-timeout-ms. Its one newly
-authorized real acceptance run passed in 262.44s on 2ce8717. The old 600s-profile pass remains
-historical evidence.
+Isolated requests now preserve exact proposals and diffs in private host-authenticated
+artifacts with SQLite bindings. An embedding host can independently approve and
+resume the exact patch across processes through the existing dispatcher, with CAS
+leases, monotonic fencing and complete source/workspace/policy revalidation.
+Continuation makes **zero provider calls**, executes no generated code and changes
+only the private workspace. Completed/uncertain effects are never automatically replayed.
 
-Run pnpm bench:engineering for offline measurements. Requirements and Reviewer
-stay mandatory. [L2 approval/continuation](docs/phase9-l2-approval-resume-design.md)
-is design only; no approve/resume CLI is enabled. See
-[performance](docs/phase9a-performance.md),
-[time/budget policy](docs/phase9a-timeout-budget-policy.md) and
-[verification](docs/VERIFICATION.md#phase-9a-stabilization).
-L3 stays blocked; Anthropic engineering stays deferred.
+**Core L2 Resume** is validated using deterministic authentication fixtures, real
+SQLite/filesystem and independent processes. **Operational L2 Resume remains blocked**:
+no deployed independent authenticator/credential channel is included. Lifecycle
+commands `engineering status|diff|approve|reject|continue --id ID` return structured
+`authentication_required`; they do not accept credentials in arguments. They are not
+yet end-user approval/resume features. See [L2 design](docs/phase9-l2-approval-resume-design.md)
+and [verification](docs/VERIFICATION.md#phase-9a2-durable-l2-resume) for migration,
+identity integration, retention and known limits. The default SDD/inspect and L0/L1
+workflows remain compatible. Anthropic engineering is deferred; no Phase 9B/9C begins.
+
+The preceding stabilization milestone has 592 local tests and a separately authorized
+synthetic OpenAI run in 262.44s under a 360s/180s/180s host profile. That historical
+live result does not validate these new continuation changes or the default 120s
+slow-model profile. No live provider calls are part of this work. Deadline defaults
+remain 120s global / 30s HTTP, with explicit finite host ceilings of 900s/300s.
+See [time/budget policy](docs/phase9a-timeout-budget-policy.md).
 
 ## Phase 9 opt-in engineering
 

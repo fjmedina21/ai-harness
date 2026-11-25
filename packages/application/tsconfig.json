@@ -15,6 +15,7 @@
     { "path": "../orchestrator" },
     { "path": "../tools" },
     { "path": "../checkpointing" },
+    { "path": "../security" },
     { "path": "../observability" }
   ]
 }

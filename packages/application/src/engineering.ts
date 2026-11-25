@@ -1,3 +1,4 @@
+import { persistEngineeringProposal } from "./engineering-resume.js";
 import { EngineeringDeadline, measureEngineeringPhase, measureEngineeringPhaseAsync } from "./engineering-timing.js";
 import { randomUUID } from "node:crypto";
 import type { AgentRole, DurableOperation, DurableDispatchBinding, EngineeringBudget, EngineeringCheckpoint, EngineeringPolicy, EngineeringState, StructuredPatch, TelemetryBinding, ValidationEvidence, WorkspaceSnapshot } from "@ai-harness/contracts";
@@ -54,6 +55,8 @@ export interface EngineeringOptions {
   signal?: AbortSignal;
   telemetry?: TelemetryBinding;
   checkpoint?: { save(checkpoint: EngineeringCheckpoint): Promise<void> };
+  /** Explicit host opt-in. Durable pending publication happens only after artifact+journal binding. */
+  proposalArtifacts?: import("@ai-harness/checkpointing").ProposalArtifactStore;
   /** Only trusted host UI may return an already-issued transactional approval ID. */
   requestApproval?: (request: { approvalId: string; patch: StructuredPatch; diff: string; signal: AbortSignal }) => Promise<string | undefined>;
   humanReview?: (result: Readonly<EngineeringResult>, signal: AbortSignal) => Promise<boolean>;
@@ -111,6 +114,7 @@ function validateOptions(o: EngineeringOptions): void {
       (o.agent.mode === "host_model_adapter" && (o.modelAdapterAuthorized !== true || o.allowUncertainCost !== true || o.level === 3)) ||
       !Number.isSafeInteger(o.agent.maxTokensPerRequest) || o.agent.maxTokensPerRequest < 1 || o.agent.maxTokensPerRequest > o.budget.maxTokens ||
       !Number.isFinite(o.agent.maxEstimatedCostUsdPerRequest) || o.agent.maxEstimatedCostUsdPerRequest < 0) throw new Error("Host adapter and finite budgets required");
+  if (o.proposalArtifacts && (o.level !== 2 || o.requestApproval)) throw new Error("Durable continuation requires apply-only L2 and independent later approval");
   if (o.level > 1 && (!o.workspace || o.workspace.createAuthorized !== true || !o.checkpoint)) throw new Error("L2 requires authorized workspace, durable binding and checkpoints");
   if (o.level === 3 && !o.realValidationRequested && o.validation?.kind !== "fixture") throw new Error("No engineering validation runtime available");
 }
@@ -318,6 +322,19 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
       const tools = createEngineeringTools(engine, o.workspace!.binding), identity = { taskId: "engineering", requestId: "patch-" + iteration }, invocation = patchInvocation(patch);
       const waiting = await tools.dispatch(invocation, identity, undefined, signal, executionTelemetry);
       if (waiting.status !== "approval_required" || !waiting.approvalId) throw new Stop(waiting.operationState === "Uncertain" ? "uncertain" : "failed");
+      if (o.proposalArtifacts) {
+        if (!waiting.operationId || !(view instanceof EngineeringWorkspace)) throw new Stop("failed");
+        const store = o.workspace!.binding.store as import("@ai-harness/contracts").EngineeringResumeStore;
+        if (typeof store.bindProposal !== "function" || o.requestApproval) throw new Stop("failed");
+        await persistEngineeringProposal(store, o.proposalArtifacts, { executionId, requester: o.workspace!.binding.requester, operationId: waiting.operationId,
+          workspaceId: view.receipt.workspaceId, receipt: { ...view.receipt }, sourceRevision: view.receipt.baseRevision,
+          baseSnapshot: await view.inspect(signal), patch, patchDigest: patch.digest, diffDigest: engineeringHash(diff), diff,
+          allowedPaths: [...o.policy.allowedPaths], allowedOperations: [...o.policy.allowedOperations], policy: o.policy, policyDigest: patch.policyDigest,
+          budget: o.budget, accounting: { ...result.usage, usageComplete: result.usageComplete, reportedUsage: result.reportedUsage, cost: result.cost } });
+        signal.throwIfAborted();
+        emitTelemetry(executionTelemetry, "engineering.resume", { resumeEvent: "proposal.persisted", operationId: waiting.operationId });
+        emitTelemetry(executionTelemetry, "engineering.resume", { resumeEvent: "approval.requested", operationId: waiting.operationId });
+      }
       result.pendingApprovals = [waiting.approvalId];
       emitTelemetry(executionTelemetry, "engineering.approval", { approvalRequired: true, accepted: false });
       const approved = o.requestApproval ? await boundedWait(o.requestApproval({ approvalId: waiting.approvalId, patch: structuredClone(patch), diff, signal })) : undefined;

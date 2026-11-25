@@ -1,5 +1,22 @@
 # AI Harness — implementation roadmap
 
+## Phase 9A.2 — durable approval/resume core
+
+Implemented locally from `2746500e6787` on feat/phase9-l2-durable-approval-resume;
+version remains 0.8.0. Core: private HMAC proposal/diff artifacts, immutable SQLite
+references, scoped independent decisions through DurableApprovalService, CAS leases
+with monotonic epochs/history, revalidated apply-only continuation and conservative
+crash recovery. No provider call or generated-code execution occurs on resume.
+Three-process and failure/concurrency/security coverage uses fixture authentication;
+see [verification](VERIFICATION.md#phase-9a2-durable-l2-resume).
+
+Operational L2 is blocked pending deployed independent authentication, access/replay
+controls, host storage/key/retention procedures and operational security acceptance.
+Lifecycle CLI commands are recognized but disabled; isolated generation persists
+proposals. Phase 9B/9C and L3 have not started. No Podman/Anthropic engineering or
+version milestone/publication is included. Full details: [L2 design](phase9-l2-approval-resume-design.md).
+
+
 This status follows the implemented code. Earlier broad architecture proposals
 are targets, not evidence that those capabilities were delivered.
 
@@ -13,9 +30,7 @@ The 360s/180s/180s acceptance profile is a host opt-in, not a new default.
 Its one newly authorized OpenAI smoke passed in 262.44s on 2ce8717; historical failures and the
 600s pass remain separate evidence. At local closure 5686af0 no new hosted CI had
 run; subsequent publication and CI are separate evidence for their exact SHA.
-[L2 approval/resume](phase9-l2-approval-resume-design.md) is design only; private
-proposal artifacts, authenticated broker and fenced ownership transfer require
-implementation/review before any approve/continue CLI. No Phase 9B or L3 starts.
+[L2 approval/resume](phase9-l2-approval-resume-design.md) now has the separately documented Core implementation above; production authenticated CLI activation remains gated. No Phase 9B or L3 starts.
 See [performance](phase9a-performance.md) and [policy](phase9a-timeout-budget-policy.md).
 
 ## Historical integrated baseline — before stabilization

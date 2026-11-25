@@ -142,3 +142,5 @@ export * from "./durable.js";
 export * from "./telemetry.js";
 
 export * from "./engineering.js";
+
+export * from "./engineering-resume.js";

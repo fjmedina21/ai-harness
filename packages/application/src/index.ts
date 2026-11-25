@@ -15,3 +15,6 @@ export { FixtureEngineeringAgent } from "./engineering-fixture.js";
 export * from "./engineering-provider.js";
 
 export { resolveEngineeringTiming } from "./engineering-timing.js";
+
+export { ContinuationCoordinator, EngineeringRecoveryService, ExecutionLeaseManager, persistEngineeringProposal } from "./engineering-resume.js";
+export type { ContinuationOptions } from "./engineering-resume.js";

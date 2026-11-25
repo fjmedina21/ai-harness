@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { link, lstat, mkdir, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { EngineeringPolicy, FileChange, StructuredPatch, ToolDispatchContext, ToolInvocation, ToolParameterSchema, WorkspaceSnapshot } from "@ai-harness/contracts";
+import { canonicalProposalJson } from "@ai-harness/contracts";
 import { ToolDispatcher } from "./dispatcher.js";
 import { ToolRegistry } from "./index.js";
 import { EngineeringWorkspace, engineeringCreateTargetAbsent, engineeringFile, engineeringHash, engineeringLimit, engineeringPath, writeEngineeringFile } from "./engineering-workspace.js";
@@ -46,7 +47,7 @@ export class EngineeringPatchEngine {
   private readonly policy: EngineeringPolicy;
   private readonly proposals = new Map<string, StructuredPatch>();
   readonly policyDigest: string;
-  constructor(readonly view: EngineeringView, policy: EngineeringPolicy) {
+  constructor(readonly view: EngineeringView, policy: EngineeringPolicy, private readonly assertFence?: () => void) {
     engineeringLimit(policy.maxFiles, 16); engineeringLimit(policy.maxBytes, 8192);
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(policy.version) || !policy.allowedPaths.length || policy.allowedPaths.length > 256 ||
         new Set(policy.allowedPaths.map(p => engineeringPath(p).toLowerCase())).size !== policy.allowedPaths.length ||
@@ -85,6 +86,14 @@ export class EngineeringPatchEngine {
     this.proposals.set(patch.digest, structuredClone(patch));
     return structuredClone(patch);
   }
+  /** Import exact persisted data only after independently revalidating the complete proposal. */
+  async restore(persisted: StructuredPatch, signal?: AbortSignal): Promise<StructuredPatch> {
+    const patch = await this.propose({ baseRevision: persisted.baseRevision, changes: structuredClone(persisted.changes) }, signal);
+    if (canonicalProposalJson(patch) !== canonicalProposalJson(persisted)) {
+      this.proposals.delete(patch.digest); throw new Error("Persisted patch mismatch");
+    }
+    return patch;
+  }
   get(digest: string): StructuredPatch {
     const proposal = this.proposals.get(digest);
     if (!proposal) throw new Error("Unknown host proposal; resumption is disabled");
@@ -119,9 +128,11 @@ export class EngineeringPatchEngine {
   /** Trusted host dispatcher handler only; never expose directly to a provider. */
   async apply(digest: string, signal?: AbortSignal): Promise<{ snapshotDigest: string; patchDigest: string }> {
     if (!(this.view instanceof EngineeringWorkspace)) throw new Error("L1 cannot modify source");
+    this.assertFence?.();
     const workspace = this.view;
     const patch = await this.validate(digest, signal);
     return workspace.mutate(async () => {
+      this.assertFence?.();
       await this.validate(digest, signal);
       const before = await workspace.inspect(signal);
       if (before.digest !== patch.baseRevision) throw new Error("Workspace revision changed");
@@ -136,29 +147,30 @@ export class EngineeringPatchEngine {
         const segments = change.path.split("/"); let directory = workspace.receipt.root;
         for (const segment of segments.slice(0, -1)) {
           directory = path.join(directory, segment);
-          try { await mkdir(directory, { mode: 0o700 }); } catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
+          try { this.assertFence?.(); await mkdir(directory, { mode: 0o700 }); } catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
           const st = await lstat(directory);
           if (!st.isDirectory() || st.isSymbolicLink() || st.uid !== workspace.receipt.ownerUid) throw new Error("Unsafe patch parent");
         }
         await workspace.assertOwned(signal);
         const target = path.join(workspace.receipt.root, change.path);
         if (change.operation !== "create" && engineeringHash(await engineeringFile(workspace.receipt.root, change.path, signal)) !== change.baseHash) throw new Error("Patch target changed");
-        if (change.operation === "delete") await unlink(target);
+        if (change.operation === "delete") { this.assertFence?.(); await unlink(target); }
         else {
           const temporary = path.join(directory, ".patch-" + randomUUID());
-          await writeEngineeringFile(temporary, change.content!);
+          this.assertFence?.(); await writeEngineeringFile(temporary, change.content!);
           signal?.throwIfAborted();
           await workspace.assertOwned(signal);
-          if (change.operation === "create") { await link(temporary, target); await unlink(temporary); }
+          if (change.operation === "create") { this.assertFence?.(); await link(temporary, target); this.assertFence?.(); await unlink(temporary); }
           else {
             if (engineeringHash(await engineeringFile(workspace.receipt.root, change.path, signal)) !== change.baseHash) throw new Error("Patch target changed");
-            await rename(temporary, target);
+            this.assertFence?.(); await rename(temporary, target);
           }
           if (engineeringHash(await engineeringFile(workspace.receipt.root, change.path, signal)) !== change.resultHash) throw new Error("Patch verification failed");
         }
       }
       const current = await workspace.inspect(signal);
       if (current.digest !== expectedDigest) throw new Error("Unexpected workspace mutation");
+      this.assertFence?.();
       return { snapshotDigest: current.digest, patchDigest: patch.digest };
     }, signal);
   }

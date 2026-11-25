@@ -1,5 +1,27 @@
 # AI Harness — Especificación maestra de arquitectura
 
+## Phase 9A.2 — durable L2 core
+
+Baseline `2746500e6787`, version 0.8.0. Contracts now describe authenticated private
+proposal artifacts, scoped decisions, independent identity challenges and fenced
+continuation leases. Checkpointing owns canonical HMAC artifacts and the additive
+SQLite v1-to-v2 migration. Security's ApprovalBroker reuses DurableApprovalService;
+Application's RecoveryService/LeaseManager/ContinuationCoordinator reconcile and
+apply the exact persisted patch through the existing dispatcher. Host identity,
+receipt/device/inode, selected source inventory, policy and full workspace inventory
+are checked again before effects. Prepared/Running/Uncertain cannot transfer leases.
+
+Core L2 Resume is tested with independent authentication fixtures and actual
+multiprocess filesystem/SQLite; continuation has no provider port. Operational L2
+remains blocked without a deployed authenticator. CLI isolated requests persist
+proposals, while lifecycle commands return authentication_required. Existing L0/L1,
+complete(), source read-only behavior and same-session approvals remain compatible.
+No generated code execution, original-project mutation, L3 or publication is enabled.
+See the [implemented design](phase9-l2-approval-resume-design.md) for contracts,
+schema, migration/rollback, lease history, authentication and limits. Later sections
+retain architecture targets and historical implementation snapshots.
+
+
 > **Alcance:** este documento conserva decisiones y objetivos de arquitectura
 > de largo plazo; no todas las capacidades enumeradas están implementadas.
 > Para el estado vigente, use [roadmap](ROADMAP.md), [verificación](VERIFICATION.md)

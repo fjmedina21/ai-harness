@@ -1,5 +1,34 @@
 # Phase 9 threat model
 
+## Phase 9A.2 security boundary
+
+Core L2 Resume adds private authenticated artifacts, SQLite v2 immutable proposal
+bindings, scoped decisions through the existing approval service, and leased
+apply-only continuation. Host state stays outside the source project. HMAC keys are
+0600 host-owned random material; no identity is authenticated with a content hash.
+Independent per-action/resource identity verification is an injected port, without
+a deployed production implementation. CLI lifecycle commands remain disabled.
+Requester self-approval, challenge/patch/policy/snapshot substitution and consumption
+replay fail closed. Reader, approver and operator entitlements are separate.
+
+Lease acquisition atomically CAS-checks the Approved operation version and transfers
+ownerSession with increasing epoch, operator identity, state version and bounded
+history. No transfer from Prepared/Running/Uncertain is allowed, including expired
+leases. Synchronous fence checks guard each patch mutation boundary; the persistent
+workspace lock and uncertainty markers remain. Multi-file writes are not atomic,
+same-UID malicious races are outside the private-host boundary, and no exactly-once
+external effects are promised. Unknown persistence acknowledgments retire the owner;
+orphan artifacts and uncertain effects are retained, never reconstructed or replayed.
+
+Artifacts include sensitive patch/diff only in private files, never telemetry. The
+new engineering.resume observer event admits closed labels/operation IDs only;
+observer failure cannot authorize or alter durable state. No credentials, private
+paths, SQL, source or patch bodies enter error/telemetry messages. Original source is
+read-only and generated code is not executed. Fixtures validate core behavior, not
+real IdP/IPC security. Operational authentication, key rotation/backup/retention and
+independent review remain gates. See [implemented threat/protocol details](phase9-l2-approval-resume-design.md).
+
+
 Experimental local engineering, trusted host and private same-user filesystem.
 Model prompts, repository text, proposed code, dependencies and test configuration
 are untrusted. Workspace receipts, policies, approvals and executable registries

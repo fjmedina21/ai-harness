@@ -58,8 +58,13 @@ export class DurableApprovalService {
       return { issuer: verified.issuer, subject: verified.subject };
     } catch { throw new Error("Durable approver authentication required"); }
   }
-  async decide(id: string, credential: string, approved: boolean): Promise<DurableApproval> {
+  async decide(id: string, credential: string, approved: boolean, binding?: import("@ai-harness/contracts").ApprovalDecisionBinding): Promise<DurableApproval> {
     const actor = await this.actor(credential);
+    if (binding) {
+      const store = this.store as import("@ai-harness/contracts").EngineeringResumeStore;
+      if (typeof store.decideScoped !== "function") throw new Error("Scoped durable approval unavailable");
+      return store.decideScoped(id, actor, approved, binding);
+    }
     return this.store.decide(id, actor, approved);
   }
   async revoke(id: string, credential: string): Promise<DurableApproval> {

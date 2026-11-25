@@ -4,7 +4,7 @@ export type TelemetryErrorClass = "cancelled" | "timeout" | "invalid_response" |
 /** Fixed, low-cardinality classification. Never contains upstream error text. */
 export type ProviderHttpErrorCategory = "rate_limit" | "quota_or_billing" | "authentication" | "permission" | "model_access" | "invalid_request" | "unknown";
 export type TelemetrySpanName = "engineering.phase" | "execution" | "task" | "agent" | "model.turn" | "provider.request" | "provider.http" | "tool.dispatch" | "tool.handler";
-export type TelemetryEventName = "engineering.context" | "engineering.budget" | "engineering.proposal_validation" | "engineering.state" | "engineering.workspace" | "engineering.patch" | "engineering.approval" | "engineering.validation" | "engineering.repair" | "engineering.review" | "engineering.completion" | "task.blocked" | "agent.tools_requested" | "agent.tools_rejected" | "agent.limit" | "tool.validation" | "tool.policy" | "tool.authorization";
+export type TelemetryEventName = "engineering.resume" | "engineering.context" | "engineering.budget" | "engineering.proposal_validation" | "engineering.state" | "engineering.workspace" | "engineering.patch" | "engineering.approval" | "engineering.validation" | "engineering.repair" | "engineering.review" | "engineering.completion" | "task.blocked" | "agent.tools_requested" | "agent.tools_rejected" | "agent.limit" | "tool.validation" | "tool.policy" | "tool.authorization";
 export interface TraceContext {
   traceId: string;
   spanId?: string;
@@ -23,7 +23,9 @@ export interface TokenUsage {
   /** Subset of output, never added to outputTokens. */
   reasoningTokens?: number;
 }
+export const RESUME_TELEMETRY_EVENTS = ["proposal.persisted", "approval.requested", "approval.granted", "approval.rejected", "approval.expired", "lease.acquired", "lease.conflict", "reconciliation.started", "reconciliation.failed", "continuation.started", "continuation.completed", "operation.uncertain"] as const;
 export interface TelemetryAttributes {
+  resumeEvent?: typeof RESUME_TELEMETRY_EVENTS[number];
   phase?: import("./engineering.js").EngineeringPhase;
   requestIndex?: number;
   remainingMs?: number;

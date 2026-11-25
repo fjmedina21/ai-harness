@@ -49,3 +49,5 @@ export class DefaultPolicyEngine implements PolicyEngine {
 }
 
 export { DurableApprovalService, digestDurableValue } from "./durable-approval.js";
+
+export { ApprovalBroker } from "./engineering-approval-broker.js";
