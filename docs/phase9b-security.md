@@ -36,15 +36,19 @@ verification establishes snapshot identity before action execution and immutable
 host capture, not an unmodifiable guest filesystem. Stronger guest immutability
 is unresolved; this is an additional reason Gate C remains unpassed.
 
-The separate `sandbox.validate` action approval is required even after approved
-L2 patch application. Team retains a different requester/approver identity. Explicit
-Personal policy permits the same GitHub identity only with a new human confirmation
-bound to the action/profile/snapshot, a separate challenge and a separate durable
-grant. Patch confirmation cannot authorize sandbox execution. See
-[Personal Mode](phase9-personal-mode.md). Isolation requirements remain unchanged.
-The host acceptance verifier is a trusted integration port, not a deployed
-attestation authority; a no-op verifier would violate the operational contract.
-The CLI therefore remains disabled while live acceptance is pending.
+The separate sandbox.validate approval is mandatory even after Personal L2 patch
+application. The sole owner must provide another exact action review and fresh
+native human intent, bound to its profile/image/resources/limits and resulting
+snapshot, separate challenge and durable grant. Login and patch intent cannot
+substitute for this decision. Project policy must authorize the action separately.
+
+Approved effect-free sandbox operations may transfer journal ownership under the
+existing CAS lease with increasing fencing epoch. Prepared/Running/Uncertain and
+completed actions never replay. Verified evidence can reopen in another process;
+a Running operation or interrupted claim requires reconciliation. No second
+runtime or privileged execution profile is introduced. CLI acceptance is private, domain-HMAC protected and bound to current owner/project/
+code/runtime, effective probes and four native-approved durable results. Only the
+actual local fixed Node scope is accepted; expiry/mismatch or other scope stays blocked.
 
 ## Verification and residual risk
 

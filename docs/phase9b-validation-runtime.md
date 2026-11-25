@@ -1,97 +1,65 @@
-# Phase 9B — Podman validation runtime
+# Durable Podman validation runtime
 
-Version **0.8.0**. The host API implements bounded snapshot validation using the
-existing Podman-only backend, effective profile checks, ToolDispatcher and durable
-approval journal. The CLI target is recognized but fails closed with
-`validation_acceptance_pending`; actual GitHub/Keychain and current-code Podman
-acceptance are not yet established. No generated-code workload was run as part of
-offline verification.
+Version **0.8.0**, experimental. Gate C is LIVE VERIFIED only for the registered
+gatec-synthetic project and exact local-podman fixed Node profiles. Its actual fresh
+CLI case passed. Other scope remains validation_acceptance_pending; repository
+flags, model claims and mocked tests cannot accept a profile.
+
+The CLI requires a private create-only domain-HMAC acceptance record under the
+registered journal root, using the existing proposal host key with a separate
+domain. The record binds owner, complete project fingerprint, critical executed
+runtime/auth/CLI code, pinned runtime options, effective probes and four distinct
+native-approved durable test/output/timeout/cancel outcomes. Every invocation
+rechecks signature, expiry, code/policy and actual evidence against SQLite. Maximum
+record lifetime is 24 hours; workspace/source/snapshot validity can block it earlier.
+A repeated completed command returns verified existing evidence without replay.
+This is trusted host policy/corruption protection, not external attestation.
 
 ## Host composition
 
-`SandboxValidationRegistry` registers immutable trusted action profiles.
-`ValidationCoordinator` derives the expected approved snapshot, checks the
-completed L2 operation/reference and independently consumed patch approval,
-authorizes the GitHub operator and captures the exact workspace inventory.
-`PodmanSnapshotValidationRuntime` requires a host acceptance verifier on every
-effect before calling the existing fixed container lifecycle. Merely constructing
-the runtime or selecting a profile grants no authority.
+The existing ValidationCoordinator, SnapshotValidationRuntime, ToolDispatcher,
+ApprovalBroker/DurableApprovalService, SQLite Journal v3 and FileValidationEvidenceStore
+are reused. An AuthorizedValidationProject supplies exact canonical source/workspace,
+current file policy, optional full authorization fingerprint and exact allowed action
+profiles. The host independently authenticates the owner and checks capabilities;
+absent project/action or a changed policy/snapshot rejects before runtime execution.
 
-`prepare(artifact, workspace, actionId)` submits `sandbox.validate` through
-ToolDispatcher as high-risk `shell:execute`. It returns a pending durable approval.
-This is a separate action approval: patch approval does not grant sandbox execution.
-A trusted authenticated approver must decide that exact validation scope using
-DurableApprovalService. `execute(..., approvalId)` uses the same journal operation
-and one-use approval. The model cannot invoke an approval service or supply a raw
-command. Requester/operator identity and approver must remain independent.
+prepare validates the completed, consumed, human-reviewed L2 patch and expected
+resulting snapshot; captures bounded regular single-link source bytes through
+stdin; and returns a new pending sandbox operation and challenge. approve requires
+a separately scoped GitHub owner verifier plus exact native human action review.
+The review includes project source/workspace/snapshot and full action/profile, image,
+argv, CPU/memory/PID limits, network policy, timeout and output limit. Patch intent
+cannot be reused. execute accepts only that exact durable grant and acquires the
+existing CAS/fenced lease before dispatcher consumption.
 
-The validation binding covers artifact, resulting snapshot/transfer digest,
-workspace and complete action profile digest, including image/resources/argv.
-Before dispatch, the host must revalidate current operator permission and policy.
-The coordinator has no model/provider port, automatic repair or source integration.
-The journal admits the narrowly scoped new validation action after confirmed
-independently approved `patch.apply`; it does not loosen generic lease recovery.
-Prepare/approve/execute currently require the same trusted journal-owner session.
-Cross-process continuation of interrupted validation actions is not implemented;
-uncertainty is retained for manual reconciliation, never automatic resumption.
+Approved effect-free actions can be approved/continued from another process.
+Prepared/Running/Uncertain actions and interrupted evidence claims require
+reconciliation, never retry. A completed patch lease cannot authorize a sandbox;
+a new grant and epoch are required. Runtime execution is fenced before dispatch,
+after policy revalidation and before evidence publication. Four-process offline
+coverage exercises prepare, human fixture approval, execute and evidence inspection.
 
-## Initial action profile
+## Runtime and evidence
 
-The initial `node-isolated-v1` profile deliberately fits the existing noexec tmpfs
-boundary. It supports only fixed host-selected `node` argument arrays and an exact
-canonical working directory. It is not a generic shell, `pnpm install`, package
-manager, native toolchain or general TypeScript monorepo build profile. Build/test
-tools and dependencies must already be reviewed/present in the pinned image;
-unsupported requests remain blocked rather than relaxing the profile.
+PodmanSnapshotValidationRuntime retains the existing dedicated rootless Machine,
+pinned pre-pulled image, no host/engine socket mounts, no guest host-filesystem shares,
+network none, read-only root, non-root UID, no-new-privileges, seccomp, no capabilities,
+0.5 CPU, 256 MiB memory, 64 PIDs, 16 MiB noexec tmpfs, at most 10 seconds per action
+and 1024 bytes per action output. No machine start/reconfiguration, image download,
+package install or host execution of project code is automatic. Node-only actions
+remain the accepted implementation boundary; no privileged native/package build.
 
-| Field | Required profile |
-| --- | --- |
-| Runtime | explicit Podman Machine, dedicated/disposable host attestation |
-| Image | pre-pulled qualified OCI reference pinned by SHA-256 and platform |
-| Executable | `node`; host-selected argv, no shell interpretation |
-| Network | `none`; no forwarded proxy settings |
-| CPU / memory / PIDs | 0.5 CPU / 256 MiB memory+swap total / 64 |
-| Runtime timeout | finite, at most 10 seconds including existing preflight/lifecycle budget |
-| Action output | finite, at most 1024 bytes |
-| Runtime envelope output | at most 4096 combined bytes |
-| Filesystem | read-only root, only bounded private 16 MiB `/tmp`, no host binds |
-| Privilege | UID/GID 65534, dropped capabilities, no-new-privileges, seccomp |
+Evidence publication precedes journal terminal completion. Evidence includes exact
+operation/workspace/snapshot/transfer/action/image, times, bounded output digest,
+classification and cleanup status. inspectEvidence verifies its artifact/reference,
+current owner/project/action, workspace snapshot, consumed grant and completed
+journal result without calling Podman. Uncertain or corrupt data cannot become a
+successful execution. Output files and claims use private create-only durable writes.
 
-Existing preflight verifies machine fingerprint/socket, rootless guest, cgroup
-capabilities, image identity, absent host guest shares and effective container
-metadata. No machine creation/start, image pull, permission expansion or runtime
-repair is performed automatically. See [Phase 5 security](phase5-security.md).
-
-## Results, cancellation and durable evidence
-
-The fixed receiver verifies staging before executing the selected action and
-returns bounded structured output tied to the exact snapshot/transfer digest.
-Results distinguish passed, failed, timeout, cancelled, blocked and uncertain.
-Output-limit/start failures cannot become passes. Host cancellation and deadline
-handling retain independent owned-resource cleanup. Cleanup checks use exact
-owner token and immutable container ID; no prune or unrelated removal occurs.
-
-`FileValidationEvidenceStore` uses a pre-existing canonical private `0700`
-directory, create-only `0600` files, fsync, digest checking and an exclusive
-workspace claim. Evidence contains execution/workspace/snapshot/transfer/action
-IDs, runtime/image digest, timestamps/duration, exit/classification, timeout/
-cancellation, cleanup, output digest and fixed sanitized diagnostic IDs. Bounded
-raw output is private separate evidence, never source telemetry. The journal
-remains the authoritative operation/approval/replay boundary.
-
-A successful action with uncertain cleanup is `uncertain`, never passed. Interrupted
-claims, uncertain acknowledgments and Running effects require manual inspection;
-they do not authorize replay. A passed selected test says nothing general about
-generated code security or semantic correctness.
-
-## CLI target and remaining gate
-
-```sh
-pnpm harness engineering validate --id EXECUTION_ID --profile local-podman --action test
-```
-
-The parser rejects arbitrary command arguments and requires authenticated operator
-scope for the selected execution. It currently stops at the acceptance gate.
-General CLI profile loading and validation-action approval/review orchestration
-are not enabled. The host API is available for reviewed acceptance composition;
-it must not be advertised as operational L3. See [real acceptance](phase9b-e2e.md).
+Filesystem evidence and SQLite are not one transaction. Process death after Running,
+unknown commit acknowledgement, missing evidence or cleanup uncertainty blocks replay.
+Digests detect corruption; same-UID malicious host edits are outside the boundary.
+Guest staging modes are not kernel immutability against the owning UID.
+See [threats](phase9b-security.md), [E2E](phase9b-e2e.md) and
+[current report](phase9-real-acceptance-report.md).

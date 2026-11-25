@@ -1,15 +1,16 @@
 # Phase 9A.3 — GitHub authentication
 
 Version **0.8.0**, experimental. GitHub is the only developer identity provider.
-The implementation and mocked-HTTP verification are separate from the pending
-owner-authorized live GitHub/Keychain acceptance gate. AI model providers remain
+The single-owner refactor is offline verified and its actual owner login, native
+Personal and durable Podman scope were separately authorized and verified. Refresh/
+logout history remains evidence for its earlier revision, not a new observation. AI model providers remain
 independent: logging in never authorizes a paid model call.
 
 ## Architecture and trust boundary
 
 ```text
 CLI → GitHub App OAuth + PKCE → app-token check + GET /user
-    → protected local session → scoped host role policy
+    → protected local session → separate host project capabilities
     → ApprovalBroker → DurableApprovalService → ContinuationCoordinator
 ```
 
@@ -68,33 +69,32 @@ App permissions are set at registration, not by repository OAuth scopes. See
 Each online identity check validates the credential against
 `POST /applications/{client_id}/token`, verifies the returned App client ID, then
 compares the returned user ID with `GET /user`. Only a valid GitHub `User` account
-in the host's numeric-ID allowlist is accepted. Tokens are OAuth credentials, not
+matching the host's single `ownerAccountId` is accepted. Tokens are OAuth credentials, not
 OIDC identity JWTs; no arbitrary token claims are trusted. The app check and user
 endpoint are documented by [GitHub](https://docs.github.com/en/rest/apps/oauth-applications#check-a-token)
 and [the users API](https://docs.github.com/en/rest/users/users#get-the-authenticated-user).
 
 Canonical identity is `{ issuer: "github.com", subject: "NUMERIC_ACCOUNT_ID" }`.
-Username is display metadata. A second browser session or renamed username does
-not create an independent approver. Roles come only from the current trusted host
-assignments, with exact source/workspace roots and optional execution/workspace IDs:
+Username is display metadata. A different GitHub ID is rejected even with a valid
+OAuth token. Old account lists and identity assignments are invalid configuration.
+Authentication returns owner identity and session expiry, not resource permissions.
 
-| Role | Allowed lifecycle |
+Project capabilities are supplied separately from OAuth policy and default to an
+empty set. The host checks canonical project/source/workspace and optional exact
+execution/workspace scope, then the existing functional capability identifiers:
+
+| Capability | Host lifecycle |
 | --- | --- |
 | `harness:reader` | status, diff |
-| `harness:requester` | create an authorized isolated proposal |
-| `harness:approver` | approve, reject, revoke |
-| `harness:operator` | continue; future separately approved validation |
+| `harness:requester` | request a project-authorized isolated proposal |
+| `harness:approver` | request native human review; reject/revoke |
+| `harness:operator` | continue; request separately approved validation |
 
-No role is implicitly granted by login. Optional organization restrictions require
-explicit configured stable organization IDs and active online membership; they
-do not grant roles. They additionally require reviewed organization Members read
-permission. The default identity-only setup requests no repository write access.
-
-Phase 9A.4 adds host-owned Personal/Team approval policy without changing identity
-verification. Team retains different requester/approver accounts. Personal permits
-one explicitly assigned four-role account, but requires exact patch review, typed
-confirmation and verified local human intent for each decision. Login grants no
-approval and never changes mode. See [Personal Mode](phase9-personal-mode.md).
+No capability is implicitly granted by login. Optional stable organization
+membership restrictions only narrow identity acceptance. They grant no capability.
+The sole Personal protocol then requires exact review, typed `APPROVE` and fresh
+native authentication; it is neither login nor a role assignment. See
+[project policy](project-authorization.md) and [Personal L2](phase9-personal-mode.md).
 
 The macOS adapter stores the App secret and session in Keychain, outside the
 project. Access/refresh tokens never enter argv, project files, SQLite, artifacts,
@@ -138,8 +138,8 @@ pnpm harness auth refresh
 pnpm harness auth logout
 ```
 
-Identity output includes username, stable account ID, expiration and scoped host
-assignments. It contains no token. Commands also accept `--json`; credential flags
+Identity output includes username, stable account ID, expiration and whether it
+matches the installation owner. It contains no token. Commands also accept `--json`; credential flags
 are rejected. Configuration and owner registration are described in
 [GitHub App setup](phase9-github-app-setup.md); authenticated continuation is in
 [Operational L2](phase9-operational-l2.md).

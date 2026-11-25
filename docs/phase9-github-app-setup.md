@@ -59,22 +59,15 @@ identities for real authorization:
       "timeoutMs": 180000
     },
     "sessionMaxAgeMs": 3600000,
-    "allowedAccountIds": ["101", "202"],
-    "requestedPermissions": [],
-    "assignments": [
-      {
-        "accountId": "101",
-        "roles": ["harness:reader", "harness:requester", "harness:operator"],
-        "resources": [{"sourceRoot": "/ABSOLUTE/SYNTHETIC/PROJECT", "workspaceDirectory": "/PRIVATE/workspaces"}]
-      },
-      {
-        "accountId": "202",
-        "roles": ["harness:reader", "harness:approver"],
-        "resources": [{"sourceRoot": "/ABSOLUTE/SYNTHETIC/PROJECT", "workspaceDirectory": "/PRIVATE/workspaces"}]
-      }
-    ]
+    "ownerAccountId": "101",
+    "requestedPermissions": []
   },
   "workspaces": [{
+    "id": "synthetic-project",
+    "capabilities": ["harness:reader", "harness:requester", "harness:approver", "harness:operator"],
+    "allowedToolIds": ["workspace.inspect", "workspace.list", "workspace.read", "patch.propose", "patch.validate", "patch.apply", "diff.inspect"],
+    "limits": {"maxIterations": 3, "maxRequests": 16, "maxTokens": 100000, "maxEstimatedCostUsd": 0, "timeoutMs": 60000, "maxFiles": 4, "maxBytes": 8192},
+    "validationActions": [],
     "sourceRoot": "/ABSOLUTE/SYNTHETIC/PROJECT",
     "workspaceDirectory": "/PRIVATE/workspaces",
     "journalFile": "/PRIVATE/state/operations.sqlite",
@@ -90,13 +83,12 @@ identities for real authorization:
 }
 ```
 
-Optional resource `executionIds` and `workspaceIds` narrow an assignment further;
-IDs are exact and case-sensitive. Such restricted grants cannot authorize a new
-request before its IDs exist. The fixture policy above matches only the fixture
-CLI example. OpenAI isolated requests must match `cli-openai-v1`, explicit allowed
-paths/operations, `maxFiles: 16` and `maxBytes: 8192`. Mismatch fails closed; project
-configuration cannot add permissions. Model credentials remain independently
-configured and explicitly billable; authentication never supplies them.
+The example is a host registry entry for a synthetic project, not blanket access.
+Register each project separately. Reuse the existing exact-path/operation policy
+validator and preserve narrower limits. CLI requests must stay within project
+limits; provider credentials and billable-call consent are independent. Empty
+validationActions and no sandbox.validate tool intentionally authorize no sandbox.
+See [project policy](project-authorization.md) and [manual migration](single-developer-migration.md).
 
 ## macOS Keychain provisioning
 
@@ -140,11 +132,10 @@ credential status fields rather than interpreting logout as grant-wide invalidat
 | `session_exists_logout_required` | Logout before switching accounts; a new login cannot silently replace a token |
 | `session_expired` | Explicitly refresh when eligible, otherwise logout/login |
 | `credential_invalid` / `session_account_changed` | Stop; inspect revocation, App binding and selected GitHub account |
-| `forbidden_scope` / `organization_not_allowed` | Review numeric-ID assignments and exact current resource; do not widen automatically |
+| `forbidden_scope` / `organization_not_allowed` | Review owner ID, project capabilities and exact current resource; do not widen automatically |
 | `revocation_uncertain` | Local session is cleared; inspect GitHub authorized Apps and revoke there if necessary |
 
-Do not extend an existing approval's expiry to compensate for login time. In Team
-Mode, establish the second identity's session before generating the proposal; the
-existing durable approval defaults to 60 seconds. Explicit Personal policy instead
-requires one scoped four-role account and a fresh human decision; see
-[Personal Mode](phase9-personal-mode.md) and [Operational L2](phase9-operational-l2.md).
+Do not extend an existing approval's expiry to compensate for login time. Personal
+requires the same numeric owner, explicit project capabilities and a fresh native
+human decision. An old session from another owner fails closed. Existing approvals
+are never rebound or reactivated by configuration migration.

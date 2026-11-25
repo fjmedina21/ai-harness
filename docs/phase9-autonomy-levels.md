@@ -1,75 +1,21 @@
-# Phase 9 autonomy levels and release gates
+# Engineering autonomy boundaries
 
-Version **0.8.0**, experimental. Current development starts at `6dbdc98797d3` on
-`feat/phase9-personal-approval-mode`. Phase 9 remains partial; Team's real two-account
-and full durable Podman acceptance gates are pending, with validation CLI
-disabled. Historical provider smokes are separate evidence for their exact
-models/budgets/commits, not authorization for another run.
+Version **0.8.0**, single-developer experimental host.
 
-| Level | Implemented capability | Evidence / remaining gate |
+| Level | Implemented boundary | Acceptance |
 | --- | --- | --- |
-| L0 Inspect | Existing read-only SDD/inspection retained | Existing deterministic regressions; no new live inspection claim |
-| L1 Propose | Fixture/OpenAI structured patches, policy/hashes, reviewed bounded diff | Mocked native Responses adapter and filesystem/CLI; historical synthetic OpenAI smoke retained separately |
-| L2 Isolated apply | Private copies, GitHub-authenticated requester/reviewer/operator, Team/Personal policy-bound durable approval, fenced cross-process continuation | Offline GitHub HTTP + real SQLite/filesystem/process tests; actual policy-specific human approval acceptance pending |
-| L3 Validate | Closed snapshot stdin transfer, fixed host Node profiles, separate action approval, Podman-only runtime, private durable evidence | Deterministic component/integration tests; actual isolation/transfer/resources/cancellation/cleanup pending; CLI blocked |
-| L3 Repair | Existing bounded fixture-only coordination | Real autonomous repair is Phase 9C and deferred; failed real validation never calls a model |
-| L4 Supervised broader task | Contracts only | No additional privileges enabled |
-| L5 Integration/deployment | Out of scope | No automatic merge/push/deployment or production access |
+| L0 | Existing inspection orchestration | Deterministic suites |
+| L1 | Explicit host-selected bounded read/proposal | Offline; historical provider smoke is previous scope |
+| L2 | Project-authorized private copy, exact native Personal approval, fenced apply-only continuation | OFFLINE VERIFIED and LIVE VERIFIED for the synthetic local scope |
+| L3 | Durable separately approved Podman snapshot/action coordinator | OFFLINE VERIFIED; local fixed Node Gate C LIVE VERIFIED; other scope BLOCKED |
+| L4 | Descriptive supervised contracts | No integration/publication authority |
 
-## Authentication and L2 boundary
+One GitHub owner supplies identity; host project capabilities/policies supply resource
+permissions; human Personal grants supply concrete intent. Login never chooses an
+autonomy level or supplies approval. Patch and sandbox grants are distinct.
+No Phase 9C Autonomous Repair or Phase 9D is implemented. Existing fixture-only
+repair scenarios remain deterministic regression data, never real generated-code
+execution or autonomous production capability.
 
-GitHub App Authorization Code + PKCE S256 and protected macOS sessions are the only
-implemented developer login. AI model selection remains independent. Verified
-numeric account IDs map to explicit host roles/resources; login grants no default
-roles. New isolated requests require `harness:requester`. Status/diff require
-reader, approve/reject/revoke require approver and continue requires operator.
-No credentials enter argv, proposals, checkpoints, journal or telemetry.
-
-In default Team Mode the requester cannot approve their own patch even with another
-OAuth session or username. An authorized second stable account is required. Explicit
-Personal host policy permits one account with all four scoped roles, exact diff
-review, typed confirmation and macOS presence verification. Neither login nor
-`continue` approves. See [Personal Mode](phase9-personal-mode.md). Approval remains bound
-to exact execution/workspace/requester/approver/source/snapshot/patch/policy/
-challenge/expiry. Continuation reopens the persisted artifact, reconciles actual
-state, acquires the fenced lease and applies through ToolDispatcher with zero
-provider calls. Prepared/Running/Uncertain operations cannot automatically transfer
-or replay. Success is `ReviewPending`, inventory-only validation and
-`integrated: false`; the original project is unchanged.
-
-## Sandbox boundary
-
-The first `node-isolated-v1` action profile retains rootless Podman Machine,
-read-only root, UID/GID 65534, dropped capabilities, seccomp, no-new-privileges,
-network none, no host mounts/sockets/shares and fixed CPU/memory/PID/tmpfs limits.
-It is restricted to bounded host-defined Node argv and does not establish general
-`pnpm`/native builds. Snapshot transfer is closed/hashed and never mounts original
-source. Validation additionally requires its own separate durable action
-approval and current host live-acceptance verification. An uncertain cleanup is
-never a pass and never authorizes automatic replay.
-
-`engineering validate --id ID --profile local-podman --action test` recognizes the
-target interface but returns `validation_acceptance_pending`. The host API is
-implemented for reviewed composition; its verifier interface is not a deployed
-attestation authority. No self-granted acceptance or hidden privileged fallback is
-included. See [runtime](phase9b-validation-runtime.md) and [security](phase9b-security.md).
-
-## Acceptance and version policy
-
-| Gate | Current state |
-| --- | --- |
-| A — GitHub authentication | Actual login, Keychain recovery, refresh, logout and authorized fresh login/logout smoke passed for the tested local scope |
-| B — Operational L2 | Personal native human-confirmed local workflow passed; Team's actual two-account smoke remains pending; offline regressions cover both |
-| C — Podman validation | Both real fixed local suites passed; durable authenticated evidence/reopen and explicit real output-limit acceptance pending; CLI disabled |
-| Dedicated remote Podman | Deferred; separate remote risk/runner acceptance |
-| Phase 9C autonomous repair | Not implemented; requires its own design after these gates |
-| Phase 9D documentation portal | Deferred |
-| Release candidate / 0.9.0 | Not published; review after 9A.3, 9B, 9C and 9D |
-
-Current commands/counts are in [verification](VERIFICATION.md#phase-9a3-and-phase-9b).
-Historical OpenAI timings/model evidence remain in the [live ledger](phase9-live-smoke.md)
-and [deadline policy](phase9a-timeout-budget-policy.md); they do not verify current
-GitHub or Podman behavior. No production readiness, race-free host confinement,
-transactional multi-file writes, semantic correctness or exactly-once external
-effects are established. No new paid calls, real OAuth/Podman run, push, merge,
-tag, release or package publication is included in offline delivery.
+See [architecture](ARCHITECTURE.md), [Personal L2](phase9-personal-mode.md),
+[Podman](phase9b-validation-runtime.md) and [report](phase9-real-acceptance-report.md).

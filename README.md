@@ -1,85 +1,37 @@
 # AI Harness
 
-Local-first, provider-agnostic TypeScript harness for role-based software tasks.
-Version **0.8.0**, experimental; **not production-ready autonomy**. Current work
-starts at `6dbdc98797d3` on `feat/phase9-personal-approval-mode`.
+Local-first, provider-agnostic TypeScript software-engineering harness.
+Version **0.8.0**, experimental; not production-ready autonomous execution.
 
-## Phase 9A.4 — Personal Mode and Team Mode
+**Single Developer + Single GitHub Identity + Explicit Project Authorization +
+Human-Confirmed Personal L2 + Durable Podman Validation.**
 
-Team remains the default: requester and approver must be different stable GitHub
-identities. An explicit, strictly validated host policy can select Personal Mode
-and explicitly assign all four scoped roles to one account. Personal approval
-requires exact diff review, typed `APPROVE` in an interactive terminal and fresh
-macOS device-owner authentication. A session, pipeline, model response or
-`continue` command cannot approve. The existing durable services record the exact
-decision and retain expiry, single use, CAS and fenced continuation.
+GitHub App OAuth + PKCE verifies one numeric installation owner. The private host
+registry independently authorizes multiple projects with their own canonical source
+and private workspace trees, file/operation policies, tool capabilities, budgets
+and validation profiles. Login never grants global filesystem or execution access.
+No multiuser administration or operational Team approval remains.
 
-Sandbox execution needs a second, independently scoped approval. Its CLI remains
-blocked pending Gate C. SQLite v3 migrates existing records conservatively; old
-approvals remain Team approvals. An owner-confirmed native Personal approval and
-single-account L2 fixture passed locally; automated tests use mocked verifiers.
-Team's real two-account acceptance remains pending. See
-[Personal Mode, configuration and migration](docs/phase9-personal-mode.md).
+Personal L2 requires exact diff review, typed `APPROVE` and fresh native macOS
+authentication. The existing SQLite v3 broker/dispatcher retain expiry, revocation,
+single use, CAS and fenced cross-process continuation. Only the private workspace
+is modified; continuation makes zero model calls. Historical grants are not rebound.
 
-## Phase 9A.3 and Phase 9B — current boundary
+Sandbox execution requires another exact human approval and durable grant.
+ValidationCoordinator reuses the rootless Podman runtime, closed snapshot transfer,
+private evidence and the existing lease/fencing mechanism. Offline multiprocess
+recovery and evidence inspection are implemented. **Gate C is LIVE VERIFIED only
+for the registered gatec-synthetic project and exact local-podman fixed Node profiles.**
+The actual CLI test passed with fresh native patch and sandbox confirmations.
+All other/unaccepted scope retains validation_acceptance_pending. Acceptance is
+private, domain-HMAC protected and tied to owner/project/code/runtime/evidence;
+changes or expiry block it. Cancellation preserves Uncertain state for reconciliation.
+No Phase 9C/9D, production autonomy or release is included.
 
-Isolated requests now preserve exact proposals and diffs in private host-authenticated
-artifacts with SQLite bindings. An embedding host can independently approve and
-resume the exact patch across processes through the existing dispatcher, with CAS
-leases, monotonic fencing and complete source/workspace/policy revalidation.
-Continuation makes **zero provider calls**, executes no generated code and changes
-only the private workspace. Completed/uncertain effects are never automatically replayed.
-
-GitHub App Authorization Code + PKCE S256 now supplies developer identity to the
-durable lifecycle. The CLI verifies app-bound user tokens online, stores sessions
-in macOS Keychain and enforces explicit numeric-account/resource role assignments.
-`auth login|whoami|status|refresh|logout` and authenticated
-`engineering status|diff|approve|reject|revoke|continue --id ID` are implemented.
-New isolated requests require `harness:requester`; Team approval requires a second
-authorized stable GitHub identity. Tokens/credentials are never accepted
-in arguments. See [GitHub App setup](docs/phase9-github-app-setup.md),
-[authentication](docs/phase9-github-authentication.md) and
-[Operational L2](docs/phase9-operational-l2.md).
-
-**Operational L2 Personal: verified for the tested synthetic local scope.** Actual
-GitHub login, Keychain-backed recovery, refresh and logout were observed with owner
-authorization. Team's real two-account approval remains pending. Mocked GitHub
-HTTP, real SQLite/filesystem and independent processes do not replace an explicitly
-authorized actual GitHub/native Keychain smoke. Linux/Windows native credential
-adapters are not supplied and fail closed. No legacy requester identity migration
-or implicit approval is introduced. Personal Mode is an explicit host policy.
-
-Phase 9B adds closed snapshot transfer by bounded stdin, a host action registry,
-separate durable action approval, Podman-only runtime and private bounded evidence.
-The first profile retains network denial, rootless execution, no host mounts and
-the existing 10-second/resource limits; it supports restricted Node actions, not
-general dependency builds. Both authorized fixed local Podman suites passed;
-durable authenticated coordinator acceptance remains pending. **Full Podman acceptance is pending; the validation CLI
-remains blocked.** See [runtime](docs/phase9b-validation-runtime.md),
-[snapshot transfer](docs/phase9b-snapshot-transfer.md) and
-[verification](docs/VERIFICATION.md#phase-9a3-and-phase-9b). Phase 9C autonomous repair,
-Phase 9D portal, Anthropic engineering and publication remain deferred.
-
-The preceding stabilization milestone has 592 local tests and a separately authorized
-synthetic OpenAI run in 262.44s under a 360s/180s/180s host profile. That historical
-live result does not validate these new continuation changes or the default 120s
-slow-model profile. No live provider calls are part of this work. Deadline defaults
-remain 120s global / 30s HTTP, with explicit finite host ceilings of 900s/300s.
-See [time/budget policy](docs/phase9a-timeout-budget-policy.md).
-
-## Phase 9 opt-in engineering
-
-The original `run --workflow implement` fixture recipe remains available:
-`--autonomy propose` reads host-selected files and returns structured patches;
-`--autonomy isolated` creates a private external copy and pauses for scoped human
-SQLite approval (independent accounts by default). A trusted host API can apply approved changes and exercise the
-bounded repair loop with fixture validation. The original project stays unchanged.
-OpenAI engineering is integrated in the audited `main` and offline E2E tested.
-Anthropic engineering is deferred; sandbox validation components are implemented
-behind the unpassed real acceptance gate. Existing inspection provider support is unchanged.
-No arbitrary request implementation or production autonomy is established by fixtures.
-See [CLI examples](docs/phase9-e2e.md), [design](docs/phase9-architecture.md) and
-[security](docs/phase9-security.md). Version remains **0.8.0**.
+Read [architecture](docs/ARCHITECTURE.md), [project policy](docs/project-authorization.md),
+[Personal approval](docs/phase9-personal-mode.md), [manual configuration migration](docs/single-developer-migration.md),
+[GitHub setup](docs/phase9-github-app-setup.md), [Podman](docs/phase9b-validation-runtime.md)
+and [verification](docs/VERIFICATION.md). Private profiles are never migrated automatically.
 
 ## Phase 9A OpenAI engineering
 
@@ -135,12 +87,12 @@ was implemented.
 | Area | Current behavior |
 |---|---|
 | Workflow | Existing SDD/inspection plus opt-in fixture/OpenAI engineering; GitHub-authenticated private L2 approval/resume |
-| Developer identity | GitHub App OAuth + PKCE, online account verification, macOS Keychain and scoped host RBAC; live smoke pending |
+| Developer identity | One GitHub owner, App OAuth + PKCE, online verification and macOS Keychain; actual local login and native workflow verified |
 | Providers | Fixture offline mode; explicit OpenAI engineering/inspection; Anthropic Messages inspection retained |
 | Tools | Host-owned registry/dispatcher, schema validation, Default Deny and scoped approvals |
 | Durable operations | Opt-in local SQLite journal, transactional one-use approvals and conservative host reconciliation |
 | Isolation | Explicit rootless Podman Machine profile; Docker runtime execution was removed in 0.6.0 |
-| Sandbox validation | Bounded snapshot transfer, restricted host Node profiles, separate action approval and private evidence; real fixed suites passed, full gate pending, CLI disabled |
+| Sandbox validation | Durable snapshots, separate native action grants and scoped local-podman acceptance; actual CLI test passed; unaccepted scope blocked |
 | Observability | Opt-in bounded telemetry, in-memory/private rotating JSONL sinks, traces and metrics |
 | Evaluations | Existing deterministic suite plus independent phase9 offline filesystem/SQLite/repair scenarios; known fixtures only |
 

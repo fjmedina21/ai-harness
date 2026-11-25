@@ -1,60 +1,27 @@
-# AI Harness — implementation roadmap
+# AI Harness roadmap
 
-## Phase 9A.4 — current local development
+## Current single-developer scope
 
-Starting commit `6dbdc98797d3`, branch `feat/phase9-personal-approval-mode`, version
-0.8.0. Team retains independent accounts by default. Personal is host opt-in with
-strict policy validation, explicit scoped roles, exact diff review, typed confirmation
-and a macOS presence-verifier bridge. Existing durable approval/resume services,
-CAS, fencing and source isolation are reused. Journal v3 adds review and intent
-metadata without reinterpreting previous Team approvals. Sandbox approval remains
-a distinct action, and the real validation CLI remains blocked.
+Version **0.8.0**, base `df501d8`, branch `feat/single-developer-podman-gate`.
+One GitHub owner, independently authorized local projects and mandatory Personal
+human approval replace multiuser administration. Full project fingerprints bind
+new proposals to current host policy. Historical records remain audit-only; see
+[migration](single-developer-migration.md).
 
-Offline fixtures exercise both modes, policy changes, cancellation, replay,
-concurrency and separate-process continuation with zero new provider calls.
-Actual native Personal confirmation and single-account L2 passed in the explicitly
-authorized synthetic local workflow after the online-verification correction.
-The later authorized OAuth cycle also passed fresh login, protected storage and
-logout. Team live two-account acceptance and full Gate C remain pending.
-See [Personal Mode](phase9-personal-mode.md) and [verification](VERIFICATION.md).
-The later explicitly authorized follow-up enabled Personal only in the synthetic
-private profile, passed GitHub login/refresh/logout, native Personal approval and
-continuation, one bounded OpenAI L1 smoke and both fixed Podman runtime suites.
-Full sandbox evidence and Team's real two-account acceptance remain incomplete; see the
-[real report](phase9-real-acceptance-report.md). No Phase 9C/9D or publication is included.
+The existing durable coordinator now uses CAS/fenced session transfer for approved,
+effect-free sandbox operations and verifies evidence after reopening. Offline tests
+cover real private FS/SQLite and independent processes with mocked GitHub/Podman.
+Current real GitHub/native/Podman acceptance was separately and explicitly authorized.
+Gate C is **LIVE VERIFIED for gatec-synthetic/local-podman fixed Node profiles**;
+the actual CLI test passed. Other scopes remain BLOCKED. No release, push,
+merge, tags, Phase 9C Autonomous Repair or Phase 9D is included.
 
-## Phase 9A.3 and Phase 9B — current development
-
-Historical implementation checkpoint; current acceptance evidence is above.
-
-Implemented locally from `fff4932f13f0` on `feat/phase9-github-auth-podman-validation`;
-version remains 0.8.0. Existing core: private HMAC proposal/diff artifacts, immutable SQLite
-references, scoped independent decisions through DurableApprovalService, CAS leases
-with monotonic epochs/history, revalidated apply-only continuation and conservative
-crash recovery. No provider call or generated-code execution occurs on resume.
-Three-process and failure/concurrency/security coverage uses fixture authentication;
-see [verification](VERIFICATION.md#phase-9a2-durable-l2-resume).
-
-GitHub-only App OAuth + PKCE, protected macOS sessions, online App/user validation,
-stable numeric-ID scoped RBAC and authenticated L2 CLI are implemented. Offline
-GitHub HTTP plus real multiprocess journal/artifact tests verify composition.
-This historical implementation checkpoint preceded basic live GitHub/Keychain setup.
-Full session lifecycle and two-identity Operational L2 acceptance remain pending.
-Other OS credential adapters remain deferred.
-
-Phase 9B implements closed snapshot stdin transfer, a restricted Node action
-registry, separately approved dispatcher execution, existing Podman isolation and
-durable private evidence. Real workload/isolation acceptance remains pending and
-`engineering validate` stays blocked. General package-manager/native builds are
-outside this initial unchanged noexec/resource profile. Phase 9C autonomous repair
-and Phase 9D documentation portal have not started. No push, merge, tag, release,
-deployment, package publication or 0.9.0 promotion is included. See
-[Operational L2](phase9-operational-l2.md), [runtime](phase9b-validation-runtime.md)
-and [current gates](VERIFICATION.md#phase-9a3-and-phase-9b).
-
-
-This status follows the implemented code. Earlier broad architecture proposals
-are targets, not evidence that those capabilities were delivered.
+Current scoped acceptance is backed by a private domain-HMAC record of exact project,
+code, runtime, effective probes and native-approved durable outcomes. The CLI
+revalidates it and keeps validation_acceptance_pending elsewhere. Cancellation's
+Uncertain state still needs explicit reconciliation; no automatic replay exists.
+See [report](phase9-real-acceptance-report.md) and [verification](VERIFICATION.md).
+Earlier milestones below are historical snapshots, superseded by this scope.
 
 ## Historical Phase 9A stabilization — local work
 
@@ -107,7 +74,7 @@ of this work; 0.8.0 remains experimental.
 | 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Implemented and integrated; experimental foundations; real local SQLite tests passed |
 | 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Implemented and integrated; experimental foundations; historical CI/evaluations retained |
 | 8 | Read-only CLI, three-agent integration, explicit providers, authorized tools, optional persistence/diagnostics, offline E2E, standard CI and documented security | **Implemented — offline E2E validated; external validation gates deferred** |
-| 9 | Private workspaces, controlled patches/approvals, fixture/OpenAI CLI, GitHub authenticated L2 and restricted sandbox components | **Partial, experimental; new auth/L2 offline verified, live GitHub/Podman gates pending; validation CLI blocked; 9C/9D deferred** |
+| 9 | Private workspaces, controlled patches/approvals, fixture/OpenAI CLI, GitHub authenticated L2 and restricted sandbox components | **Partial, experimental; current local single-owner/native/durable Node Gate C verified for exact scope; other profiles blocked; 9C/9D deferred** |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through
@@ -206,7 +173,7 @@ threat model and concrete acceptance tests must precede Phase 9 implementation.
 No `0.9.0` bump, release, write tool exposure or execution capability is included
 in this Phase 8 closure.
 
-## Phase 9 implementation — partial, Gate C blocked
+## Historical Phase 9 implementation — before scoped Gate C acceptance
 
 Integrated through 463b3255390e into `main`, Phase 9 adds experimental local L1/L2, durable
 exact patch approvals, private workspace lifecycle, sequential existing roles,
