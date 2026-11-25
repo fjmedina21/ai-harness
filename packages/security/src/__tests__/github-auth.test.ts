@@ -8,10 +8,7 @@ const now = 1_800_000_000_000;
 const policy: GitHubAuthPolicy = {
   version: 1, clientId: "Iv1.fixture", authorizationEndpoint: "https://github.com/login/oauth/authorize", tokenEndpoint: "https://github.com/login/oauth/access_token",
   callback: { host: "127.0.0.1", port: 53683, path: "/oauth/github/callback", timeoutMs: 1000 }, sessionMaxAgeMs: 3600000,
-  allowedAccountIds: ["101", "202"], requestedPermissions: [], assignments: [
-    { accountId: "101", roles: ["harness:reader", "harness:requester", "harness:operator"], resources: [{ sourceRoot: "/source", workspaceDirectory: "/private/workspaces" }] },
-    { accountId: "202", roles: ["harness:reader", "harness:approver"], resources: [{ sourceRoot: "/source", workspaceDirectory: "/private/workspaces", executionIds: ["execution"], workspaceIds: ["workspace"] }] },
-  ],
+  ownerAccountId: "101", requestedPermissions: [],
 };
 class MemoryStore implements GitHubCredentialStore {
   session: string | null = null; secret: string | null = "fixture-only-not-real"; busy = false;
@@ -65,7 +62,7 @@ test("transient recovery cannot silently switch the stored GitHub account", asyn
     calls++; if (calls === 1) return new Response(null, { status: 500 });
     return Response.json(String(input).includes("applications/") ? { app: { client_id: policy.clientId }, user: { id: 202 } } : { type: "User", id: 202, login: "another-synthetic" });
   }) as typeof fetch, () => now);
-  await assert.rejects(new GitHubAuthentication(client, storage, () => now).identity(), error("session_account_changed"));
+  await assert.rejects(new GitHubAuthentication(client, storage, () => now).identity(), error("account_not_allowed"));
   assert.equal(calls, 3); assert.equal(JSON.parse(storage.session!).accountId, "101");
 });
 test("cancellation interrupts verification backoff before any second HTTP request", async () => {
@@ -99,7 +96,10 @@ function fixture(options: { id?: number; app?: string; status?: number; body?: u
     const data = options.body !== undefined ? options.body : url.includes("access_token") ? tokens : url.includes("memberships") ? [{ state: "active", organization: { id: 303 } }] : url.includes("applications/") ? { app: { client_id: options.app ?? p.clientId }, user: { id: options.id ?? 101 } } : { type: "User", id: options.id ?? 101, login: "fixture" };
     return Response.json(data);
   }) as typeof fetch;
-  const client = new GitHubOAuthClient(p, http, () => now), auth = new GitHubAuthentication(client, storage, () => now);
+  const client = new GitHubOAuthClient(p, http, () => now), auth = new GitHubAuthentication(client, storage, () => now, [
+    { sourceRoot: "/source", workspaceDirectory: "/private/workspaces", capabilities: ["harness:reader", "harness:requester", "harness:operator"] },
+    { sourceRoot: "/source", workspaceDirectory: "/private/workspaces", capabilities: ["harness:approver"], executionIds: ["execution"], workspaceIds: ["workspace"] },
+  ]);
   return { calls, storage, client, auth };
 }
 async function callbackPolicy(timeoutMs = 1000): Promise<GitHubAuthPolicy> {
@@ -174,9 +174,9 @@ test("verified identity uses GitHub account ID and app binding, roles are host s
   await assert.rejects(f.auth.authorize("harness:approver", { sourceRoot: "/source", workspaceDirectory: "/private/workspaces" }), error("forbidden_scope"));
 });
 test("resource-specific grants require exact execution and workspace identity", async () => {
-  const f = fixture({ id: 202 }); f.storage.session = JSON.stringify(session("202")); const identity = await f.auth.identity();
+  const f = fixture(); f.storage.session = JSON.stringify(session()); const identity = await f.auth.identity();
   const resource = { sourceRoot: "/source", workspaceDirectory: "/private/workspaces", executionId: "execution", workspaceId: "workspace" };
-  assert.ok(f.auth.roles(identity, resource).includes("harness:approver")); assert.deepEqual(f.auth.roles(identity, { ...resource, workspaceId: "other" }), []);
+  assert.ok(f.auth.roles(identity, resource).includes("harness:approver")); assert.equal(f.auth.roles(identity, { ...resource, workspaceId: "other" }).includes("harness:approver"), false);
   const bound = f.auth.resumeVerifier(resource), challenge = { executionId: "execution", workspaceId: "workspace", action: "approve" as const, artifactDigest: "fixture-digest", challenge: "fixture-challenge" };
   const actor = await bound.verifier.verify(bound.credential, challenge); assert.deepEqual(actor.binding, challenge);
   await assert.rejects(bound.verifier.verify("forged", challenge)); await assert.rejects(bound.verifier.verify(bound.credential, { ...challenge, executionId: "other" }));
@@ -186,7 +186,7 @@ for (const config of [{ id: 303 }, { app: "other-app" }, { body: { id: -1, login
   const f = fixture(config); f.storage.session = JSON.stringify(session()); await assert.rejects(f.auth.identity(), GitHubAuthError);
 });
 test("a different valid account cannot silently replace stored identity", async () => {
-  const f = fixture({ id: 202 }); f.storage.session = JSON.stringify(session()); await assert.rejects(f.auth.identity(), error("session_account_changed"));
+  const f = fixture({ id: 202 }); f.storage.session = JSON.stringify(session()); await assert.rejects(f.auth.identity(), error("account_not_allowed"));
 });
 test("revoked credentials fail online verification before authorization", async () => {
   const f = fixture({ status: 401 }); f.storage.session = JSON.stringify(session()); await assert.rejects(f.auth.authorize("harness:operator", { sourceRoot: "/source", workspaceDirectory: "/private/workspaces" }), error("credential_invalid"));

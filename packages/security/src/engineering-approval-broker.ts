@@ -18,7 +18,7 @@ export class ApprovalBroker {
     if (!this.verifier || typeof credential !== "string" || !credential.trim() || credential.length > 8192) throw new EngineeringResumeError("authentication_required");
     const ref = this.reference(operationId);
     const review = this.store.approvalReview?.(operationId);
-    if (review ? review.policyDigest !== approvalPolicyDigest(this.policy) : normalizeApprovalPolicy(this.policy).mode !== "team") throw new EngineeringResumeError("policy_changed");
+    if (!review || review.policy.mode !== "personal" || review.policyDigest !== approvalPolicyDigest(this.policy)) throw new EngineeringResumeError("policy_changed");
     const challenge: ResumeIdentityChallenge = { action, executionId: ref.executionId, workspaceId: ref.workspaceId, artifactDigest: ref.artifactDigest, challenge: ref.challenge };
     let actor: VerifiedResumeIdentity;
     try { actor = await this.verifier.verify(credential, Object.freeze({ ...challenge })); }
@@ -31,6 +31,8 @@ export class ApprovalBroker {
       canonicalProposalJson(actor.binding) !== canonicalProposalJson(challenge)) throw new EngineeringResumeError("authentication_required");
     const role = ["approve", "reject", "revoke"].includes(action) ? "harness:approver" : action === "continue" ? "harness:operator" : "harness:reader";
     if (!Array.isArray(actor.roles) || !actor.roles.includes(role)) throw new EngineeringResumeError("forbidden_scope");
+    const owner = this.store.get(operationId)?.requester;
+    if (!owner || actor.issuer !== owner.issuer || actor.subject !== owner.subject) throw new EngineeringResumeError("forbidden_scope");
     return structuredClone(actor);
   }
   async decide(operationId: string, credential: string, approved: boolean, review?: () => Promise<void>, confirm?: (actor: VerifiedResumeIdentity, context: ApprovalReviewContext) => Promise<HumanIntentReceipt | null>): Promise<void> {
@@ -38,10 +40,9 @@ export class ApprovalBroker {
     const actor = await this.authenticate(operationId, action, credential);
     const ref = this.reference(operationId), op = this.store.get(operationId);
     if (!op?.approvalId) throw new EngineeringResumeError("approval_mismatch");
-    if (normalizeApprovalPolicy(this.policy).mode === "team" && actor.issuer === op.requester.issuer && actor.subject === op.requester.subject) throw new EngineeringResumeError("forbidden_scope");
     await review?.();
     let intent: HumanIntentReceipt | undefined;
-    if (approved && normalizeApprovalPolicy(this.policy).mode === "personal") {
+    if (approved) {
       const context = this.store.approvalReview?.(operationId);
       if (!context || !confirm) throw new EngineeringResumeError("human_confirmation_required");
       const receipt = await confirm(actor, structuredClone(context));

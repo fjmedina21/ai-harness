@@ -1,9 +1,10 @@
+import { approveStorageFixture } from "./personal-storage-fixture.js";
 /** Harmless synthetic data + mocked container responses. No workload runs on the host. */
 import type { TestContext } from "node:test";
 import { chmod, lstat, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { ApprovalPolicy, EngineeringPolicy, ProcessResult, ProcessRunOptions, ValidationActionProfile } from "@ai-harness/contracts";
+import { normalizeApprovalPolicy, type ApprovalPolicy, EngineeringPolicy, ProcessResult, ProcessRunOptions, ValidationActionProfile } from "@ai-harness/contracts";
 import { humanIntentDigest } from "@ai-harness/security";
 import { FileValidationEvidenceStore, openSqliteOperationJournal, sealProposalArtifact } from "@ai-harness/checkpointing";
 import { EngineeringWorkspace, engineeringHash } from "../engineering-workspace.js";
@@ -12,10 +13,10 @@ import { SandboxValidationRegistry } from "../snapshot-validation-runtime.js";
 import { PodmanFixture, PODMAN_OPTIONS } from "./podman-fixture.js";
 
 export const operator = { issuer: "github.com", subject: "1001" };
-export const approver = { issuer: "github.com", subject: "2002" };
+export const approver = { ...operator };
 export const action: ValidationActionProfile = { id: "test", runtimeProfile: "node-isolated-v1", image: PODMAN_OPTIONS.image, executable: "node",
   args: ["--test", "value.js"], workingDirectory: "", timeoutMs: 1000, maxOutputBytes: 1024, network: "none", resources: { cpu: 0.5, memoryBytes: 268435456, pids: 64 } };
-export async function validationFixture(t: TestContext, patchState: "completed" | "approved" | "running" | "uncertain" = "completed", approvalPolicy?: ApprovalPolicy) {
+export async function validationFixture(t: TestContext, patchState: "completed" | "approved" | "running" | "uncertain" = "completed", approvalPolicy: ApprovalPolicy = normalizeApprovalPolicy()) {
   const base = await realpath(await mkdtemp(path.join(tmpdir(), "harness-validation-"))); await chmod(base, 0o700);
   for (const d of ["source", "workspaces", "state", "evidence"]) await mkdir(path.join(base, d), { mode: 0o700 });
   const original = "export const value = 1;\n", changed = "export const value = 2;\n";
@@ -41,13 +42,7 @@ export async function validationFixture(t: TestContext, patchState: "completed" 
   store.bindProposal({ operationId: op.operationId, executionId: artifact.executionId, workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, challenge: "1".repeat(64), expiresAt: artifact.expiresAt }, approvalPolicy ? {
     policy: approvalPolicy, workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, patchDigest: artifact.patchDigest, snapshotDigest: baseSnapshot.digest, contentDigest: artifact.diffDigest,
   } : undefined);
-  if (approvalPolicy) {
-    const actor = approvalPolicy.mode === "personal" ? operator : approver, context = store.approvalReview!(op.operationId)!;
-    // Test-only low-level host fixture, not evidence of native human presence.
-    const now = Date.now();
-    store.decideReviewed!(op.approvalId!, actor, true, approvalPolicy.mode === "personal" ? { id: engineeringHash("patch-intent" + artifact.workspaceId), bindingDigest: humanIntentDigest(context, actor), issuedAt: now, expiresAt: now + 60000, method: "reviewed-external-v1" } : undefined);
-  } else store.decideScoped(op.approvalId!, approver, true, { artifactDigest: artifact.artifactDigest, challenge: "1".repeat(64) });
-  store.acquireLease(op.operationId, store.get(op.operationId)!.version, 300000, operator);
+  approveStorageFixture(store, op.approvalId!);
   if (patchState === "completed") {
     const applied = await tools.dispatch(patchInvocation(patch), identity, pending.approvalId);
     if (applied.status !== "executed") throw new Error("Validation fixture setup failed");
@@ -58,7 +53,7 @@ export async function validationFixture(t: TestContext, patchState: "completed" 
   }
   const registry = new SandboxValidationRegistry(); registry.register(action);
   const evidence = new FileValidationEvidenceStore(path.join(base, "evidence"));
-  return { base, store, workspace, artifact, registry, evidence, original, changed, binding, policy };
+  return { base, store, workspace, artifact, registry, evidence, original, changed, binding, policy, project: { id: "fixture", sourceRoot: path.join(base, "source"), workspaceDirectory: path.join(base, "workspaces"), policy, actions: [action] } };
 }
 export class ValidationPodmanFixture extends PodmanFixture {
   responseKind: string | null = null;

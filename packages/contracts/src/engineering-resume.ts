@@ -2,6 +2,8 @@ import type { CostEstimate, DurableApproval, DurableOperationStore, EngineeringB
 
 /** Private host data; never a model request or telemetry payload. */
 export interface ProposalArtifact {
+  /** Optional host resource fingerprint. Legacy artifacts remain inspectable, never silently rebound. */
+  projectAuthorizationDigest?: string;
   schemaVersion: 1;
   executionId: string;
   requester: HostIdentity;

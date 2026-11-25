@@ -1,3 +1,4 @@
+import { approveStorageFixture } from "./personal-storage-fixture.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -16,7 +17,7 @@ async function fixture(t: TestContext, options: { now?: () => number; ttl?: numb
   for (const dir of [source, directory, journal]) await mkdir(dir, { mode: 0o700 });
   await writeFile(path.join(source, "value.ts"), "export const value = 1;\n", { mode: 0o600 });
   const store = await openSqliteOperationJournal(path.join(journal, "ops.sqlite"), { now: options.now, approvalTtlMs: options.ttl });
-  const binding = { store, requester: { issuer: "fixture", subject: "requester" }, safetyByTool: {} };
+  const binding = { store, requester: { issuer: "github.com", subject: "101" }, safetyByTool: {} };
   const policy: EngineeringPolicy = { version: "fixture-v1", allowedPaths: ["value.ts", "new.ts", "nested/new.ts"], allowedOperations: ["create", "replace", "delete"], maxFiles: 4, maxBytes: 8192 };
   const create = (executionId = "execution", signal?: AbortSignal) => EngineeringWorkspace.create({ directory, sourceRoot: source, executionId, files: ["value.ts"], maxFiles: 16, maxBytes: 65536, ttlMs: 60_000, binding, createAuthorized: true, signal });
   t.after(async () => { try { store.close(); } catch { /* Reopen tests close it. */ } await rm(base, { recursive: true, force: true }); });
@@ -93,7 +94,7 @@ test("durable patch requires independent approval, applies exactly the reviewed 
   const waiting = await tools.dispatch(invocation, identity);
   assert.equal(waiting.status, "approval_required");
   assert.throws(() => f.store.decide(waiting.approvalId!, f.binding.requester, true));
-  f.store.decide(waiting.approvalId!, human, true);
+  approveStorageFixture(f.store, waiting.approvalId!, p);
   const applied = await tools.dispatch(invocation, identity, waiting.approvalId);
   assert.equal(applied.status, "executed"); assert.equal(applied.operationState, "Completed");
   assert.equal(await w.read("value.ts"), p.changes[0]!.content);
@@ -103,14 +104,14 @@ test("durable patch requires independent approval, applies exactly the reviewed 
 test("approval cannot authorize a substituted patch", async t => {
   const f = await fixture(t), w = await f.create(), e = new EngineeringPatchEngine(w, f.policy), tools = createEngineeringTools(e, f.binding);
   const a = await proposal(e, "first"), b = await proposal(e, "second"), identity = { taskId: "apply", requestId: "one" };
-  const waiting = await tools.dispatch(patchInvocation(a), identity); f.store.decide(waiting.approvalId!, human, true);
+  const waiting = await tools.dispatch(patchInvocation(a), identity); approveStorageFixture(f.store, waiting.approvalId!, a);
   assert.equal((await tools.dispatch(patchInvocation(b), identity, waiting.approvalId)).status, "denied");
   assert.equal(await w.read("value.ts"), "export const value = 1;\n");
 });
 test("expired durable approval never mutates workspace", async t => {
   let now = Date.now(); const f = await fixture(t, { now: () => now, ttl: 20 });
   const w = await f.create(), e = new EngineeringPatchEngine(w, f.policy), p = await proposal(e), tools = createEngineeringTools(e, f.binding), identity = { taskId: "apply", requestId: "expire" };
-  const waiting = await tools.dispatch(patchInvocation(p), identity); f.store.decide(waiting.approvalId!, human, true); now += 30;
+  const waiting = await tools.dispatch(patchInvocation(p), identity); approveStorageFixture(f.store, waiting.approvalId!, p); now += 30;
   assert.equal((await tools.dispatch(patchInvocation(p), identity, waiting.approvalId)).status, "denied");
   assert.equal(await w.read("value.ts"), "export const value = 1;\n");
 });

@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
-import { credential, generate, openFixture, policy, verifier } from "./resume-fixture.js";
+import { confirmation, credential, generate, openFixture, policy, verifier } from "./resume-fixture.js";
 import { ContinuationCoordinator } from "../engineering-resume.js";
 import type { EngineeringResumeStore } from "@ai-harness/contracts";
 const [base, mode, id] = process.argv.slice(2);
@@ -49,11 +49,11 @@ if (mode === "generate" || mode.startsWith("artifact_")) {
   process.send?.({ ready: true, pid: process.pid });
   process.once("message", async () => {
     try {
-      if (mode === "approve" || mode === "reject") await coordinator.decide(id, credential(ref, mode), mode === "approve");
-      else if (mode === "lease") store.acquireLease(id, store.get(id)!.version, 60, { issuer: "fixture", subject: "operator" });
+      if (mode === "approve" || mode === "reject") await coordinator.decide(id, credential(ref, mode), mode === "approve", confirmation);
+      else if (mode === "lease") store.acquireLease(id, store.get(id)!.version, 60, { issuer: "github.com", subject: "101" });
       else if (mode === "old-worker") {
         const old = store.get(id)!;
-        store.acquireLease(id, old.version, 60, { issuer: "fixture", subject: "old-operator" });
+        store.acquireLease(id, old.version, 60, { issuer: "github.com", subject: "101" });
         process.send?.({ leased: true });
         process.once("message", () => {
           try { store.prepare(id, old.version, old.scopeDigest, old.approvalId); process.send?.({ staleBlocked: false }); }

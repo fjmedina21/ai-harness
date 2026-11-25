@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
+import { createHash } from "node:crypto";
 import { fork } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -17,10 +18,10 @@ async function directory(t: TestContext) {
   for (const name of ["source", "state", "workspaces"]) await mkdir(path.join(base, name), { mode: 0o700 });
   await writeFile(path.join(base, "source", "value.ts"), "export const value = 1;\n", { mode: 0o600 }); t.after(() => rm(base, { recursive: true, force: true })); return base;
 }
-async function fixture(t: TestContext, options: { mode?: "team" | "personal"; scenario?: string; legacy?: boolean } = {}) {
-  const base = await directory(t), selected = options.mode === "team" ? normalizeApprovalPolicy() : personal;
+async function fixture(t: TestContext, options: { scenario?: string } = {}) {
+  const base = await directory(t), selected = personal;
   const store = await openSqliteOperationJournal(path.join(base, "state", "ops.sqlite"), { approvalPolicy: selected, approvalTtlMs: 300000 }); t.after(() => { try { store.close(); } catch {} });
-  const generated = await generate(base, store, false, { approvalPolicy: options.legacy ? undefined : selected, requester: owner });
+  const generated = await generate(base, store, false, { approvalPolicy: selected, requester: owner });
   assert.equal(generated.result.termination, "approval_required"); const id = generated.operationId!, artifacts = new ProposalArtifactStore(path.join(base, "state")), ref = store.proposal(id)!;
   const auth = authentication(path.join(base, "source"), path.join(base, "workspaces"), owner.subject, options.scenario);
   const bound = auth.auth.resumeVerifier({ sourceRoot: path.join(base, "source"), workspaceDirectory: path.join(base, "workspaces"), executionId: ref.executionId, workspaceId: ref.workspaceId });
@@ -49,8 +50,8 @@ for (const variant of ["missing", "cancelled", "wrong_binding", "expired", "fake
 for (const scenario of ["roles", "expired", "revoked", "wrong_account"]) test("Personal Mode rejects GitHub " + scenario, async t => {
   const f = await fixture(t, { scenario }); await assert.rejects(f.coordinator.decide(f.id, f.credential, true, confirmation)); assert.equal(f.store.get(f.id)!.state, "PendingApproval");
 });
-test("Team Mode still rejects one account even with full roles and a confirmation port", async t => {
-  const f = await fixture(t, { mode: "team" }); await assert.rejects(f.coordinator.decide(f.id, f.credential, true, confirmation)); assert.equal(f.store.get(f.id)!.state, "PendingApproval");
+test("Team configuration is rejected rather than retained as an operational mode", async t => {
+  assert.throws(() => normalizeApprovalPolicy({ ...personal, mode: "team", allowRequesterApproval: false }));
 });
 for (const [failure, code] of [[new GitHubAuthError("github_unavailable"), "authentication_unavailable"], [new GitHubAuthError("cancelled"), "cancelled"], [new Error("PRIVATE VERIFIER ERROR"), "authentication_required"]] as const)
 test("approval broker distinguishes unavailable verification without granting authority: " + code, async t => {
@@ -84,7 +85,7 @@ test("low-level legacy decision methods cannot grant a reviewed Personal Mode op
 for (const change of ["workspace", "source", "artifact", "policy"] as const) test("Personal Mode rejects changed " + change + " after review", async t => {
   const f = await fixture(t), a = f.artifacts.get(f.ref.artifactDigest);
   if (change === "policy") {
-    const changed = new ContinuationCoordinator({ store: f.store, artifacts: f.artifacts, policy, approvalPolicy: normalizeApprovalPolicy(), verifier: f.verifier });
+    const changed = new ContinuationCoordinator({ store: f.store, artifacts: f.artifacts, policy: { ...policy, version: "changed" }, verifier: f.verifier });
     await assert.rejects(changed.decide(f.id, f.credential, true, confirmation));
   } else {
     const port: HumanApprovalPort = { async confirm(review) {
@@ -102,10 +103,10 @@ test("Personal Mode admits one concurrent approval and rejects reused confirmati
   const receipt = f.store.approval(f.store.get(f.id)!.approvalId!)!.decision!.intent!;
   const second = await fixture(t); await assert.rejects(second.coordinator.decide(second.id, second.credential, true, { confirm: async () => receipt }));
 });
-test("Personal approval cannot be consumed under changed host policy", async t => {
+test("Personal approval cannot be leased by a changed owner", async t => {
   const f = await fixture(t); await f.coordinator.decide(f.id, f.credential, true, confirmation); f.store.close();
   const store = await openSqliteOperationJournal(path.join(f.base, "state", "ops.sqlite")); t.after(() => store.close());
-  const op = store.get(f.id)!; assert.throws(() => store.acquireLease(f.id, op.version, 5000, owner)); assert.equal(store.approval(op.approvalId!)!.status, "approved");
+  const op = store.get(f.id)!; assert.throws(() => store.acquireLease(f.id, op.version, 5000, { issuer: "github.com", subject: "70000002" })); assert.equal(store.approval(op.approvalId!)!.status, "approved");
 });
 async function worker(base: string, mode: string, operationId?: string): Promise<any> {
   const child = fork(fileURLToPath(new URL("./personal-worker.js", import.meta.url)), [base, mode, ...(operationId ? [operationId] : [])], { env: { PATH: process.env.PATH }, stdio: ["ignore", "ignore", "ignore", "ipc"], execArgv: [] });
@@ -134,7 +135,7 @@ test("process death during Personal review leaves the durable proposal pending a
   assert.equal(await readFile(path.join(base, "source", "value.ts"), "utf8"), "export const value = 1;\n");
 });
 test("v2 migration preserves historical Team operations and cannot reinterpret them as Personal", async t => {
-  const f = await fixture(t, { mode: "team", legacy: true }), before = f.store.get(f.id)!; f.store.close();
+  const f = await fixture(t), before = f.store.get(f.id)!; f.store.close();
   const filename = path.join(f.base, "state", "ops.sqlite"), db = new DatabaseSync(filename);
   db.exec("DROP TABLE human_confirmation_ids; DROP TABLE approval_reviews; PRAGMA user_version=2;"); db.close();
   const store = await openSqliteOperationJournal(filename, { approvalPolicy: personal }); t.after(() => store.close()); assert.deepEqual(store.get(f.id), before); assert.equal(store.approvalReview!(f.id), null);
@@ -158,4 +159,18 @@ test("an interrupted review leaves approval pending and cannot be treated as con
   const abort = new AbortController(); abort.abort();
   await assert.rejects(f.coordinator.decide(f.id, f.credential, true, { confirm: async () => { abort.signal.throwIfAborted(); return null; } }, abort.signal));
   assert.equal(f.store.get(f.id)!.state, "PendingApproval"); assert.equal(f.store.approval(f.store.get(f.id)!.approvalId!)!.decision, undefined);
+});
+
+test("historical reviewed Team context stays readable but cannot authorize a new decision, lease or effect", async t => {
+  const f = await fixture(t), op = f.store.get(f.id)!, before = f.store.events(f.id); f.store.close();
+  const db = new DatabaseSync(path.join(f.base, "state", "ops.sqlite"));
+  const row = db.prepare("SELECT data FROM approval_reviews WHERE operation_id=?").get(f.id)!;
+  const context = JSON.parse(String(row.data));
+  context.policy = { version: 1, mode: "team", requireHumanConfirmation: true, allowRequesterApproval: false, requireExactPatchReview: true, requireSeparateSandboxApproval: true };
+  context.policyDigest = createHash("sha256").update(JSON.stringify(context.policy)).digest("hex");
+  const data = JSON.stringify(context); db.prepare("UPDATE approval_reviews SET data=?,checksum=? WHERE operation_id=?").run(data, createHash("sha256").update(data).digest("hex"), f.id); db.close();
+  const store = await openSqliteOperationJournal(path.join(f.base, "state", "ops.sqlite")); t.after(() => store.close());
+  assert.deepEqual(store.get(f.id), op); assert.deepEqual(store.events(f.id), before); assert.equal(store.approvalReview!(f.id)!.policy.mode as string, "team");
+  assert.throws(() => store.decideReviewed!(op.approvalId!, owner, true)); assert.throws(() => store.acquireLease(f.id, op.version, 5000, owner));
+  assert.equal(store.approval(op.approvalId!)!.status, "pending"); assert.equal(await readFile(path.join(f.base, "source", "value.ts"), "utf8"), "export const value = 1;\n");
 });

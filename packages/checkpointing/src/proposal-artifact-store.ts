@@ -12,7 +12,8 @@ function exact(value: object, keys: string[]): void { check(Object.keys(value).s
 /** Bounds/schema admission; the independent PatchEngine revalidates all executable patch semantics. */
 function validate(a: ProposalArtifact): void {
   check(a && typeof a === "object");
-  exact(a, ["schemaVersion", "executionId", "requester", "operationId", "workspaceId", "receipt", "rootIdentity", "sourceRevision", "baseSnapshot", "patch", "patchDigest", "diffDigest", "diff", "allowedPaths", "allowedOperations", "policy", "policyDigest", "policyEncoding", "budget", "accounting", "createdAt", "expiresAt", "artifactDigest"]);
+  exact(a, ["schemaVersion", "executionId", "requester", "operationId", "workspaceId", "receipt", "rootIdentity", "sourceRevision", "baseSnapshot", "patch", "patchDigest", "diffDigest", "diff", "allowedPaths", "allowedOperations", "policy", "policyDigest", "policyEncoding", "budget", "accounting", "createdAt", "expiresAt", "artifactDigest", ...(a.projectAuthorizationDigest === undefined ? [] : ["projectAuthorizationDigest"])]);
+  check(a.projectAuthorizationDigest === undefined || hash(a.projectAuthorizationDigest));
   check(a.schemaVersion === 1 && id(a.executionId) && id(a.workspaceId) && hash(a.operationId));
   check(a.requester && typeof a.requester.issuer === "string" && typeof a.requester.subject === "string");
   exact(a.requester, ["issuer", "subject"]);

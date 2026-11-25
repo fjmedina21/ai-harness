@@ -2,18 +2,18 @@ import type { HostIdentity } from "./durable.js";
 
 export interface ApprovalPolicy {
   version: 1;
-  mode: "team" | "personal";
+  mode: "personal";
   requireHumanConfirmation: true;
-  allowRequesterApproval: boolean;
+  allowRequesterApproval: true;
   requireExactPatchReview: true;
   requireSeparateSandboxApproval: true;
 }
 export function normalizeApprovalPolicy(raw?: unknown): ApprovalPolicy {
-  if (raw === undefined) return { version: 1, mode: "team", requireHumanConfirmation: true, allowRequesterApproval: false, requireExactPatchReview: true, requireSeparateSandboxApproval: true };
+  if (raw === undefined) return { version: 1, mode: "personal", requireHumanConfirmation: true, allowRequesterApproval: true, requireExactPatchReview: true, requireSeparateSandboxApproval: true };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid host approval policy");
   const p = raw as ApprovalPolicy;
   if (Object.keys(p).sort().join() !== ["version", "mode", "requireHumanConfirmation", "allowRequesterApproval", "requireExactPatchReview", "requireSeparateSandboxApproval"].sort().join() ||
-    p.version !== 1 || !["team", "personal"].includes(p.mode) || p.requireHumanConfirmation !== true || p.allowRequesterApproval !== (p.mode === "personal") || p.requireExactPatchReview !== true || p.requireSeparateSandboxApproval !== true) throw new Error("Invalid host approval policy");
+    p.version !== 1 || p.mode !== "personal" || p.requireHumanConfirmation !== true || p.allowRequesterApproval !== true || p.requireExactPatchReview !== true || p.requireSeparateSandboxApproval !== true) throw new Error("Invalid host approval policy");
   return { version: 1, mode: p.mode, requireHumanConfirmation: true, allowRequesterApproval: p.allowRequesterApproval, requireExactPatchReview: true, requireSeparateSandboxApproval: true };
 }
 export const approvalPolicyJson = (raw?: unknown): string => JSON.stringify(normalizeApprovalPolicy(raw));
@@ -46,7 +46,8 @@ export interface HumanIntentReceipt {
   method: "macos-local-auth-and-tty-v1" | "reviewed-external-v1";
 }
 export interface ApprovalDecisionRecord {
-  mode: ApprovalPolicy["mode"];
+  /** Historical Team decisions remain readable only; never operational policy. */
+  mode: "personal" | "team";
   policyVersion: 1;
   policyDigest: string;
   challengeDigest: string;
@@ -60,6 +61,8 @@ export interface ApprovalDecisionRecord {
   intent?: HumanIntentReceipt;
 }
 export interface HumanApprovalReview {
+  /** Trusted host display context; exact artifact/snapshot binding remains in context. */
+  project?: string;
   context: ApprovalReviewContext;
   actor: HostIdentity;
   /** Private display only; never persist diff/source in telemetry. */

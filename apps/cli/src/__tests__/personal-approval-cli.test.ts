@@ -5,7 +5,7 @@ import { normalizeApprovalPolicy, type HumanApprovalReview } from "@ai-harness/c
 import { HumanApprovalAuthority, assertHumanIntent } from "@ai-harness/security";
 import { createInteractiveApprovalPort, MACOS_HUMAN_AUTHENTICATION, exactReviewDisplay } from "../human-approval.js";
 import { main } from "../index.js";
-const personal = { ...normalizeApprovalPolicy(), mode: "personal" as const, allowRequesterApproval: true };
+const personal = { ...normalizeApprovalPolicy(), mode: "personal" as const, allowRequesterApproval: true as const };
 const review: HumanApprovalReview = { actor: { issuer: "github.com", subject: "101" }, diff: "-old\n+new\n", files: [{ path: "value.ts", operation: "replace" }], workspace: "isolated", risk: "code modification",
   context: { schemaVersion: 1, operationId: "a".repeat(64), executionId: "fixture", scopeDigest: "b".repeat(64), purpose: "patch.apply", policy: personal, policyDigest: "c".repeat(64), challenge: "d".repeat(64), expiresAt: new Date(Date.now() + 60000).toISOString(), workspaceId: "workspace", artifactDigest: "e".repeat(64), patchDigest: "f".repeat(64), snapshotDigest: "1".repeat(64), contentDigest: "2".repeat(64) } };
 test("Personal CLI rejects non-interactive input before any OS dialog or approval", async () => {
@@ -34,7 +34,7 @@ test("JSON/model claims and serialized genuine receipts cannot become human inte
 for (const flag of ["--yes", "--force-approve", "--skip-review", "--approval-mode"]) test("CLI rejects approval bypass " + flag, async () => {
   const output: string[] = []; assert.equal(await main(["engineering", "approve", "--id", "fixture", flag], process.cwd(), s => output.push(s)), 1); assert.equal(JSON.parse(output.join("")).error.code, "invalid_arguments");
 });
-test("Team policy remains default and Personal policy is explicit and strictly validated", () => {
-  assert.equal(normalizeApprovalPolicy().mode, "team"); assert.equal(normalizeApprovalPolicy().allowRequesterApproval, false); assert.deepEqual(normalizeApprovalPolicy(personal), personal);
+test("Personal is the only policy and legacy Team is rejected", () => {
+  assert.equal(normalizeApprovalPolicy().mode, "personal"); assert.equal(normalizeApprovalPolicy().allowRequesterApproval, true); assert.deepEqual(normalizeApprovalPolicy(personal), personal);
   for (const candidate of [null, {}, { ...personal, version: 2 }, { ...personal, mode: "agent" }, { ...personal, mode: "team" }, { ...personal, allowRequesterApproval: false }, { ...personal, requireHumanConfirmation: false }, { ...personal, requireExactPatchReview: false }, { ...personal, requireSeparateSandboxApproval: false }, { ...personal, autoApprove: true }]) assert.throws(() => normalizeApprovalPolicy(candidate));
 });

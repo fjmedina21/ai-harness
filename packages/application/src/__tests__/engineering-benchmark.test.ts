@@ -15,7 +15,7 @@ test("engineering benchmark separates simulated/provider/application time and ex
     assert.ok(r.phaseMedianMs["patch.validate"]! >= 0); assert.ok(r.phaseMedianMs["context.serialize"]! >= 0);
     assert.equal(r.medianConfiguredSimulatedMs, r.requests * r.simulatedLatencyMs);
   }
-  assert.equal(report.results[0]!.requests, 4); assert.equal(report.results[1]!.requests, 5);
+  assert.equal(report.results[0]!.requests, 4); assert.equal(report.results[1]!.requests, 4);
   assert.ok(report.results[1]!.phaseMedianMs.dispatcher! >= 0); assert.ok(report.results[1]!.phaseMedianMs["checkpoint.persist"]! >= 0);
   assert.doesNotMatch(JSON.stringify(report), /export const|fixture-not-real|sourceRoot|approvalId/);
 });

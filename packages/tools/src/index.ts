@@ -211,3 +211,5 @@ export { parseEngineeringModelOutput } from "./engineering-model-output.js";
 export * from "./validation-snapshot.js";
 export * from "./snapshot-validation-runtime.js";
 export * from "./validation-coordinator.js";
+
+export { validateRuntimeOptions } from "./runtime-backend.js";

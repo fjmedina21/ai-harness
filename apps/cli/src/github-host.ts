@@ -4,17 +4,25 @@ import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { normalizeApprovalPolicy, type ApprovalPolicy, type EngineeringPolicy } from "@ai-harness/contracts";
+import { validateEngineeringPolicy, validateEngineeringBudget, ENGINEERING_TOOL_IDS, SandboxValidationRegistry } from "@ai-harness/application";
+import { canonicalProposalJson, normalizeApprovalPolicy, type ApprovalPolicy, type EngineeringPolicy, type EngineeringBudget, type ValidationActionProfile } from "@ai-harness/contracts";
 import {
   GitHubAuthentication,
   GitHubAuthError,
   GitHubOAuthClient,
   validateGitHubAuthPolicy,
+  HARNESS_ROLES,
+  type HarnessRole,
   type GitHubAuthPolicy,
   type GitHubCredentialStore,
 } from "@ai-harness/security";
 
 export interface OperationalWorkspace {
+  id: string;
+  capabilities: readonly HarnessRole[];
+  allowedToolIds: readonly string[];
+  limits: EngineeringBudget;
+  validationActions: readonly ValidationActionProfile[];
   approval?: ApprovalPolicy;
   sourceRoot: string;
   workspaceDirectory: string;
@@ -28,6 +36,9 @@ export interface GitHubHostConfiguration {
   auth: GitHubAuthPolicy;
   workspaces: readonly OperationalWorkspace[];
 }
+/** Covers project id, canonical roots, file policy, tools, budgets, actions and effective human policy. */
+export const projectAuthorizationDigest = (workspace: OperationalWorkspace, approval?: ApprovalPolicy): string =>
+  createHash("sha256").update(canonicalProposalJson({ ...workspace, approval: normalizeApprovalPolicy(workspace.approval ?? approval) })).digest("hex");
 export interface GitHubHost {
   configuration: GitHubHostConfiguration;
   authentication: GitHubAuthentication;
@@ -99,6 +110,11 @@ export async function readGitHubHostConfiguration(
         Object.keys(w).some(
           (k) =>
             ![
+              "id",
+              "capabilities",
+              "allowedToolIds",
+              "limits",
+              "validationActions",
               "sourceRoot",
               "workspaceDirectory",
               "journalFile",
@@ -107,11 +123,20 @@ export async function readGitHubHostConfiguration(
               "approval",
             ].includes(k),
         ) ||
+        typeof w.id !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$/.test(w.id) ||
+        !Array.isArray(w.capabilities) || w.capabilities.some((c: HarnessRole) => !HARNESS_ROLES.includes(c)) ||
         !w.policy ||
         !Array.isArray(w.policy.allowedPaths) ||
         !Array.isArray(w.policy.allowedOperations)
       )
         fail("invalid_host_configuration");
+      if (unique.has("id:" + w.id)) fail("invalid_host_configuration");
+      unique.add("id:" + w.id);
+      validateEngineeringPolicy(w.policy);
+      validateEngineeringBudget(w.limits);
+      if (!Array.isArray(w.allowedToolIds) || new Set(w.allowedToolIds).size !== w.allowedToolIds.length || w.allowedToolIds.some((id: string) => ![...ENGINEERING_TOOL_IDS, "sandbox.validate"].includes(id as typeof ENGINEERING_TOOL_IDS[number])) ||
+        !Array.isArray(w.validationActions) || w.validationActions.length > 16) fail("invalid_host_configuration");
+      const actions = new SandboxValidationRegistry(); for (const action of w.validationActions) actions.register(action);
       if (w.approval !== undefined) w.approval = normalizeApprovalPolicy(w.approval);
       for (const directory of [
         w.sourceRoot,
@@ -120,7 +145,9 @@ export async function readGitHubHostConfiguration(
         path.dirname(w.journalFile),
       ]) {
         if (
-          !path.isAbsolute(directory) ||
+          !path.isAbsolute(directory) || directory === path.parse(directory).root || directory === homedir() ||
+          !(await lstat(directory)).isDirectory() ||
+          path.resolve(directory) !== directory ||
           (await realpath(directory)) !== directory
         )
           fail("invalid_host_configuration");
@@ -140,6 +167,9 @@ export async function readGitHubHostConfiguration(
         )
           fail("invalid_host_configuration");
       }
+      for (const state of [w.checkpointDirectory, path.dirname(w.journalFile)]) {
+        if (state === w.workspaceDirectory || state.startsWith(w.workspaceDirectory + path.sep) || w.workspaceDirectory.startsWith(state + path.sep)) fail("invalid_host_configuration");
+      }
       if (
         path.resolve(w.journalFile) !== w.journalFile ||
         unique.has(w.journalFile)
@@ -147,16 +177,13 @@ export async function readGitHubHostConfiguration(
         fail("invalid_host_configuration");
       unique.add(w.journalFile);
     }
-    for (const a of p.auth.assignments)
-      for (const r of a.resources)
-        if (
-          !p.workspaces.some(
-            (w) =>
-              r.sourceRoot === w.sourceRoot &&
-              r.workspaceDirectory === w.workspaceDirectory,
-          )
-        )
-          fail("invalid_host_configuration");
+    // Canonical resource trees must never alias another project's source or private state.
+    const overlaps = (a: string, b: string) => a === b || a.startsWith(b + path.sep) || b.startsWith(a + path.sep);
+    for (let i = 0; i < p.workspaces.length; i++) for (let j = i + 1; j < p.workspaces.length; j++) {
+      const a = p.workspaces[i]!, b = p.workspaces[j]!;
+      const roots = (w: OperationalWorkspace) => [w.sourceRoot, w.workspaceDirectory, w.checkpointDirectory, path.dirname(w.journalFile)];
+      if (roots(a).some(x => roots(b).some(y => overlaps(x, y)))) fail("invalid_host_configuration");
+    }
     return p;
   } catch (e) {
     if (e instanceof GitHubAuthError) throw e;
@@ -299,6 +326,7 @@ export async function loadGitHubHost(): Promise<GitHubHost> {
     authentication: new GitHubAuthentication(
       new GitHubOAuthClient(configuration.auth),
       new MacOSGitHubCredentialStore(configuration.auth.clientId),
+      Date.now, configuration.workspaces.map(w => ({ sourceRoot: w.sourceRoot, workspaceDirectory: w.workspaceDirectory, capabilities: w.capabilities })),
     ),
   };
 }
@@ -370,9 +398,6 @@ export async function authCommand(
         : command === "refresh"
           ? await auth.refresh(signal)
           : await auth.identity(signal);
-    const assignments = configuration.auth.assignments
-      .filter((a) => a.accountId === identity.subject)
-      .map((a) => ({ roles: a.roles, resources: a.resources }));
     output(
       JSON.stringify({
         authenticated: true,
@@ -380,7 +405,7 @@ export async function authCommand(
         accountId: identity.subject,
         issuer: identity.issuer,
         expiresAt: new Date(identity.expiresAt).toISOString(),
-        assignments,
+        owner: identity.subject === configuration.auth.ownerAccountId,
       }),
     );
     return 0;

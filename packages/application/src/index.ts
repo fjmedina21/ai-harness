@@ -18,3 +18,7 @@ export { resolveEngineeringTiming } from "./engineering-timing.js";
 
 export { ContinuationCoordinator, EngineeringRecoveryService, ExecutionLeaseManager, persistEngineeringProposal } from "./engineering-resume.js";
 export type { ContinuationOptions } from "./engineering-resume.js";
+
+export { validateEngineeringPolicy, ENGINEERING_TOOL_IDS, SandboxValidationRegistry } from "@ai-harness/tools";
+
+export * from "./podman-validation.js";

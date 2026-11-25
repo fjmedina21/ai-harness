@@ -98,3 +98,5 @@ export { EngineeringCheckpointStore } from "./engineering-checkpoint.js";
 
 export { ProposalArtifactStore, sealProposalArtifact } from "./proposal-artifact-store.js";
 export { FileValidationEvidenceStore } from "./validation-evidence-store.js";
+
+export { FilePodmanAcceptanceStore } from "./podman-acceptance-store.js";

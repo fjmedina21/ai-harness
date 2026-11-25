@@ -4,11 +4,11 @@ import { normalizeApprovalPolicy, type HumanApprovalPort } from "@ai-harness/con
 import { HumanApprovalAuthority } from "@ai-harness/security";
 import { ValidationCoordinator } from "../validation-coordinator.js";
 import { validationFixture, operator } from "./phase9-validation-fixture.js";
-const personal = { ...normalizeApprovalPolicy(), mode: "personal" as const, allowRequesterApproval: true };
+const personal = { ...normalizeApprovalPolicy(), mode: "personal" as const, allowRequesterApproval: true as const };
 const human = new HumanApprovalAuthority({ method: "reviewed-external-v1", verify: async () => true });
 test("Personal sandbox needs a different approval, scope, challenge and human intent from its patch", async t => {
   const f = await validationFixture(t, "completed", personal); let calls = 0;
-  const coordinator = new ValidationCoordinator({ store: f.store, evidence: f.evidence, registry: f.registry, approvalPolicy: personal,
+  const coordinator = new ValidationCoordinator({ project: f.project, store: f.store, evidence: f.evidence, registry: f.registry, approvalPolicy: personal,
     authorize: async () => operator, approvalVerifier: () => ({ verify: async () => ({ ...operator, roles: ["harness:approver"] }) }),
     runtime: { execute: async () => { calls++; return { classification: "passed", exitCode: 0, timedOut: false, cancelled: false, cleanup: "confirmed", output: "fixed", diagnostics: ["action.passed"] }; } } });
   const patchGrant = f.store.approval(f.store.get(f.artifact.operationId)!.approvalId!)!;
@@ -26,7 +26,7 @@ test("Personal sandbox needs a different approval, scope, challenge and human in
 });
 test("sandbox approver role and cancellation are enforced without starting a runtime", async t => {
   const f = await validationFixture(t, "completed", personal);
-  const base = { store: f.store, evidence: f.evidence, registry: f.registry, approvalPolicy: personal, authorize: async () => operator,
+  const base = { project: f.project, store: f.store, evidence: f.evidence, registry: f.registry, approvalPolicy: personal, authorize: async () => operator,
     runtime: { execute: async (): Promise<never> => { throw new Error("Runtime must not start"); } } };
   await assert.rejects(new ValidationCoordinator({ ...base, approvalVerifier: () => ({ verify: async () => ({ ...operator, roles: ["harness:operator"] }) }) }).approve(f.artifact, f.workspace, "test", "fixture", human));
   const coordinator = new ValidationCoordinator({ ...base, approvalVerifier: () => ({ verify: async () => ({ ...operator, roles: ["harness:approver"] }) }) });

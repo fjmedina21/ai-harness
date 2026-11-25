@@ -16,6 +16,10 @@ export interface GitHubResourceScope {
   executionIds?: readonly string[];
   workspaceIds?: readonly string[];
 }
+/** Host-owned project capabilities, independent of OAuth identity. No implicit owner privileges. */
+export interface HostProjectCapabilities extends GitHubResourceScope {
+  capabilities: readonly HarnessRole[];
+}
 export interface GitHubAuthPolicy {
   version: 1;
   clientId: string;
@@ -23,10 +27,9 @@ export interface GitHubAuthPolicy {
   tokenEndpoint: "https://github.com/login/oauth/access_token";
   callback: { host: "127.0.0.1"; port: number; path: "/oauth/github/callback"; timeoutMs: number };
   sessionMaxAgeMs: number;
-  allowedAccountIds: readonly string[];
+  ownerAccountId: string;
   allowedOrganizationIds?: readonly string[];
   requestedPermissions: readonly ("organization-members:read")[];
-  assignments: readonly { accountId: string; roles: readonly HarnessRole[]; resources: readonly GitHubResourceScope[] }[];
 }
 export interface GitHubSession {
   version: 1; clientId: string; accountId: string; login: string;
@@ -48,25 +51,15 @@ const bounded = (n: unknown, max: number) => Number.isSafeInteger(n) && (n as nu
 const exactKeys = (value: object, keys: readonly string[]) => Object.keys(value).every(k => keys.includes(k));
 export function validateGitHubAuthPolicy(input: unknown): GitHubAuthPolicy {
   const p = input as GitHubAuthPolicy;
-  if (!p || typeof p !== "object" || !exactKeys(p, ["version", "clientId", "authorizationEndpoint", "tokenEndpoint", "callback", "sessionMaxAgeMs", "allowedAccountIds", "allowedOrganizationIds", "requestedPermissions", "assignments"]) ||
+  if (!p || typeof p !== "object" || Array.isArray(p) || !exactKeys(p, ["version", "clientId", "authorizationEndpoint", "tokenEndpoint", "callback", "sessionMaxAgeMs", "ownerAccountId", "allowedOrganizationIds", "requestedPermissions"]) ||
     p.version !== 1 || typeof p.clientId !== "string" || !/^[A-Za-z0-9._-]{1,128}$/.test(p.clientId) ||
     p.authorizationEndpoint !== "https://github.com/login/oauth/authorize" || p.tokenEndpoint !== "https://github.com/login/oauth/access_token" ||
     !p.callback || !exactKeys(p.callback, ["host", "port", "path", "timeoutMs"]) || p.callback.host !== "127.0.0.1" || p.callback.path !== "/oauth/github/callback" ||
     !bounded(p.callback.port, 65535) || p.callback.port < 1024 || !bounded(p.callback.timeoutMs, 300000) ||
-    !bounded(p.sessionMaxAgeMs, 28800000) || !Array.isArray(p.allowedAccountIds) || !p.allowedAccountIds.length || p.allowedAccountIds.length > 256 || !p.allowedAccountIds.every(account) ||
+    !bounded(p.sessionMaxAgeMs, 28800000) || !account(p.ownerAccountId) ||
     !Array.isArray(p.requestedPermissions) || p.requestedPermissions.some(x => x !== "organization-members:read") ||
     (p.allowedOrganizationIds !== undefined && (!Array.isArray(p.allowedOrganizationIds) || p.allowedOrganizationIds.length > 32 || !p.allowedOrganizationIds.every(account))) ||
-    (p.allowedOrganizationIds?.length && !p.requestedPermissions.includes("organization-members:read")) ||
-    !Array.isArray(p.assignments) || p.assignments.length > 256) deny("invalid_host_policy");
-  for (const a of p.assignments) {
-    if (!a || !exactKeys(a, ["accountId", "roles", "resources"]) || !account(a.accountId) || !p.allowedAccountIds.includes(a.accountId) ||
-      !Array.isArray(a.roles) || a.roles.some((r: HarnessRole) => !HARNESS_ROLES.includes(r)) || !Array.isArray(a.resources) || a.resources.length > 64) deny("invalid_host_policy");
-    for (const r of a.resources) {
-      if (!r || !exactKeys(r, ["sourceRoot", "workspaceDirectory", "executionIds", "workspaceIds"]) ||
-        ![r.sourceRoot, r.workspaceDirectory].every(v => typeof v === "string" && v.startsWith("/") && v.length <= 4096 && !v.includes("\0") && !v.split("/").some(c => c === "." || c === "..")) ||
-        [r.executionIds, r.workspaceIds].some(ids => ids !== undefined && (!Array.isArray(ids) || ids.length > 256 || !ids.every(id => /^[A-Za-z0-9-]{1,80}$/.test(id))))) deny("invalid_host_policy");
-    }
-  }
+    (p.allowedOrganizationIds?.length && !p.requestedPermissions.includes("organization-members:read"))) deny("invalid_host_policy");
   return structuredClone(p);
 }
 
@@ -187,7 +180,7 @@ export class GitHubOAuthClient {
     if (!user || user.type !== "User" || !Number.isSafeInteger(user.id) || user.id <= 0 || typeof user.login !== "string" || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(user.login) ||
       checked?.app?.client_id !== this.policy.clientId || checked?.user?.id !== user.id) deny("invalid_identity");
     const accountId = String(user.id);
-    if (!this.policy.allowedAccountIds.includes(accountId)) deny("account_not_allowed");
+    if (accountId !== this.policy.ownerAccountId) deny("account_not_allowed");
     if (this.policy.allowedOrganizationIds?.length) {
       let allowed = false;
       for (let page = 1; page <= 5 && !allowed; page++) {
@@ -216,13 +209,24 @@ export class GitHubOAuthClient {
 
 export class GitHubAuthentication {
   readonly policy: GitHubAuthPolicy;
-  constructor(private readonly client: GitHubOAuthClient, private readonly credentials: GitHubCredentialStore, private readonly now: () => number = Date.now) { this.policy = client.policy; }
+  private readonly projects: readonly HostProjectCapabilities[];
+  constructor(private readonly client: GitHubOAuthClient, private readonly credentials: GitHubCredentialStore, private readonly now: () => number = Date.now, projects: readonly HostProjectCapabilities[] = []) {
+    this.policy = Object.freeze(validateGitHubAuthPolicy(client.policy));
+    this.projects = structuredClone(projects);
+    for (const project of this.projects) {
+      if (!project || !exactKeys(project, ["sourceRoot", "workspaceDirectory", "executionIds", "workspaceIds", "capabilities"]) ||
+        ![project.sourceRoot, project.workspaceDirectory].every(v => typeof v === "string" && v.startsWith("/") && v !== "/" && v.length <= 4096 && !v.includes("\0") && !v.split("/").some(c => c === "." || c === "..")) ||
+        !Array.isArray(project.capabilities) || project.capabilities.some(c => !HARNESS_ROLES.includes(c)) ||
+        [project.executionIds, project.workspaceIds].some(ids => ids !== undefined && (!Array.isArray(ids) || ids.length > 256 || !ids.every(id => /^[A-Za-z0-9-]{1,80}$/.test(id))))) deny("invalid_project_capabilities");
+    }
+  }
   private async secret(): Promise<string> { const secret = await this.credentials.read("client-secret"); if (!secret) deny("missing_client_secret"); return secret; }
   private async session(): Promise<GitHubSession> {
     const raw = await this.credentials.read("session"); if (!raw || raw.length > 16384) deny("authentication_required");
     let s: GitHubSession; try { s = JSON.parse(raw); } catch { return deny("invalid_session"); }
     if (!s || typeof s !== "object" || !exactKeys(s, ["version", "clientId", "accountId", "login", "accessToken", "refreshToken", "refreshExpiresAt", "createdAt", "expiresAt", "tokenExpiresAt"]) || s.version !== 1 || s.clientId !== this.policy.clientId || !account(s.accountId) || !Number.isSafeInteger(s.createdAt) || !Number.isSafeInteger(s.expiresAt) || !Number.isSafeInteger(s.tokenExpiresAt) ||
       s.createdAt > this.now() || s.expiresAt <= s.createdAt || s.expiresAt > s.createdAt + 28800000 || !/^ghu_[A-Za-z0-9_]{8,512}$/.test(s.accessToken)) deny("invalid_session");
+    if (s.accountId !== this.policy.ownerAccountId) deny("account_not_allowed");
     return s;
   }
   private alive(s: GitHubSession) { if (Math.min(s.expiresAt, s.createdAt + this.policy.sessionMaxAgeMs, s.tokenExpiresAt) <= this.now()) deny("session_expired"); }
@@ -272,9 +276,9 @@ export class GitHubAuthentication {
     });
   }
   roles(identity: GitHubIdentity, resource?: GitHubResourceScope & { executionId?: string; workspaceId?: string }): HarnessRole[] {
-    if (identity.issuer !== GITHUB_ISSUER || !this.policy.allowedAccountIds.includes(identity.subject) || identity.expiresAt <= this.now()) return [];
-    return [...new Set(this.policy.assignments.filter(a => a.accountId === identity.subject && a.resources.some(r => resource && r.sourceRoot === resource.sourceRoot && r.workspaceDirectory === resource.workspaceDirectory &&
-      (!r.executionIds || !!resource.executionId && r.executionIds.includes(resource.executionId)) && (!r.workspaceIds || !!resource.workspaceId && r.workspaceIds.includes(resource.workspaceId)))).flatMap(a => [...a.roles]))];
+    if (identity.issuer !== GITHUB_ISSUER || identity.subject !== this.policy.ownerAccountId || identity.expiresAt <= this.now()) return [];
+    return [...new Set(this.projects.filter(r => resource && r.sourceRoot === resource.sourceRoot && r.workspaceDirectory === resource.workspaceDirectory &&
+      (!r.executionIds || !!resource.executionId && r.executionIds.includes(resource.executionId)) && (!r.workspaceIds || !!resource.workspaceId && r.workspaceIds.includes(resource.workspaceId))).flatMap(r => [...r.capabilities]))];
   }
   async authorize(role: HarnessRole, resource: GitHubResourceScope & { executionId?: string; workspaceId?: string }, signal?: AbortSignal): Promise<GitHubIdentity> {
     const identity = await this.identity(signal); if (!this.roles(identity, resource).includes(role)) deny("forbidden_scope"); return identity;

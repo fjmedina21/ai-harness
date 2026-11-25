@@ -14,7 +14,7 @@ import { DurableStoreError, EngineeringResumeError, canonicalProposalJson, type 
 import { ProposalArtifactStore, openSqliteOperationJournal } from "@ai-harness/checkpointing";
 import { ApprovalBroker } from "@ai-harness/security";
 import { ContinuationCoordinator } from "../engineering-resume.js";
-import { credential, directories, generate, openFixture, policy, verifier } from "./resume-fixture.js";
+import { confirmation, credential, directories, generate, openFixture, policy, verifier } from "./resume-fixture.js";
 
 const original = "export const value = 1;\n", changed = "export const value = 2;\n";
 const worker = fileURLToPath(new URL("./resume-worker.js", import.meta.url));
@@ -56,7 +56,7 @@ async function invoke(t: TestContext, base: string, mode: string, id: string) {
   const next = message(child); child.send({ go: true }); return next;
 }
 const token = (f: { ref: ProposalReference }, action: Parameters<typeof credential>[1]) => credential(f.ref, action);
-async function approve(f: Awaited<ReturnType<typeof fixture>>) { await f.coordinator.decide(f.id, token(f, "approve"), true); }
+async function approve(f: Awaited<ReturnType<typeof fixture>>) { await f.coordinator.decide(f.id, token(f, "approve"), true, confirmation); }
 
 test("three independent processes generate via mocked OpenAI, approve, and apply exact durable proposal with zero resume HTTP", async t => {
   const base = await baseFixture(t), a = await spawn(t, base, "generate");
@@ -92,7 +92,7 @@ for (const kind of ["incomplete", "corrupt", "digest", "missing", "symlink", "mo
   else if (kind === "mode") await chmod(file, 0o644);
   else if (kind === "digest") { const data = JSON.parse(await readFile(file, "utf8")); data.artifact.patchDigest = "0".repeat(64); await writeFile(file, JSON.stringify(data)); }
   else await writeFile(file, kind === "incomplete" ? "{\"artifact\":" : "PRIVATE CORRUPTED");
-  await assert.rejects(f.coordinator.decide(f.id, token(f, "approve"), true), EngineeringResumeError);
+  await assert.rejects(f.coordinator.decide(f.id, token(f, "approve"), true, confirmation), EngineeringResumeError);
   assert.equal(f.store.get(f.id)!.state, "PendingApproval"); assert.equal(await readFile(path.join(f.artifact.receipt.root, "value.ts"), "utf8"), original);
 });
 for (const scope of ["policy", "source", "workspace", "receipt", "root_identity"] as const) test("changed " + scope + " invalidates previous approval before effects", async t => {
@@ -124,7 +124,7 @@ test("single-use approval replay and concurrent independent approvers admit one 
   const f = await fixture(t);
   const [a, b] = await Promise.all([invoke(t, f.base, "approve", f.id), invoke(t, f.base, "approve", f.id)]);
   assert.equal([a, b].filter(x => x.ok).length, 1);
-  await assert.rejects(f.coordinator.decide(f.id, token(f, "approve"), true));
+  await assert.rejects(f.coordinator.decide(f.id, token(f, "approve"), true, confirmation));
 });
 for (const choice of ["denied", "revoked"] as const) test(choice + " approval is terminal across sessions", async t => {
   const f = await fixture(t);
@@ -150,7 +150,7 @@ test("expired effect-free lease can transfer with increasing epoch; live old own
   const f = await fixture(t); await approve(f);
   const old = await spawn(t, f.base, "old-worker", f.id), leased = message(old.child); old.child.send({ go: true }); assert.equal((await leased).leased, true);
   await delay(100);
-  const op = f.store.get(f.id)!, lease = f.store.acquireLease(f.id, op.version, 5000, { issuer: "fixture", subject: "operator" }); assert.equal(lease.epoch, 2);
+  const op = f.store.get(f.id)!, lease = f.store.acquireLease(f.id, op.version, 5000, { issuer: "github.com", subject: "101" }); assert.equal(lease.epoch, 2);
   const stale = message(old.child); old.child.send({ check: true }); assert.equal((await stale).staleBlocked, true);
   f.store.assertLease(lease);
   assert.throws(() => f.store.assertLease({ ...lease, epoch: 1 }));
@@ -163,7 +163,7 @@ for (const crash of ["prepared", "running", "after_effect"] as const) test("actu
   const { store, artifacts } = await openFixture(f.base, { now: () => Date.now() + 10000 });
   try {
     const op = store.get(f.id)!; assert.equal(op.state, crash === "prepared" ? "Prepared" : "Running");
-    assert.throws(() => store.acquireLease(f.id, op.version, 1000, { issuer: "fixture", subject: "operator" }));
+    assert.throws(() => store.acquireLease(f.id, op.version, 1000, { issuer: "github.com", subject: "101" }));
     const c = new ContinuationCoordinator({ store, artifacts, policy, verifier }); await assert.rejects(c.continue(f.id, token(f, "continue"), 1000));
     assert.equal(store.approval(op.approvalId!)!.status, "consumed");
     assert.equal(await readFile(path.join(f.artifact.receipt.root, "value.ts"), "utf8"), crash === "after_effect" ? changed : original);
@@ -259,7 +259,7 @@ test("leased approval cannot be consumed without current ownership; fence reject
   const op = f.store.get(f.id)!;
   assert.throws(() => f.store.prepare(f.id, op.version, op.scopeDigest, op.approvalId));
   const clock = { now: Date.now() }, owned = await openFixture(f.base, { now: () => clock.now }); t.after(() => owned.store.close());
-  const lease = owned.store.acquireLease(f.id, op.version, 1, { issuer: "fixture", subject: "operator" });
+  const lease = owned.store.acquireLease(f.id, op.version, 1, { issuer: "github.com", subject: "101" });
   clock.now += 2; assert.throws(() => owned.store.assertLease(lease));
   clock.now -= 2;
   const prepared = owned.store.prepare(f.id, op.version, op.scopeDigest, op.approvalId)!;
@@ -288,7 +288,7 @@ test("metadata telemetry contains no patch/source/credential and observer failur
   const { InMemoryTelemetrySink, TelemetrySession } = await import("@ai-harness/observability");
   const sink = new InMemoryTelemetrySink(), session = new TelemetrySession({ sink });
   const coordinator = new ContinuationCoordinator({ store: f.store, artifacts: f.artifacts, policy, verifier, telemetry: session.trace(f.result.executionId) });
-  await coordinator.decide(f.id, token(f, "approve"), true);
+  await coordinator.decide(f.id, token(f, "approve"), true, confirmation);
   await coordinator.continue(f.id, token(f, "continue"), 5000); await session.flush();
   const events = JSON.stringify(sink.events());
   for (const name of ["approval.granted", "lease.acquired", "reconciliation.started", "continuation.started", "continuation.completed"]) assert.ok(events.includes(name));
@@ -296,7 +296,7 @@ test("metadata telemetry contains no patch/source/credential and observer failur
   assert.equal(await coordinator.diff(f.id, token(f, "diff")), f.artifact.diff);
   const g = await fixture(t), binding = session.trace(g.result.executionId);
   const bad = new ContinuationCoordinator({ store: g.store, artifacts: g.artifacts, policy, verifier, telemetry: { context: binding.context, observer: { ...binding.observer, trace: () => { throw new Error("PRIVATE observer"); }, event: () => { throw new Error("PRIVATE observer"); }, startSpan: () => { throw new Error("PRIVATE observer"); } } } });
-  await bad.decide(g.id, token(g, "approve"), true); assert.equal((await bad.continue(g.id, token(g, "continue"), 5000)).operationState, "Completed");
+  await bad.decide(g.id, token(g, "approve"), true, confirmation); assert.equal((await bad.continue(g.id, token(g, "continue"), 5000)).operationState, "Completed");
 });
 test("replay with a different artifact challenge is rejected by the existing durable decision transaction", async t => {
   const f = await fixture(t), op = f.store.get(f.id)!;

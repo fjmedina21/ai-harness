@@ -2,9 +2,11 @@ import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promi
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { openSqliteOperationJournal, EngineeringCheckpointStore } from "@ai-harness/checkpointing";
+import { openSqliteOperationJournal, EngineeringCheckpointStore, ProposalArtifactStore } from "@ai-harness/checkpointing";
 import { InMemoryTelemetrySink, TelemetrySession } from "@ai-harness/observability";
 import { createOpenAIEngineeringAgent } from "./engineering-provider.js";
+import { ContinuationCoordinator } from "./engineering-resume.js";
+import { HumanApprovalAuthority } from "@ai-harness/security";
 import { runEngineeringWorkflow } from "./engineering.js";
 export interface EngineeringBenchmarkCase { files: number; fileBytes: number; level: 1 | 2; simulatedLatencyMs: number }
 const defaults: EngineeringBenchmarkCase[] = ([1, 2] as const).flatMap(level => [0, 5].flatMap(simulatedLatencyMs =>
@@ -43,10 +45,17 @@ export async function runEngineeringBenchmarks(samples = 5, cases: readonly Engi
           agent, modelAdapterAuthorized: true, allowUncertainCost: true, telemetry: telemetry.trace("benchmark-diagnostic"),
           policy: { version: "benchmark", allowedPaths: files, allowedOperations: ["replace"], maxFiles: 8, maxBytes: 8192 },
           budget: { maxIterations: 1, maxRequests: 6, maxTokens: 100000, maxEstimatedCostUsd: 0, timeoutMs: 5000, maxFiles: 8, maxBytes: 8192 },
-          ...(store ? { workspace: { directory: workspace, binding: { store, requester: { issuer: "fixture", subject: "benchmark-requester" }, safetyByTool: {} }, createAuthorized: true as const, ttlMs: 60000 },
-            checkpoint: new EngineeringCheckpointStore(state), requestApproval: async (r: { approvalId: string }) => { store!.decide(r.approvalId, { issuer: "fixture", subject: "benchmark-independent-approver" }, true); return r.approvalId; } } : {}) });
+          ...(store ? { workspace: { directory: workspace, binding: { store, requester: { issuer: "github.com", subject: "101" }, safetyByTool: {} }, createAuthorized: true as const, ttlMs: 60000 },
+            checkpoint: new EngineeringCheckpointStore(state), proposalArtifacts: new ProposalArtifactStore(state) } : {}) });
+        if (store) {
+          const operation = store.list(result.executionId).find(op => op.toolId === "patch.apply")!;
+          const coordinator = new ContinuationCoordinator({ store, artifacts: new ProposalArtifactStore(state), policy: { version: "benchmark", allowedPaths: files, allowedOperations: ["replace"], maxFiles: 8, maxBytes: 8192 },
+            verifier: { verify: async (_credential, binding) => ({ issuer: "github.com", subject: "101", roles: ["harness:reader", "harness:approver", "harness:operator"], expiresAt: Date.now() + 60000, binding }) } });
+          await coordinator.decide(operation.operationId, "synthetic-benchmark", true, new HumanApprovalAuthority({ method: "reviewed-external-v1", verify: async () => true }));
+          await coordinator.continue(operation.operationId, "synthetic-benchmark", 5000);
+        }
         const totalMs = performance.now() - start; await telemetry.flush();
-        if (result.termination !== (scenario.level === 1 ? "proposed" : "review_pending") || await readFile(path.join(source, "value.ts"), "utf8") !== before) throw new Error("Benchmark acceptance failed");
+        if (result.termination !== (scenario.level === 1 ? "proposed" : "approval_required") || await readFile(path.join(source, "value.ts"), "utf8") !== before) throw new Error("Benchmark acceptance failed");
         const events = sink.events().filter(e => e.type === "span.end"), phases: Record<string, number> = {};
         for (const e of events) {
           const key = e.attributes.phase ?? (e.name === "tool.dispatch" ? "dispatcher" : undefined);

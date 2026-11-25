@@ -38,15 +38,11 @@ export function assertHumanIntent(receipt: HumanIntentReceipt | undefined, conte
 }
 /** Rechecks the existing grant; never creates authority from a mode or session alone. */
 export function assertApprovalDecision(grant: DurableApproval, context?: ApprovalReviewContext | null, currentPolicy?: ApprovalPolicy): void {
-  const mode = normalizeApprovalPolicy(currentPolicy).mode;
-  if (!grant.approver) throw new Error("Approval missing");
-  if (context && context.policyDigest !== approvalPolicyDigest(currentPolicy)) throw new Error("Approval policy changed");
-  if (!context && mode !== "team") throw new Error("Legacy approval remains Team Mode");
-  if (mode === "team") {
-    if (grant.approver.issuer === grant.requester.issuer && grant.approver.subject === grant.requester.subject) throw new Error("Independent approver required");
-  } else {
-    const decision = grant.decision;
-    if (!context || !decision || decision.mode !== "personal" || decision.policyDigest !== context.policyDigest || decision.authorizationScope !== context.scopeDigest || decision.patchDigest !== context.patchDigest || decision.workspaceId !== context.workspaceId || !decision.intent ||
-      decision.intent.bindingDigest !== humanIntentDigest(context, grant.approver) || decision.approver.issuer !== grant.approver.issuer || decision.approver.subject !== grant.approver.subject) throw new Error("Reviewed Personal Mode approval required");
-  }
+  normalizeApprovalPolicy(currentPolicy);
+  if (!grant.approver || !context || context.policy.mode !== "personal" || context.policyDigest !== approvalPolicyDigest(currentPolicy)) throw new Error("Personal approval context required; legacy authority is inactive");
+  const decision = grant.decision;
+  if (grant.approver.issuer !== grant.requester.issuer || grant.approver.subject !== grant.requester.subject ||
+    !decision || decision.mode !== "personal" || decision.policyDigest !== context.policyDigest || decision.authorizationScope !== context.scopeDigest ||
+    decision.patchDigest !== context.patchDigest || decision.snapshotDigest !== context.snapshotDigest || decision.challengeDigest !== createHash("sha256").update(context.challenge).digest("hex") || decision.workspaceId !== context.workspaceId || !decision.intent ||
+    decision.intent.bindingDigest !== humanIntentDigest(context, grant.approver) || decision.approver.issuer !== grant.approver.issuer || decision.approver.subject !== grant.approver.subject) throw new Error("Reviewed owner Personal approval required");
 }

@@ -1,3 +1,4 @@
+import { approveStorageFixture } from "./personal-storage-fixture.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chmod, link, lstat, readFile, readdir, rename, symlink, writeFile } from "node:fs/promises";
@@ -16,11 +17,11 @@ const runtime = (): SnapshotValidationRuntime => ({ execute: async () => structu
 const snapshot = (f: Awaited<ReturnType<typeof validationFixture>>) => captureValidationSnapshot(f.workspace, expectedApprovedSnapshot(f.artifact), {
   sourceRevision: f.artifact.sourceRevision, policyVersion: f.artifact.policy.version, policyDigest: f.artifact.policyDigest, allowedPaths: f.artifact.allowedPaths });
 function coordinator(f: Awaited<ReturnType<typeof validationFixture>>, selected = runtime(), authorize = async () => operator) {
-  return new ValidationCoordinator({ store: f.store, evidence: f.evidence, registry: f.registry, runtime: selected, authorize });
+  return new ValidationCoordinator({ project: f.project, store: f.store, evidence: f.evidence, registry: f.registry, runtime: selected, authorize });
 }
 async function approved(f: Awaited<ReturnType<typeof validationFixture>>, c = coordinator(f)) {
   const pending = await c.prepare(f.artifact, f.workspace, "test"); assert.equal(pending.status, "approval_required");
-  f.store.decide(pending.approvalId!, approver, true); return { c, pending };
+  approveStorageFixture(f.store, pending.approvalId!); return { c, pending };
 }
 
 test("snapshot has exact approved resulting inventory, immutable transport and stable identity", async t => {
@@ -131,9 +132,9 @@ test("coordinator rejects missing auth, wrong account provider, modified artifac
   await writeFile(path.join(f.workspace.receipt.root, "value.js"), "changed after approved apply");
   await assert.rejects(c.prepare(f.artifact, f.workspace, "test"));
 });
-test("coordinator rejects validation self-approval even when a low-level host port was misused", async t => {
+test("coordinator rejects automatic approval without a human intent receipt", async t => {
   const f = await validationFixture(t), c = coordinator(f), pending = await c.prepare(f.artifact, f.workspace, "test");
-  f.store.decide(pending.approvalId!, operator, true);
+  assert.throws(() => f.store.decide(pending.approvalId!, operator, true));
   const blocked = await c.execute(f.artifact, f.workspace, "test", pending.approvalId!); assert.notEqual(blocked.status, "executed");
 });
 test("uncertain cleanup retains private claim, evidence and durable Uncertain operation", async t => {
@@ -166,7 +167,7 @@ for (const patchState of ["approved", "running", "uncertain"] as const) test("hi
   await assert.rejects(coordinator(f).prepare(f.artifact, f.workspace, "test"));
   const op = f.store.register({ executionId: f.artifact.executionId, taskId: "sandbox-validation", requestId: "invalid", projectRoot: f.workspace.receipt.root,
     toolId: "sandbox.validate", argumentDigest: "0".repeat(64), permission: "shell:execute", risk: "high", safety: "side_effecting", requester: operator, requiresApproval: true }).operation;
-  f.store.decide(op.approvalId!, approver, true); const current = f.store.get(op.operationId)!;
+  assert.throws(() => f.store.decide(op.approvalId!, approver, true)); const current = f.store.get(op.operationId)!;
   assert.throws(() => f.store.prepare(current.operationId, current.version, current.scopeDigest, current.approvalId));
 });
 test("historical completed patch lease permits only separately approved exact validation operation kind", async t => {
@@ -176,7 +177,7 @@ test("historical completed patch lease permits only separately approved exact va
     const op = f.store.register({ executionId: f.artifact.executionId, taskId: "sandbox-validation", requestId: "invalid" + i, projectRoot: f.workspace.receipt.root,
       toolId: "sandbox.validate", argumentDigest: "0".repeat(64), permission: "shell:execute", risk: "high", safety: "side_effecting", requester: operator, requiresApproval: true,
       ...mutations[i] } as Parameters<typeof f.store.register>[0]).operation;
-    if (op.approvalId) f.store.decide(op.approvalId, approver, true);
+    if (op.approvalId) { if (op.toolId === "sandbox.validate") assert.throws(() => f.store.decide(op.approvalId!, approver, true)); else f.store.decide(op.approvalId, approver, true); }
     const current = f.store.get(op.operationId)!;
     assert.throws(() => f.store.prepare(current.operationId, current.version, current.scopeDigest, current.approvalId));
   }

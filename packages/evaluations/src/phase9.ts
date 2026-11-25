@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+import { normalizeApprovalPolicy, canonicalProposalJson } from "@ai-harness/contracts";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -15,8 +17,13 @@ async function fixture(run: (options: EngineeringOptions) => Promise<Record<stri
     agent: new FixtureEngineeringAgent("value.ts", "fixture-after\n"),
     budget: { maxIterations: 3, maxRequests: 16, maxTokens: 16, maxEstimatedCostUsd: 0, timeoutMs: 5000, maxFiles: 4, maxBytes: 8192 },
     policy: { version: "phase9-eval", allowedPaths: ["value.ts"], allowedOperations: ["replace"], maxFiles: 1, maxBytes: 8192 },
-    workspace: { directory: workspaces, binding: { store, requester: { issuer: "fixture", subject: "requester" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 60000 },
-    checkpoint: new EngineeringCheckpointStore(state), async requestApproval(r) { store.decide(r.approvalId, { issuer: "fixture", subject: "human" }, true); return r.approvalId; } }) }; }
+    workspace: { directory: workspaces, binding: { store, requester: { issuer: "github.com", subject: "101" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 60000 },
+    checkpoint: new EngineeringCheckpointStore(state), async requestApproval(r) { const grant = store.approval(r.approvalId)!, op = store.get(grant.operationId)!, digest = r.patch.digest;
+      store.bindProposal({ operationId: op.operationId, executionId: op.executionId, workspaceId: r.patch.workspaceId, artifactDigest: digest, challenge: randomBytes(32).toString("hex"), expiresAt: grant.expiresAt },
+        { policy: normalizeApprovalPolicy(), workspaceId: r.patch.workspaceId, artifactDigest: digest, patchDigest: digest, snapshotDigest: r.patch.baseRevision, contentDigest: digest });
+      const context = store.approvalReview!(op.operationId)!, now = Date.now();
+      store.decideReviewed!(r.approvalId, grant.requester, true, { id: randomBytes(32).toString("hex"), bindingDigest: engineeringHash(canonicalProposalJson({ review: context, actor: grant.requester })), issuedAt: now, expiresAt: Math.min(now + 60000, Date.parse(context.expiresAt)), method: "reviewed-external-v1" });
+      store.acquireLease(op.operationId, store.get(op.operationId)!.version, 300000, grant.requester); return r.approvalId; } }) }; }
   finally { store.close(); await rm(root, { recursive: true, force: true }); }
 }
 function evidence(s: WorkspaceSnapshot, w: string): ValidationEvidence { return { snapshotDigest: s.digest, workspaceId: w, kind: "fixture", profile: "fixture", environment: "fixture", validationId: "unit", durationMs: 1, exitCode: 1, result: "failed", cleanup: "confirmed", logDigest: engineeringHash("same-error"), passedChecks: [], resources: { cpu: 0.5, memoryBytes: 268435456, pids: 64 } }; }

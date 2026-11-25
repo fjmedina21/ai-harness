@@ -37,6 +37,7 @@ export interface FixtureValidationPort {
   validate(snapshot: WorkspaceSnapshot, workspaceId: string, signal: AbortSignal): Promise<ValidationEvidence>;
 }
 export interface EngineeringOptions {
+  projectAuthorizationDigest?: string;
   approvalPolicy?: import("@ai-harness/contracts").ApprovalPolicy;
   projectRoot: string;
   request: string;
@@ -106,12 +107,17 @@ export interface EngineeringResult {
   risks: readonly string[];
 }
 const defaultRisks = ["Experimental private local filesystem boundary; same-UID hostile races are unsupported", "L3 unavailable: real Podman snapshot transfer and current isolation E2E are unverified", "Real engineering workflow interoperability requires separate live evidence; no integration or publication authority"];
+/** Host admission shared by workflow and private project registry; existing ceilings are unchanged. */
+export function validateEngineeringBudget(budget: EngineeringBudget): void {
+  if (!budget || typeof budget !== "object" || Object.keys(budget).sort().join() !== ["maxIterations", "maxRequests", "maxTokens", "timeoutMs", "maxFiles", "maxBytes", "maxEstimatedCostUsd"].sort().join()) throw new Error("Invalid host engineering budget");
+  engineeringLimit(budget.maxIterations, 8); engineeringLimit(budget.maxRequests, 32); engineeringLimit(budget.maxTokens, 100000);
+  engineeringLimit(budget.timeoutMs, ENGINEERING_TIME_LIMITS.workflowMaxMs); engineeringLimit(budget.maxFiles, 16); engineeringLimit(budget.maxBytes, 65536);
+  if (!Number.isFinite(budget.maxEstimatedCostUsd) || budget.maxEstimatedCostUsd < 0 || budget.maxEstimatedCostUsd > 10) throw new Error("Invalid host engineering budget");
+}
 function validateOptions(o: EngineeringOptions): void {
   if (![1, 2, 3].includes(o.level) || !o.request.trim() || Buffer.byteLength(o.request) > 8192 || !o.files.length) throw new Error("Invalid engineering request");
-  engineeringLimit(o.budget.maxIterations, 8); engineeringLimit(o.budget.maxRequests, 32); engineeringLimit(o.budget.maxTokens, 100_000);
-  engineeringLimit(o.budget.timeoutMs, ENGINEERING_TIME_LIMITS.workflowMaxMs); engineeringLimit(o.budget.maxFiles, 16); engineeringLimit(o.budget.maxBytes, 65536);
-  if (!Number.isFinite(o.budget.maxEstimatedCostUsd) || o.budget.maxEstimatedCostUsd < 0 || o.budget.maxEstimatedCostUsd > 10 ||
-      !/^[a-zA-Z0-9._-]{1,64}$/.test(o.agent.id) || !["fixture", "host_model_adapter"].includes(o.agent.mode) ||
+  validateEngineeringBudget(o.budget);
+  if (      !/^[a-zA-Z0-9._-]{1,64}$/.test(o.agent.id) || !["fixture", "host_model_adapter"].includes(o.agent.mode) ||
       (o.agent.mode === "host_model_adapter" && (o.modelAdapterAuthorized !== true || o.allowUncertainCost !== true || o.level === 3)) ||
       !Number.isSafeInteger(o.agent.maxTokensPerRequest) || o.agent.maxTokensPerRequest < 1 || o.agent.maxTokensPerRequest > o.budget.maxTokens ||
       !Number.isFinite(o.agent.maxEstimatedCostUsdPerRequest) || o.agent.maxEstimatedCostUsdPerRequest < 0) throw new Error("Host adapter and finite budgets required");
@@ -328,7 +334,7 @@ export async function runEngineeringWorkflow(raw: EngineeringOptions): Promise<E
         if (!waiting.operationId || !(view instanceof EngineeringWorkspace)) throw new Stop("failed");
         const store = o.workspace!.binding.store as import("@ai-harness/contracts").EngineeringResumeStore;
         if (typeof store.bindProposal !== "function" || o.requestApproval) throw new Stop("failed");
-        await persistEngineeringProposal(store, o.proposalArtifacts, { executionId, requester: o.workspace!.binding.requester, operationId: waiting.operationId,
+        await persistEngineeringProposal(store, o.proposalArtifacts, { ...(o.projectAuthorizationDigest ? { projectAuthorizationDigest: o.projectAuthorizationDigest } : {}), executionId, requester: o.workspace!.binding.requester, operationId: waiting.operationId,
           workspaceId: view.receipt.workspaceId, receipt: { ...view.receipt }, sourceRevision: view.receipt.baseRevision,
           baseSnapshot: await view.inspect(signal), patch, patchDigest: patch.digest, diffDigest: engineeringHash(diff), diff,
           allowedPaths: [...o.policy.allowedPaths], allowedOperations: [...o.policy.allowedOperations], policy: o.policy, policyDigest: patch.policyDigest,

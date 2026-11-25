@@ -9,7 +9,7 @@ import { GitHubAuthentication, GitHubAuthError, GitHubOAuthClient, type GitHubAu
 import { authCommand, githubKeychainService, readGitHubHostConfiguration, type GitHubHost } from "../github-host.js";
 import { githubAuthSmoke } from "../github-auth-smoke.js";
 
-const policy: GitHubAuthPolicy = { version: 1, clientId: "Iv1.synthetic", authorizationEndpoint: "https://github.com/login/oauth/authorize", tokenEndpoint: "https://github.com/login/oauth/access_token", callback: { host: "127.0.0.1", port: 53684, path: "/oauth/github/callback", timeoutMs: 1000 }, sessionMaxAgeMs: 3600000, requestedPermissions: [], allowedAccountIds: ["101"], assignments: [{ accountId: "101", roles: ["harness:reader"], resources: [] }] };
+const policy: GitHubAuthPolicy = { version: 1, clientId: "Iv1.synthetic", authorizationEndpoint: "https://github.com/login/oauth/authorize", tokenEndpoint: "https://github.com/login/oauth/access_token", callback: { host: "127.0.0.1", port: 53684, path: "/oauth/github/callback", timeoutMs: 1000 }, sessionMaxAgeMs: 3600000, requestedPermissions: [], ownerAccountId: "101" };
 function host(): GitHubHost {
   const now = Date.now();
   const credentials: GitHubCredentialStore = { read: async name => name === "client-secret" ? "synthetic-only-secret" : JSON.stringify({ version: 1, clientId: policy.clientId, accountId: "101", login: "synthetic", accessToken: "ghu_synthetic_test_only", createdAt: now - 1000, expiresAt: now + 3600000, tokenExpiresAt: now + 3600000 }), writeSession: async () => {}, clearSession: async () => {}, exclusive: async f => f() };
@@ -19,7 +19,7 @@ function host(): GitHubHost {
 for (const command of ["whoami", "status"]) test("auth " + command + " returns verified metadata without secrets", async () => {
   const output: string[] = []; assert.equal(await authCommand([command], text => output.push(text), undefined, async () => host()), 0);
   const result = JSON.parse(output.join("")); assert.equal(result.authenticated, true); assert.equal(result.accountId, "101"); assert.equal(result.username, "synthetic"); assert.ok(result.expiresAt);
-  assert.deepEqual(result.assignments[0].roles, ["harness:reader"]); assert.doesNotMatch(output.join(""), /ghu_|synthetic-only-secret/);
+  assert.equal(result.owner, true); assert.equal(result.assignments, undefined); assert.doesNotMatch(output.join(""), /ghu_|synthetic-only-secret/);
 });
 for (const args of [["login", "--token", "PRIVATE_TOKEN"], ["whoami", "--username", "operator"], ["status", "--json", "--json"], ["logout", "--credential", "PRIVATE_CREDENTIAL"]]) test("auth rejects authority argv " + args[1], async () => {
   const output: string[] = []; let loaded = false;
@@ -54,8 +54,8 @@ for (const mode of ["valid", "file-mode", "directory-mode", "symlink", "hardlink
 });
 for (const mode of ["personal", "team", "invalid", "contradictory"] as const) test("host approval configuration is explicit and strict: " + mode, async t => {
   const directory = await realpath(await mkdtemp(path.join(tmpdir(), "harness-mode-"))); await chmod(directory, 0o700); t.after(() => rm(directory, { recursive: true, force: true }));
-  const approval = { ...normalizeApprovalPolicy(), ...(mode === "team" ? {} : { mode: "personal", allowRequesterApproval: true }), ...(mode === "invalid" ? { skipReview: true } : mode === "contradictory" ? { requireHumanConfirmation: false } : {}) };
+  const approval = { ...normalizeApprovalPolicy(), ...(mode === "team" ? { mode: "team", allowRequesterApproval: false } : { mode: "personal", allowRequesterApproval: true }), ...(mode === "invalid" ? { skipReview: true } : mode === "contradictory" ? { requireHumanConfirmation: false } : {}) };
   const filename = path.join(directory, "profile.json"); await writeFile(filename, JSON.stringify({ version: 1, auth: policy, workspaces: [], approval }), { mode: 0o600 });
-  if (mode === "invalid" || mode === "contradictory") await assert.rejects(readGitHubHostConfiguration(filename));
-  else { const loaded = await readGitHubHostConfiguration(filename); assert.equal(loaded.approval!.mode, mode); assert.deepEqual(loaded.auth.assignments[0]!.roles, ["harness:reader"]); }
+  if (mode === "team" || mode === "invalid" || mode === "contradictory") await assert.rejects(readGitHubHostConfiguration(filename));
+  else { const loaded = await readGitHubHostConfiguration(filename); assert.equal(loaded.approval!.mode, mode); assert.equal(loaded.auth.ownerAccountId, "101"); }
 });

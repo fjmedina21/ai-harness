@@ -43,15 +43,22 @@ function exact(value: unknown, keys: readonly string[]): asserts value is Record
 }
 const hashValue = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{64}$/.test(v);
 
+/** Reuses patch-engine admission for private host project policies. Exact paths, no glob authority. */
+export function validateEngineeringPolicy(policy: EngineeringPolicy): void {
+  if (!policy || typeof policy !== "object" || Object.keys(policy).sort().join() !== ["version", "allowedPaths", "allowedOperations", "maxFiles", "maxBytes"].sort().join() ||
+    !Array.isArray(policy.allowedPaths) || !Array.isArray(policy.allowedOperations)) throw new Error("Invalid host patch policy");
+    engineeringLimit(policy.maxFiles, 16); engineeringLimit(policy.maxBytes, 8192);
+    if (!/^[a-zA-Z0-9._-]{1,80}$/.test(policy.version) || !policy.allowedPaths.length || policy.allowedPaths.length > 256 ||
+        new Set(policy.allowedPaths.map(p => engineeringPath(p).toLowerCase())).size !== policy.allowedPaths.length ||
+        !policy.allowedOperations.length || policy.allowedOperations.some(op => !["create", "replace", "delete"].includes(op))) throw new Error("Invalid host patch policy");
+}
+
 export class EngineeringPatchEngine {
   private readonly policy: EngineeringPolicy;
   private readonly proposals = new Map<string, StructuredPatch>();
   readonly policyDigest: string;
   constructor(readonly view: EngineeringView, policy: EngineeringPolicy, private readonly assertFence?: () => void) {
-    engineeringLimit(policy.maxFiles, 16); engineeringLimit(policy.maxBytes, 8192);
-    if (!/^[a-zA-Z0-9._-]{1,80}$/.test(policy.version) || !policy.allowedPaths.length || policy.allowedPaths.length > 256 ||
-        new Set(policy.allowedPaths.map(p => engineeringPath(p).toLowerCase())).size !== policy.allowedPaths.length ||
-        !policy.allowedOperations.length || policy.allowedOperations.some(op => !["create", "replace", "delete"].includes(op))) throw new Error("Invalid host patch policy");
+    validateEngineeringPolicy(policy);
     this.policy = structuredClone(policy);
     this.policyDigest = engineeringHash(JSON.stringify(this.policy));
   }
@@ -176,10 +183,12 @@ export class EngineeringPatchEngine {
   }
 }
 
+export const ENGINEERING_TOOL_IDS = ["workspace.inspect", "workspace.list", "workspace.read", "patch.propose", "patch.validate", "patch.apply", "diff.inspect"] as const;
+
 /** Fixed host binding. Patch content never contains permissions or approver data. */
 export function createEngineeringTools(engine: EngineeringPatchEngine, binding: NonNullable<ToolDispatchContext["durableOperations"]>) {
   const registry = new ToolRegistry();
-  const definitions = ["workspace.inspect", "workspace.list", "workspace.read", "patch.propose", "patch.validate", "patch.apply", "diff.inspect"] as const;
+  const definitions = ENGINEERING_TOOL_IDS;
   for (const id of definitions) {
     const properties: Record<string, ToolParameterSchema> = id === "workspace.read" ? { path: { type: "string" as const, minLength: 1, maxLength: 240 } } :
       id === "patch.propose" ? { proposal: { type: "string" as const, minLength: 1, maxLength: 12_000 } } :

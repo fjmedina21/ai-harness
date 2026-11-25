@@ -1,3 +1,4 @@
+import { approveStorageFixture } from "./personal-storage-fixture.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
@@ -71,16 +72,16 @@ test("OpenAI natural-language L1 uses the real adapter, validates a patch and le
 });
 test("OpenAI L2 remains pending until an independently issued durable approval", async t => {
   const f = await fixture(t), o = f.options();
-  const result = await runEngineeringWorkflow({ ...o, level: 2, workspace: { directory: f.workspace, binding: { store: f.store, requester: { issuer: "fixture", subject: "requester" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 60000 }, checkpoint: new EngineeringCheckpointStore(f.state) });
+  const result = await runEngineeringWorkflow({ ...o, level: 2, workspace: { directory: f.workspace, binding: { store: f.store, requester: { issuer: "github.com", subject: "101" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 60000 }, checkpoint: new EngineeringCheckpointStore(f.state) });
   assert.equal(result.termination, "approval_required"); assert.equal(result.pendingApprovals.length, 1); assert.equal(f.calls(), 4);
   assert.equal(result.patches[0]!.status, "proposed"); assert.equal(await readFile(path.join(result.workspace!.root, "value.ts"), "utf8"), "export const value = 1;\n");
   assert.equal(f.store.list(result.executionId).find(op => op.toolId === "patch.apply")!.state, "PendingApproval");
 });
 test("OpenAI proposal can apply only in the private workspace through actual SQLite approval", async t => {
   const f = await fixture(t), o = f.options();
-  const requester = { issuer: "fixture", subject: "requester" };
+  const requester = { issuer: "github.com", subject: "101" };
   const result = await runEngineeringWorkflow({ ...o, level: 2, workspace: { directory: f.workspace, binding: { store: f.store, requester, safetyByTool: {} }, createAuthorized: true, ttlMs: 60000 }, checkpoint: new EngineeringCheckpointStore(f.state),
-    async requestApproval(r) { assert.throws(() => f.store.decide(r.approvalId, requester, true)); f.store.decide(r.approvalId, { issuer: "fixture", subject: "human" }, true); return r.approvalId; } });
+    async requestApproval(r) { assert.throws(() => f.store.decide(r.approvalId, requester, true)); approveStorageFixture(f.store, r.approvalId, r.patch, r.diff); return r.approvalId; } });
   assert.equal(result.termination, "review_pending"); assert.equal(result.patches[0]!.status, "applied"); assert.equal(result.integrated, false); assert.equal(result.l3Gate, "blocked");
   assert.equal(await readFile(path.join(result.workspace!.root, "value.ts"), "utf8"), "export const value = 2;\n"); assert.equal(await readFile(path.join(f.source, "value.ts"), "utf8"), "export const value = 1;\n");
 });

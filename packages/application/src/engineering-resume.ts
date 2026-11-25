@@ -15,9 +15,9 @@ export async function persistEngineeringProposal(store: EngineeringResumeStore, 
       createdAt: new Date().toISOString(), expiresAt: new Date(Math.min(input.receipt.expiresAt, Date.parse(grant.expiresAt))).toISOString() });
     artifacts.put(artifact); // fsync + MAC/digest verification precede the SQLite reference commit.
     store.bindProposal({ operationId: op.operationId, executionId: artifact.executionId, workspaceId: artifact.workspaceId,
-      artifactDigest: artifact.artifactDigest, expiresAt: artifact.expiresAt, challenge: randomBytes(32).toString("hex") }, approvalPolicy ? {
-        policy: approvalPolicy, workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, patchDigest: artifact.patchDigest, snapshotDigest: artifact.baseSnapshot.digest, contentDigest: artifact.diffDigest,
-      } : undefined);
+      artifactDigest: artifact.artifactDigest, expiresAt: artifact.expiresAt, challenge: randomBytes(32).toString("hex") }, {
+        policy: normalizeApprovalPolicy(approvalPolicy), workspaceId: artifact.workspaceId, artifactDigest: artifact.artifactDigest, patchDigest: artifact.patchDigest, snapshotDigest: artifact.baseSnapshot.digest, contentDigest: artifact.diffDigest,
+      });
     // A failed/unknown commit acknowledgment is never published as ApprovalPending.
     if (store.proposal(op.operationId)?.artifactDigest !== artifact.artifactDigest) throw new EngineeringResumeError("storage_uncertain");
     return artifact;

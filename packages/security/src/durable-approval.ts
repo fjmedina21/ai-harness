@@ -66,15 +66,13 @@ export class DurableApprovalService {
     const context = grant && reviewedStore.approvalReview?.(grant.operationId);
     if (context) {
       if (context.policyDigest !== approvalPolicyDigest(this.policy) || !reviewedStore.decideReviewed || context.purpose === "patch.apply" && (!binding || binding.artifactDigest !== context.artifactDigest || binding.challenge !== context.challenge)) throw new Error("Approval review binding changed");
-      if (approved && context.policy.mode === "personal") assertHumanIntent(intent, context, actor);
+      if (context.policy.mode !== "personal" || !grant || actor.issuer !== grant.requester.issuer || actor.subject !== grant.requester.subject) throw new Error("Owner-only Personal approval required");
+      if (approved) assertHumanIntent(intent, context, actor);
       return reviewedStore.decideReviewed(id, actor, approved, intent);
     }
-    if (normalizeApprovalPolicy(this.policy).mode !== "team") throw new Error("Legacy operation cannot become Personal Mode");
-    if (binding) {
-      const store = this.store as import("@ai-harness/contracts").EngineeringResumeStore;
-      if (typeof store.decideScoped !== "function") throw new Error("Scoped durable approval unavailable");
-      return store.decideScoped(id, actor, approved, binding);
-    }
+    // Generic shared tool grants retain their existing host API. Legacy engineering grants cannot produce new effects.
+    const operation = grant && this.store.get(grant.operationId);
+    if (binding || operation && ["patch.apply", "sandbox.validate"].includes(operation.toolId)) throw new Error("Legacy engineering approval is inactive; create a new Personal proposal");
     return this.store.decide(id, actor, approved);
   }
   async revoke(id: string, credential: string): Promise<DurableApproval> {

@@ -74,6 +74,17 @@ function decode<T>(row: Record<string, unknown>): T {
   return result as T;
 }
 
+/** Historical policy decoding only. New requests always use normalizeApprovalPolicy. */
+function archivedApprovalPolicyJson(raw: unknown): string {
+  const p = raw as Record<string, unknown>;
+  if (p?.mode === "team") {
+    check(Object.keys(p).sort().join() === ["version", "mode", "requireHumanConfirmation", "allowRequesterApproval", "requireExactPatchReview", "requireSeparateSandboxApproval"].sort().join() &&
+      p.version === 1 && p.requireHumanConfirmation === true && p.allowRequesterApproval === false && p.requireExactPatchReview === true && p.requireSeparateSandboxApproval === true);
+    return JSON.stringify({ version: 1, mode: "team", requireHumanConfirmation: true, allowRequesterApproval: false, requireExactPatchReview: true, requireSeparateSandboxApproval: true });
+  }
+  return approvalPolicyJson(raw);
+}
+
 export interface SqliteJournalOptions {
   now?: () => number;
   approvalTtlMs?: number;
@@ -351,7 +362,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
     if (own && this.lease(op.executionId)) {
       const lease = this.lease(op.executionId)!;
       if (lease.operationId === op.operationId) this.assertLease(lease);
-      else {
+      else if (!(op.safety === "read_only" && !op.requiresApproval && op.toolId !== "sandbox.validate" && this.get(lease.operationId)?.state === "Completed")) {
         // A historical completed patch lease is never transferred to validation.
         // Only a new independently approved, session-owned sandbox operation may follow it.
         const patch = this.get(lease.operationId), grant = patch?.approvalId && this.approval(patch.approvalId);
@@ -414,12 +425,12 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       check(this.executionHealthy && Date.parse(this.time()) < Date.parse(grant.expiresAt));
       const reference = this.proposal(op.operationId);
       const context = this.approvalReview(op.operationId);
-      if (context) check(context.policyDigest === hash(approvalPolicyJson(this.approvalPolicy)) && reviewed);
-      else if (["patch.apply", "sandbox.validate"].includes(op.toolId)) check(this.approvalPolicy.mode === "team");
+      if (context) check(context.policy.mode === "personal" && context.policyDigest === hash(approvalPolicyJson(this.approvalPolicy)) && reviewed && actor.issuer === op.requester.issuer && actor.subject === op.requester.subject);
+      else check(!["patch.apply", "sandbox.validate"].includes(op.toolId));
       if (reference) {
         check(binding && binding.artifactDigest === reference.artifactDigest && binding.challenge === reference.challenge);
         check(Date.parse(this.time()) < Date.parse(reference.expiresAt));
-      } else check(!binding && op.ownerSession === this.session);
+      } else check(!binding && (op.ownerSession === this.session || reviewed && context?.purpose === "sandbox.validate"));
       if (approved && context?.policy.mode === "personal") {
         check(actor.issuer === "github.com" && /^[1-9][0-9]{0,19}$/.test(actor.subject));
         const t = Date.parse(this.time());
@@ -427,7 +438,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
           ["macos-local-auth-and-tty-v1", "reviewed-external-v1"].includes(intent.method) && Number.isSafeInteger(intent.issuedAt) && Number.isSafeInteger(intent.expiresAt) && intent.issuedAt <= t && intent.issuedAt >= t - 60000 &&
           intent.expiresAt > t && intent.expiresAt <= intent.issuedAt + 60000 && intent.expiresAt <= Date.parse(context.expiresAt));
         this.db.prepare("INSERT INTO human_confirmation_ids VALUES(?,?)").run(intent.id, op.operationId);
-      } else if (approved && (op.toolId === "patch.apply" || context)) check(actor.issuer !== op.requester.issuer || actor.subject !== op.requester.subject);
+      }
       if (approved && context) grant.decision = { mode: context.policy.mode, policyVersion: context.policy.version, policyDigest: context.policyDigest, challengeDigest: hash(context.challenge),
         patchDigest: context.patchDigest, snapshotDigest: context.snapshotDigest, workspaceId: context.workspaceId, authorizationScope: context.scopeDigest, approvedAt: this.time(),
         requester: op.requester, approver: actor, ...(intent ? { intent: structuredClone(intent) } : {}) };
@@ -515,7 +526,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       check(!this.proposal(op.operationId));
       this.db.prepare("INSERT INTO engineering_proposals VALUES(?,?,?)").run(op.operationId, ...encode(reference));
       if (review) this.bindReview(op.operationId, review, reference.challenge, reference.expiresAt);
-      else check(this.approvalPolicy.mode === "team");
+      else check(false);
     });
   }
   private intentDigest(context: ApprovalReviewContext, actor: HostIdentity): string { return hash(canonicalProposalJson({ review: context, actor: identity(actor) })); }
@@ -525,7 +536,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
     const c = decode<ApprovalReviewContext>(row), op = this.get(operationId);
     check(op && c.schemaVersion === 1 && c.operationId === operationId && c.executionId === op.executionId && c.scopeDigest === op.scopeDigest && c.purpose === op.toolId && ["patch.apply", "sandbox.validate"].includes(c.purpose));
     check(Object.keys(c).sort().join() === ["schemaVersion", "operationId", "executionId", "scopeDigest", "purpose", "policyDigest", "challenge", "expiresAt", "policy", "workspaceId", "artifactDigest", "patchDigest", "snapshotDigest", "contentDigest", ...(c.actionDigest === undefined ? [] : ["actionDigest"])].sort().join());
-    normalizeApprovalPolicy(c.policy); check(c.policyDigest === hash(approvalPolicyJson(c.policy)));
+    check(c.policyDigest === hash(archivedApprovalPolicyJson(c.policy)));
     check(idPattern.test(c.workspaceId) && [c.artifactDigest, c.patchDigest, c.snapshotDigest, c.contentDigest, c.challenge].every(x => typeof x === "string" && digestPattern.test(x)) && timestamp(c.expiresAt));
     check(c.purpose === "sandbox.validate" ? typeof c.actionDigest === "string" && digestPattern.test(c.actionDigest) : c.actionDigest === undefined);
     if (c.purpose === "patch.apply") { const ref = this.proposal(operationId); check(ref && c.artifactDigest === ref.artifactDigest && c.workspaceId === ref.workspaceId && c.challenge === ref.challenge && c.expiresAt === ref.expiresAt); }
@@ -549,17 +560,14 @@ class SqliteOperationJournal implements EngineeringResumeStore {
   }
   private assertReviewedGrant(grant: DurableApproval, current = true): void {
     const c = this.approvalReview(grant.operationId);
-    if (c) {
-      if (current) check(c.policyDigest === hash(approvalPolicyJson(this.approvalPolicy)));
-      check(grant.decision?.policyDigest === c.policyDigest && grant.decision.mode === c.policy.mode && grant.decision.authorizationScope === c.scopeDigest);
-      if (c.policy.mode === "personal") check(grant.decision.intent && grant.approver && grant.decision.intent.bindingDigest === this.intentDigest(c, grant.approver));
-      else check(grant.approver && (grant.approver.issuer !== grant.requester.issuer || grant.approver.subject !== grant.requester.subject));
-    } else {
-      if (current) check(this.approvalPolicy.mode === "team");
-      const op = this.get(grant.operationId);
-      if (!current || op?.toolId === "patch.apply") check(grant.approver && (grant.approver.issuer !== grant.requester.issuer || grant.approver.subject !== grant.requester.subject));
-    }
+    const op = this.get(grant.operationId);
+    if (!["patch.apply", "sandbox.validate"].includes(op?.toolId ?? "")) return;
+    if (!current) return; // Historical decoding only; never grants execution authority.
+    check(c && c.policy.mode === "personal" && c.policyDigest === hash(approvalPolicyJson(this.approvalPolicy)));
+    check(grant.decision?.policyDigest === c.policyDigest && grant.decision.mode === "personal" && grant.decision.authorizationScope === c.scopeDigest);
+    check(grant.decision.intent && grant.approver && grant.approver.issuer === grant.requester.issuer && grant.approver.subject === grant.requester.subject && grant.decision.intent.bindingDigest === this.intentDigest(c, grant.approver));
   }
+
   proposal(id: string): ProposalReference | null {
     const row = this.db.prepare("SELECT * FROM engineering_proposals WHERE operation_id=?").get(id);
     if (!row) return null;
@@ -588,12 +596,14 @@ class SqliteOperationJournal implements EngineeringResumeStore {
     check(Number.isSafeInteger(ttlMs) && ttlMs > 0 && ttlMs <= 300_000 && this.executionHealthy);
     return this.transaction(() => {
       let op = this.current(id, version, false);
-      check(op.state === "Approved" && this.proposal(id));
-      const ref = this.proposal(id)!, grant = this.approval(op.approvalId!);
-      check(grant?.status === "approved" && Date.parse(grant.expiresAt) > Date.parse(this.time()) && Date.parse(ref.expiresAt) > Date.parse(this.time()));
+      const ref = this.proposal(id), review = this.approvalReview(id);
+      check(op.state === "Approved" && operator.issuer === op.requester.issuer && operator.subject === op.requester.subject);
+      check(ref || op.toolId === "sandbox.validate" && op.taskId === "sandbox-validation" && op.permission === "shell:execute" && op.risk === "high" && op.safety === "side_effecting" && review?.purpose === "sandbox.validate");
+      const grant = this.approval(op.approvalId!);
+      check(grant?.status === "approved" && Date.parse(grant.expiresAt) > Date.parse(this.time()) && Date.parse((ref ?? review)!.expiresAt) > Date.parse(this.time()));
       this.assertReviewedGrant(grant);
       const previous = this.lease(op.executionId);
-      check(!previous || Date.parse(previous.expiresAt) <= Date.parse(this.time()));
+      check(!previous || this.get(previous.operationId)?.state === "Completed" || Date.parse(previous.expiresAt) <= Date.parse(this.time()));
       // No incomplete operation other than this exact still-effect-free proposal may be transferred.
       const others = this.list(op.executionId, undefined, 1000);
       check(others.length < 1000 && others.every(x => x.operationId === id || x.state === "Completed"));
@@ -613,7 +623,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
     const current = this.lease(expected.executionId), op = this.get(expected.operationId);
     check(current && JSON.stringify(current) === JSON.stringify(expected) && current.ownerSession === this.session &&
       op?.ownerSession === this.session && ["Approved", "Prepared", "Running"].includes(op.state) && op.version >= current.stateVersion && Date.parse(this.time()) < Date.parse(current.expiresAt));
-    const ref = this.proposal(expected.operationId);
+    const ref = this.proposal(expected.operationId) ?? this.approvalReview(expected.operationId);
     check(ref && Date.parse(this.time()) < Date.parse(ref.expiresAt));
     const grant = op.approvalId && this.approval(op.approvalId);
     check(grant && ["approved", "consumed"].includes(grant.status) && Date.parse(this.time()) < Date.parse(grant.expiresAt));

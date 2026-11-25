@@ -1,3 +1,4 @@
+import { approveStorageFixture } from "./personal-storage-fixture.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
@@ -26,9 +27,9 @@ async function setup(t: TestContext) {
   const options: EngineeringOptions = { projectRoot: source, request: "Synthetic fixture change", files: ["value.ts"], level: 2, agent,
     budget: { maxIterations: 3, maxRequests: 16, maxTokens: 100, maxEstimatedCostUsd: 0, timeoutMs: 10_000, maxFiles: 4, maxBytes: 8192 },
     policy: { version: "fixture", allowedPaths: ["value.ts", "new.ts"], allowedOperations: ["create", "replace", "delete"], maxFiles: 4, maxBytes: 8192 },
-    workspace: { directory: workspaces, binding: { store, requester: { issuer: "fixture", subject: "requester" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 60_000 },
+    workspace: { directory: workspaces, binding: { store, requester: { issuer: "github.com", subject: "101" }, safetyByTool: {} }, createAuthorized: true, ttlMs: 60_000 },
     checkpoint: new EngineeringCheckpointStore(state),
-    async requestApproval(request) { store.decide(request.approvalId, { issuer: "fixture", subject: "human" }, true); return request.approvalId; } };
+    async requestApproval(request) { approveStorageFixture(store as import("@ai-harness/contracts").EngineeringResumeStore, request.approvalId, request.patch, request.diff); return request.approvalId; } };
   const evidence = (snapshot: WorkspaceSnapshot, workspaceId: string, pass: boolean, checks: string[] = []): ValidationEvidence => ({ snapshotDigest: snapshot.digest, workspaceId,
     kind: "fixture", profile: "fixture-profile", environment: "fixture-node", validationId: "unit_tests", durationMs: 1, exitCode: pass ? 0 : 1,
     result: pass ? "passed" : "failed", cleanup: "confirmed", logDigest: engineeringHash(pass ? "passed" : "failed"), passedChecks: checks,
