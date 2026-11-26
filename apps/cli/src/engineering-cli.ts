@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { lstat, realpath } from "node:fs/promises";
 import { stripVTControlCharacters } from "node:util";
 import { ContinuationCoordinator, runAcceptedPodmanValidation, ENGINEERING_TOOL_IDS, FixtureEngineeringAgent, createOpenAIEngineeringAgent, runEngineeringWorkflow, type EngineeringAgentPort } from "@ai-harness/application";
@@ -132,6 +133,23 @@ export async function engineeringCommand(args: string[], cwd: string, output: (t
   } finally { try { agent?.close?.(); store?.close(); } catch { /* No reuse after lifecycle faults. */ } }
 }
 
+/** Additional admission for an existing repair session; it never grants operation authority. */
+function assertRepairLifecycle(store: EngineeringResumeStore, workspace: GitHubHost["configuration"]["workspaces"][number], executionId: string,
+  operationId: string, command: string, approvalPolicy: import("@ai-harness/contracts").ApprovalPolicy | undefined, profileId?: string, actionId?: string): void {
+  const session = store.repair?.get(executionId);
+  if (!session || !["approve", "continue", "validate"].includes(command)) return;
+  const digest = createHash("sha256").update(canonicalProposalJson({ repair: session.policy, project: workspace.policy, authorization: projectAuthorizationDigest(workspace, approvalPolicy) })).digest("hex");
+  if (session.executionId !== executionId || session.projectId !== workspace.id || session.currentOperationId !== operationId || session.policyDigest !== digest || Date.parse(session.deadlineAt) <= Date.now() ||
+    session.policy.maxIterations > workspace.limits.maxIterations || session.policy.maxProviderRequests > workspace.limits.maxRequests || session.policy.maxInputTokens + session.policy.maxOutputTokens > workspace.limits.maxTokens ||
+    session.policy.maxGlobalMs > workspace.limits.timeoutMs || session.policy.maxFiles > workspace.limits.maxFiles || session.policy.maxPatchBytes > workspace.limits.maxBytes || session.policy.maxEstimatedCostUsd > workspace.limits.maxEstimatedCostUsd) throw new EngineeringResumeError("policy_changed");
+  if (command === "validate") {
+    const action = workspace.validationActions.find(a => a.id === actionId);
+    if (session.state !== "AwaitingSandboxApproval" || session.profileId !== profileId || session.actionId !== actionId || !action ||
+      session.profileDigest !== createHash("sha256").update(JSON.stringify(action)).digest("hex") || action.timeoutMs > session.policy.maxValidationMs || Date.parse(session.deadlineAt) - Date.now() < action.timeoutMs ||
+      session.consumed.validations < 1 || session.consumed.validations + session.reserved.validations > session.policy.maxValidations) throw new EngineeringResumeError("reconciliation_required");
+  } else if (session.state !== "AwaitingPatchApproval") throw new EngineeringResumeError("reconciliation_required");
+}
+
 /** Only fixed host profiles locate journals; credentials and policy never enter argv. */
 export async function engineeringLifecycleCommand(args: string[], output: (text: string) => void, signal?: AbortSignal, loadHost: () => Promise<GitHubHost> = loadGitHubHost, humanApproval = createInteractiveApprovalPort): Promise<number> {
   const stores: EngineeringResumeStore[] = [];
@@ -158,7 +176,10 @@ export async function engineeringLifecycleCommand(args: string[], output: (text:
       const store = await openSqliteOperationJournal(workspace.journalFile, { approvalPolicy: workspace.approval ?? host.configuration.approval }); stores.push(store);
       const operations = store.list(executionId!, undefined, 1000);
       if (operations.length === 1000) throw new EngineeringResumeError("reconciliation_required");
+      const repair = store.repair?.get(executionId!);
+      if (repair && (repair.executionId !== executionId || repair.ownerId !== identity.subject || repair.projectId !== workspace.id)) throw new EngineeringResumeError("forbidden_scope");
       for (const op of operations) if (store.proposal(op.operationId)) {
+        if (repair && op.operationId !== repair.currentOperationId) continue;
         if (selected || op.toolId !== "patch.apply") throw new EngineeringResumeError("reconciliation_required");
         selected = { store, operationId: op.operationId, workspace };
       }
@@ -177,7 +198,13 @@ export async function engineeringLifecycleCommand(args: string[], output: (text:
       canonicalProposalJson(artifact.policy) !== canonicalProposalJson(workspace.policy) || !workspace.allowedToolIds.includes(command === "validate" ? "sandbox.validate" : command === "continue" ? "patch.apply" : "diff.inspect") || artifact.receipt.sourceRoot !== workspace.sourceRoot ||
       path.dirname(path.dirname(artifact.receipt.root)) !== workspace.workspaceDirectory || artifact.receipt.workspaceId !== ref.workspaceId || artifact.executionId !== executionId) throw new EngineeringResumeError("forbidden_scope");
     if (artifact.projectAuthorizationDigest !== projectAuthorizationDigest(workspace, approvalPolicy)) throw new EngineeringResumeError("policy_changed");
-    const coordinator = new ContinuationCoordinator({ store, artifacts, policy: workspace.policy, verifier: session.verifier, approvalPolicy });
+    const checkRepair = () => assertRepairLifecycle(store, workspace, executionId!, operationId, command!, approvalPolicy, parsed.get("--profile"), parsed.get("--action"));
+    checkRepair();
+    const repairDeadline = store.repair?.get(executionId!)?.deadlineAt;
+    const remainingMs = () => repairDeadline ? Math.max(0, Date.parse(repairDeadline) - Date.now()) : 60000;
+    const effectSignal = repairDeadline && ["approve", "continue", "validate"].includes(command!)
+      ? AbortSignal.any([AbortSignal.timeout(Math.max(1, remainingMs())), ...(signal ? [signal] : [])]) : signal;
+    const coordinator = new ContinuationCoordinator({ store, artifacts, policy: workspace.policy, verifier: session.verifier, approvalPolicy, assertContinuation: checkRepair });
     let result: unknown;
     if (command === "status") result = await coordinator.status(operationId, session.credential);
     else if (command === "diff") result = { diff: stripVTControlCharacters(await coordinator.diff(operationId, session.credential)).replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, "") };
@@ -186,35 +213,37 @@ export async function engineeringLifecycleCommand(args: string[], output: (text:
       const confirmation: import("@ai-harness/contracts").HumanApprovalPort = { async confirm(review, cancellation) {
         const receipt = await native.confirm(review, cancellation);
         if (!receipt) return null;
+        checkRepair();
         const fresh = await loadHost();
         if (canonicalProposalJson(fresh.configuration) !== canonicalProposalJson(host.configuration)) throw new EngineeringResumeError("policy_changed");
         const approver = await fresh.authentication.authorize("harness:approver", { sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, executionId: executionId!, workspaceId: ref.workspaceId }, cancellation);
         if (approver.issuer !== review.actor.issuer || approver.subject !== review.actor.subject) throw new EngineeringResumeError("authentication_required");
         return receipt;
       } };
-      await coordinator.decide(operationId, session.credential, command === "approve", command === "approve" ? confirmation : undefined, signal); result = { decision: command === "approve" ? "approved" : "rejected" };
+      await coordinator.decide(operationId, session.credential, command === "approve", command === "approve" ? confirmation : undefined, effectSignal); result = { decision: command === "approve" ? "approved" : "rejected" };
     }
     else if (command === "revoke") { await broker.revoke(operationId, session.credential); result = { decision: "revoked" }; }
     else if (command === "validate") {
       if (parsed.get("--profile") !== "local-podman") throw new GitHubAuthError("validation_acceptance_pending");
       const credential = "host-validation-ephemeral-handle";
       const authorize = async () => {
+        checkRepair();
         const current = await loadHost(), registered = current.configuration.workspaces.find(w => w.id === workspace.id);
         if (!registered || projectAuthorizationDigest(registered, current.configuration.approval) !== artifact.projectAuthorizationDigest || !registered.allowedToolIds.includes("sandbox.validate")) throw new EngineeringResumeError("policy_changed");
-        const actor = await current.authentication.authorize("harness:operator", { sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, executionId: artifact.executionId, workspaceId: artifact.workspaceId }, signal);
+        const actor = await current.authentication.authorize("harness:operator", { sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, executionId: artifact.executionId, workspaceId: artifact.workspaceId }, effectSignal);
         return { issuer: actor.issuer, subject: actor.subject };
       };
       try {
         result = await runAcceptedPodmanValidation({ project: { id: workspace.id, sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, policy: workspace.policy, actions: workspace.validationActions, authorizationDigest: artifact.projectAuthorizationDigest },
           artifact, artifacts, store, journalDirectory: path.dirname(workspace.journalFile), approvalPolicy, authorize, credential, confirmation: humanApproval(),
-          approvalVerifier: { verify: async handle => { if (handle !== credential) throw new GitHubAuthError("authentication_required"); await authorize(); const actor = await host.authentication.authorize("harness:approver", { sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, executionId: artifact.executionId, workspaceId: artifact.workspaceId }, signal); return { ...actor, roles: ["harness:approver"] }; } },
-        }, parsed.get("--action")!, signal);
+          approvalVerifier: { verify: async handle => { if (handle !== credential) throw new GitHubAuthError("authentication_required"); await authorize(); const actor = await host.authentication.authorize("harness:approver", { sourceRoot: workspace.sourceRoot, workspaceDirectory: workspace.workspaceDirectory, executionId: artifact.executionId, workspaceId: artifact.workspaceId }, effectSignal); return { ...actor, roles: ["harness:approver"] }; } },
+        }, parsed.get("--action")!, effectSignal);
       } catch (error) {
         if (error instanceof EngineeringResumeError || error instanceof GitHubAuthError) throw error;
         throw new GitHubAuthError("validation_acceptance_pending");
       }
     }
-    else result = await coordinator.continue(operationId, session.credential, 60000, signal);
+    else { checkRepair(); result = await coordinator.continue(operationId, session.credential, Math.min(60000, remainingMs()), effectSignal); }
     output(JSON.stringify({ executionId, ...result as object })); return command === "validate" && (result as { validation?: { classification?: string } }).validation?.classification !== "passed" ? 2 : 0;
   } catch (e) {
     output(JSON.stringify({ error: { code: e instanceof GitHubAuthError || e instanceof EngineeringResumeError ? e.code : "reconciliation_required", message:

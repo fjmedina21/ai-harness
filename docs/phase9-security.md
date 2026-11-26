@@ -42,7 +42,9 @@ Current real native/durable/Podman acceptance enables only gatec-synthetic/local
 fixed Node profiles. The private signed record must revalidate actual native grants,
 all four durable outcomes, current project/code/runtime and effective probes; expiry
 or mismatch keeps validation_acceptance_pending. All other scope remains blocked.
-No exactly-once, autonomous repair, integration/deployment or production claim.
+Phase 9C adds bounded repair with independent per-effect approvals; real repair
+acceptance is BLOCKED. No exactly-once, integration/deployment or production claim.
+See [repair security](phase9c-security.md).
 [Phase 2](phase2-security.md) and [Phase 3](phase3-security.md) security reviews remain
 preserved. [Migration](single-developer-migration.md) requires consistent private
 backups and explicit reconciliation before rollback.

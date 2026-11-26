@@ -100,3 +100,5 @@ export { ProposalArtifactStore, sealProposalArtifact } from "./proposal-artifact
 export { FileValidationEvidenceStore } from "./validation-evidence-store.js";
 
 export { FilePodmanAcceptanceStore } from "./podman-acceptance-store.js";
+
+export { validateRepairPolicy } from "./repair-journal.js";

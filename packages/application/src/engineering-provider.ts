@@ -22,6 +22,9 @@ export class ModelEngineeringAgent implements EngineeringAgentPort {
   readonly id: string;
   readonly model: string;
   readonly maxTokensPerRequest: number;
+  readonly maxInputTokensPerRequest: number;
+  readonly maxOutputTokensPerRequest: number;
+  readonly estimatedCostKnown: boolean;
   readonly maxEstimatedCostUsdPerRequest: number;
   private readonly options: ModelEngineeringOptions;
   private executionId?: string;
@@ -35,9 +38,11 @@ export class ModelEngineeringAgent implements EngineeringAgentPort {
         !/^[a-z][a-z0-9._-]{0,63}$/.test(provider.id)) throw new EngineeringProviderError({ category: "authorization" });
     this.options = structuredClone(options); this.id = provider.id; this.model = options.model;
     this.maxTokensPerRequest = options.maxContextTokens + options.maxOutputTokens;
+    this.maxInputTokensPerRequest = options.maxContextTokens; this.maxOutputTokensPerRequest = options.maxOutputTokens;
     estimateCost(undefined, undefined, undefined, this.options.rates ?? []);
     const reserve = estimateCost({ availability: "reported", inputTokens: options.maxContextTokens, outputTokens: options.maxOutputTokens }, this.id, this.model, (this.options.rates ?? []).map(rate => ({ ...rate, inputPerMillion: Math.max(rate.inputPerMillion, rate.cacheReadPerMillion ?? rate.inputPerMillion, rate.cacheWritePerMillion ?? rate.inputPerMillion) })));
     if (reserve.status === "estimated" && reserve.currency !== "USD") throw new EngineeringProviderError({ category: "authorization" });
+    this.estimatedCostKnown = reserve.status === "estimated";
     this.maxEstimatedCostUsdPerRequest = reserve.status === "estimated" ? reserve.amount : 0;
   }
   close(): void { this.closed = true; }

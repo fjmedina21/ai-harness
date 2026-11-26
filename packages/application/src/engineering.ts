@@ -29,6 +29,9 @@ export interface EngineeringAgentPort {
   close?(): void;
   mode: "fixture" | "host_model_adapter";
   maxTokensPerRequest: number;
+  maxInputTokensPerRequest?: number;
+  maxOutputTokensPerRequest?: number;
+  estimatedCostKnown?: boolean;
   maxEstimatedCostUsdPerRequest: number;
   execute(input: EngineeringAgentInput): Promise<{ proposal?: unknown; summary: string; usage: { tokens: number; estimatedCostUsd: number | null }; reportedUsage?: import("@ai-harness/contracts").TokenUsage; cost?: import("@ai-harness/contracts").CostEstimate }>;
 }

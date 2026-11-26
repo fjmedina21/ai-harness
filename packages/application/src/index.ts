@@ -22,3 +22,5 @@ export type { ContinuationOptions } from "./engineering-resume.js";
 export { validateEngineeringPolicy, ENGINEERING_TOOL_IDS, SandboxValidationRegistry } from "@ai-harness/tools";
 
 export * from "./podman-validation.js";
+
+export * from "./repair.js";

@@ -213,3 +213,9 @@ export * from "./snapshot-validation-runtime.js";
 export * from "./validation-coordinator.js";
 
 export { validateRuntimeOptions } from "./runtime-backend.js";
+
+export { validationRequestId } from "./validation-coordinator.js";
+
+export * from "./project-discovery.js";
+
+export * from "./validation-profile-registry.js";

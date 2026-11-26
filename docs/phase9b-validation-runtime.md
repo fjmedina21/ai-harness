@@ -18,7 +18,7 @@ This is trusted host policy/corruption protection, not external attestation.
 ## Host composition
 
 The existing ValidationCoordinator, SnapshotValidationRuntime, ToolDispatcher,
-ApprovalBroker/DurableApprovalService, SQLite Journal v3 and FileValidationEvidenceStore
+ApprovalBroker/DurableApprovalService, SQLite Journal v3/v4 and FileValidationEvidenceStore
 are reused. An AuthorizedValidationProject supplies exact canonical source/workspace,
 current file policy, optional full authorization fingerprint and exact allowed action
 profiles. The host independently authenticates the owner and checks capabilities;
@@ -63,3 +63,11 @@ Digests detect corruption; same-UID malicious host edits are outside the boundar
 Guest staging modes are not kernel immutability against the owning UID.
 See [threats](phase9b-security.md), [E2E](phase9b-e2e.md) and
 [current report](phase9-real-acceptance-report.md).
+
+## Phase 9C composition
+
+Finite repair reuses this runtime and coordinator. Profile-neutral discovery and
+normalization do not widen `node-isolated-v1`, current Gate C acceptance or runtime
+privileges. Each resulting snapshot needs a fresh sandbox grant. Code or policy
+changes invalidate the signed runtime acceptance as designed. Real repair E2E is
+BLOCKED pending separate authorization; see [Phase 9C acceptance](phase9c-e2e.md).

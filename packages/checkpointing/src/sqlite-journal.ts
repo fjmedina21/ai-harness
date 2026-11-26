@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants, closeSync, fsyncSync, lstatSync, openSync, realpathSync } from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
+import { SqliteRepairJournal } from "./repair-journal.js";
 import {
   assertOperationTransition, OPERATION_STATES, DurableStoreError, normalizeApprovalPolicy, approvalPolicyJson, canonicalProposalJson,
   type ApprovalPolicy, type ApprovalReviewInput, type ApprovalReviewContext, type HumanIntentReceipt,
@@ -141,6 +142,7 @@ export async function openSqliteOperationJournal(
 }
 
 class SqliteOperationJournal implements EngineeringResumeStore {
+  readonly repair: SqliteRepairJournal;
   private readonly session = randomUUID();
   private inTransaction = false;
   private executionHealthy = true;
@@ -148,6 +150,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
   private readonly ttl: number;
   private readonly approvalPolicy: ApprovalPolicy;
   constructor(private readonly db: DatabaseSync, options: SqliteJournalOptions) {
+    this.repair = new SqliteRepairJournal(db, fn => this.transaction(fn), () => check(this.executionHealthy));
     this.approvalPolicy = normalizeApprovalPolicy(options.approvalPolicy);
     this.now = options.now ?? Date.now; this.ttl = options.approvalTtlMs ?? 60_000;
     check(Number.isSafeInteger(this.ttl) && this.ttl > 0 && this.ttl <= 300_000);
@@ -190,7 +193,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
           CREATE TABLE human_confirmation_ids (confirmation_id TEXT PRIMARY KEY, operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id)) STRICT, WITHOUT ROWID;
           PRAGMA user_version=3;`);
       }
-      check(db.prepare("PRAGMA user_version").get()?.user_version === 3);
+      check([3, 4].includes(Number(db.prepare("PRAGMA user_version").get()?.user_version)));
       check(db.prepare("PRAGMA application_id").get()?.application_id === 1095321654);
     });
     this.transaction(() => {
@@ -228,6 +231,7 @@ class SqliteOperationJournal implements EngineeringResumeStore {
       check(JSON.stringify(decode(history.at(-1)!)) === JSON.stringify(lease));
     }
     check(db.prepare("SELECT execution_id FROM continuation_lease_events WHERE execution_id NOT IN (SELECT execution_id FROM continuation_leases) LIMIT 1").get() === undefined);
+    this.repair.verify();
     });
   }
   private transaction<T>(fn: () => T): T {

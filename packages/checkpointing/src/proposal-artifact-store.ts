@@ -12,8 +12,17 @@ function exact(value: object, keys: string[]): void { check(Object.keys(value).s
 /** Bounds/schema admission; the independent PatchEngine revalidates all executable patch semantics. */
 function validate(a: ProposalArtifact): void {
   check(a && typeof a === "object");
-  exact(a, ["schemaVersion", "executionId", "requester", "operationId", "workspaceId", "receipt", "rootIdentity", "sourceRevision", "baseSnapshot", "patch", "patchDigest", "diffDigest", "diff", "allowedPaths", "allowedOperations", "policy", "policyDigest", "policyEncoding", "budget", "accounting", "createdAt", "expiresAt", "artifactDigest", ...(a.projectAuthorizationDigest === undefined ? [] : ["projectAuthorizationDigest"])]);
+  exact(a, ["schemaVersion", "executionId", "requester", "operationId", "workspaceId", "receipt", "rootIdentity", "sourceRevision", "baseSnapshot", "patch", "patchDigest", "diffDigest", "diff", "allowedPaths", "allowedOperations", "policy", "policyDigest", "policyEncoding", "budget", "accounting", "createdAt", "expiresAt", "artifactDigest", ...(a.projectAuthorizationDigest === undefined ? [] : ["projectAuthorizationDigest"]), ...(a.repairContext === undefined ? [] : ["repairContext"])]);
   check(a.projectAuthorizationDigest === undefined || hash(a.projectAuthorizationDigest));
+  if (a.repairContext !== undefined) {
+    const r = a.repairContext;
+    exact(r, ["sessionId", "iterationId", "parentOperationId", "profileDigest", "repairPolicyDigest", "originalSnapshot"]);
+    check(id(r.sessionId) && id(r.iterationId) && hash(r.parentOperationId) && hash(r.profileDigest) && hash(r.repairPolicyDigest));
+    exact(r.originalSnapshot, ["digest", "files"]);
+    check(r.originalSnapshot.digest === a.sourceRevision && Array.isArray(r.originalSnapshot.files) && r.originalSnapshot.files.length <= 256);
+    for (const f of r.originalSnapshot.files) { exact(f, ["path", "hash", "bytes"]); check(typeof f.path === "string" && f.path.length <= 240 && hash(f.hash) && Number.isSafeInteger(f.bytes) && f.bytes >= 0); }
+    check(createHash("sha256").update(JSON.stringify(r.originalSnapshot.files.map(f => ({ path: f.path, hash: f.hash, bytes: f.bytes })))).digest("hex") === r.originalSnapshot.digest);
+  }
   check(a.schemaVersion === 1 && id(a.executionId) && id(a.workspaceId) && hash(a.operationId));
   check(a.requester && typeof a.requester.issuer === "string" && typeof a.requester.subject === "string");
   exact(a.requester, ["issuer", "subject"]);

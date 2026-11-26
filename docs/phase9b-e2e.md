@@ -47,3 +47,10 @@ these two suites alone do not supply authenticated durable coordinator acceptanc
 Full Gate C and profile-specific CLI activation require all applicable evidence.
 Until then retain validation_acceptance_pending; no test/mock/verifier can waive it.
 See [current report](phase9-real-acceptance-report.md).
+
+## Phase 9C acceptance boundary
+
+This historical real Node Gate C acceptance does not accept the new repair lifecycle
+or changed runtime code. [Phase 9C E2E](phase9c-e2e.md) defines an independent finite
+repair scenario with two patch and two sandbox decisions. Offline fixtures remain
+separate from live verification; a new real run requires explicit authorization.

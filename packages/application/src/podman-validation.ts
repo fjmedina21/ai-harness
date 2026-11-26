@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { canonicalProposalJson, EngineeringResumeError, type EngineeringResumeStore, type ProposalArtifact, type HumanApprovalPort, type ApprovalPolicy, type ApproverIdentityVerifier, type HostIdentity, type ValidationRunEvidence } from "@ai-harness/contracts";
 import { FilePodmanAcceptanceStore, FileValidationEvidenceStore, ProposalArtifactStore } from "@ai-harness/checkpointing";
-import { ValidationCoordinator, EngineeringWorkspace, SandboxValidationRegistry, PodmanSnapshotValidationRuntime, NodeProcessRunner, captureValidationSnapshot, expectedApprovedSnapshot, engineeringHash, openEngineeringSource, validateRuntimeOptions, type AuthorizedValidationProject, type PodmanExecutionOptions } from "@ai-harness/tools";
+import { validationRequestId, ValidationCoordinator, EngineeringWorkspace, SandboxValidationRegistry, PodmanSnapshotValidationRuntime, NodeProcessRunner, captureValidationSnapshot, expectedApprovedSnapshot, engineeringHash, openEngineeringSource, validateRuntimeOptions, type AuthorizedValidationProject, type PodmanExecutionOptions } from "@ai-harness/tools";
 import { assertApprovalDecision } from "@ai-harness/security";
 
 export interface LocalPodmanAcceptance {
@@ -25,8 +25,8 @@ export interface LocalPodmanAcceptance {
 /** Digest of the actual security/runtime programs, not documentation or a model-supplied SHA. */
 export async function podmanRuntimeCodeDigest(): Promise<string> {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
-  const files = ["tools/validation-coordinator", "tools/snapshot-validation-runtime", "tools/validation-receiver", "tools/validation-snapshot", "tools/container-runtime", "tools/container-executor", "tools/container-profile", "tools/container-operations", "tools/runtime-backend", "tools/podman-profile", "tools/process-runner", "tools/dispatcher", "tools/durable-dispatch", "tools/engineering-workspace", "tools/engineering-patches", "security/durable-approval", "security/approval-policy", "security/github-auth", "security/engineering-approval-broker", "checkpointing/sqlite-journal", "checkpointing/validation-evidence-store", "contracts/approval-policy", "application/podman-validation", "checkpointing/podman-acceptance-store"];
-  const h = createHash("sha256"); for (const file of files) { const [pkg, name] = file.split("/"); h.update(file + "\0").update(await readFile(path.join(root, "packages", pkg!, "dist", name + ".js"))); } for (const file of ["engineering-cli", "github-host", "human-approval"]) h.update(file + "\0").update(await readFile(path.join(root, "apps/cli/dist", file + ".js"))); return h.digest("hex");
+  const files = ["tools/validation-coordinator", "tools/snapshot-validation-runtime", "tools/validation-receiver", "tools/validation-snapshot", "tools/container-runtime", "tools/container-executor", "tools/container-profile", "tools/container-operations", "tools/runtime-backend", "tools/podman-profile", "tools/process-runner", "tools/dispatcher", "tools/durable-dispatch", "tools/engineering-workspace", "tools/engineering-patches", "security/durable-approval", "security/approval-policy", "security/github-auth", "security/engineering-approval-broker", "checkpointing/sqlite-journal", "checkpointing/validation-evidence-store", "contracts/approval-policy", "contracts/repair", "contracts/validation-profile", "application/repair", "application/engineering-resume", "tools/validation-profile-registry", "checkpointing/repair-journal", "application/podman-validation", "checkpointing/podman-acceptance-store"];
+  const h = createHash("sha256"); for (const file of files) { const [pkg, name] = file.split("/"); h.update(file + "\0").update(await readFile(path.join(root, "packages", pkg!, "dist", name + ".js"))); } for (const file of ["engineering-cli", "repair-cli", "github-host", "human-approval"]) h.update(file + "\0").update(await readFile(path.join(root, "apps/cli/dist", file + ".js"))); return h.digest("hex");
 }
 function check(value: unknown): asserts value { if (!value) throw new Error("validation_acceptance_pending"); }
 export interface AcceptedValidationOptions {
@@ -88,7 +88,7 @@ export async function runAcceptedPodmanValidation(o: AcceptedValidationOptions, 
   const acceptance = await verifyLocalPodmanAcceptance(raw, o);
   const workspace = await EngineeringWorkspace.reopen(o.artifact.receipt, o.artifact.rootIdentity, o.store), c = coordinator(o, acceptance, o.artifact);
   const action = o.project.actions.find(p => p.id === actionId); check(action && action.image === acceptance.runtime.image);
-  const existing = o.store.list(o.artifact.executionId, undefined, 1000).find(op => op.toolId === "sandbox.validate" && op.taskId === "sandbox-validation" && op.requestId === actionId);
+  const existing = o.store.list(o.artifact.executionId, undefined, 1000).find(op => op.toolId === "sandbox.validate" && op.taskId === "sandbox-validation" && op.requestId === validationRequestId(o.artifact, actionId));
   if (existing && ["Completed", "Uncertain"].includes(existing.state)) {
     const snapshot = await captureValidationSnapshot(workspace, expectedApprovedSnapshot(o.artifact), { sourceRevision: o.artifact.sourceRevision, policyVersion: o.artifact.policy.version, policyDigest: o.artifact.policyDigest, allowedPaths: o.artifact.policy.allowedPaths });
     const args = { artifact_digest: o.artifact.artifactDigest, transfer_digest: snapshot.manifest.transferDigest, action_digest: engineeringHash(JSON.stringify(action)), workspace_id: o.artifact.workspaceId };
@@ -100,4 +100,33 @@ export async function runAcceptedPodmanValidation(o: AcceptedValidationOptions, 
   const result = await c.execute(o.artifact, workspace, actionId, pending.approvalId, signal);
   if (result.operationState === "Uncertain") throw new EngineeringResumeError("reconciliation_required");
   check(result.status === "executed" && result.operationState === "Completed"); return { profile: "local-podman", operationState: result.operationState, validation: result.data as ValidationRunEvidence };
+}
+
+/** Inspection/preparation only. Real execution still requires the existing separate native sandbox gate. */
+export async function createAcceptedRepairValidationPort(o: AcceptedValidationOptions, actionId: string): Promise<import("./repair.js").RepairValidationPort> {
+  const raw = await new FilePodmanAcceptanceStore(o.journalDirectory).get(); check(raw);
+  const acceptance = await verifyLocalPodmanAcceptance(raw, o), c = coordinator(o, acceptance, o.artifact);
+  const action = o.project.actions.find(p => p.id === actionId); check(action && action.image === acceptance.runtime.image);
+  const evidence = new FileValidationEvidenceStore(acceptance.evidenceDirectory);
+  return {
+    profileId: "local-podman", profileDigest: engineeringHash(JSON.stringify(action)), actionId, timeoutMs: action.timeoutMs,
+    async inspect(artifact, validationId) {
+      const workspace = await EngineeringWorkspace.reopen(artifact.receipt, artifact.rootIdentity, o.store);
+      return c.inspectEvidence(artifact, workspace, actionId, validationId);
+    },
+    async latest(artifact) {
+      const operations = o.store.list(artifact.executionId, undefined, 1000); check(operations.length < 1000);
+      const operation = operations.find(op => op.toolId === "sandbox.validate" && op.requestId === validationRequestId(artifact, actionId));
+      if (!operation || operation.state !== "Completed") return null;
+      const workspace = await EngineeringWorkspace.reopen(artifact.receipt, artifact.rootIdentity, o.store);
+      const snapshot = await captureValidationSnapshot(workspace, expectedApprovedSnapshot(artifact), { sourceRevision: artifact.sourceRevision, policyVersion: artifact.policy.version, policyDigest: artifact.policyDigest, allowedPaths: artifact.policy.allowedPaths });
+      const args = { artifact_digest: artifact.artifactDigest, transfer_digest: snapshot.manifest.transferDigest, action_digest: engineeringHash(JSON.stringify(action)), workspace_id: artifact.workspaceId };
+      const validationId = engineeringHash(JSON.stringify([artifact.executionId, artifact.workspaceId, args]));
+      check(await evidence.get(validationId)); return c.inspectEvidence(artifact, workspace, actionId, validationId);
+    },
+    async prepare(artifact, workspace, selectedAction, signal) {
+      check(selectedAction === actionId); await verifyLocalPodmanAcceptance(await new FilePodmanAcceptanceStore(o.journalDirectory).get(), { ...o, artifact });
+      return c.prepare(artifact, workspace, actionId, signal);
+    },
+  };
 }

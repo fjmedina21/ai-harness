@@ -22,7 +22,8 @@
     "smoke:real-provider": "pnpm run build && node apps/cli/dist/real-provider-smoke.js",
     "smoke:github-auth": "pnpm run build && node apps/cli/dist/github-auth-smoke.js",
     "harness": "node apps/cli/dist/index.js",
-    "dev": "pnpm run build && pnpm harness --help"
+    "dev": "pnpm run build && pnpm harness --help",
+    "test:phase9c": "pnpm run build && node --test packages/tools/dist/__tests__/phase9c-*.test.js packages/checkpointing/dist/__tests__/repair-journal.test.js packages/application/dist/__tests__/repair*.test.js apps/cli/dist/__tests__/repair-cli.test.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

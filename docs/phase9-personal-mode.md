@@ -40,7 +40,7 @@ affirmative flags and a PTY alone cannot approve. HumanApprovalAuthority issues 
 non-serializable in-process receipt only through a trusted human-presence verifier.
 The native port is not a model tool. Test verifiers are synthetic, not live intent.
 
-The same ApprovalBroker, DurableApprovalService, SQLite v3 and ToolDispatcher
+The same ApprovalBroker, DurableApprovalService, SQLite v3/v4 and ToolDispatcher
 remain authoritative. Exact artifact/patch/policy/workspace/snapshot/challenge,
 expiry, owner, single-use confirmation ledger, CAS, leases and monotonic fencing
 are retained. Continuation makes zero model calls and applies only to the isolated
@@ -62,3 +62,10 @@ remain validation_acceptance_pending. Signed private acceptance revalidates exac
 project/code/runtime/probes/native durable evidence and expires conservatively.
 See [runtime](phase9b-validation-runtime.md), [migration](single-developer-migration.md),
 [security](phase9-security.md) and [current evidence](phase9-real-acceptance-report.md).
+
+## Phase 9C per-iteration approval
+
+Every repair iteration uses a new exact artifact, diff, challenge and single-use
+Personal grant. Earlier patch or sandbox approval does not authorize a later repair.
+The existing native review remains mandatory; repair cannot approve itself.
+See [repair lifecycle](phase9c-state-machine.md) and [CLI](phase9c-cli.md).

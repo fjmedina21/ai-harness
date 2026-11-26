@@ -32,7 +32,7 @@ Approval is single-use human intent for a concrete action, not a property of log
 Contracts define bounded provider, patch, approval, workspace and evidence types.
 Security owns GitHub verification, human-intent verification and the existing
 ApprovalBroker/DurableApprovalService. Checkpointing owns HMAC proposal artifacts,
-SQLite Journal v3 and private evidence storage. Tools own policy/path admission,
+SQLite Journal v3 with opt-in v4 repair state and private evidence storage. Tools own policy/path admission,
 ToolDispatcher, workspaces, patch handling, snapshot transport, ValidationCoordinator
 and SnapshotValidationRuntime. Application composes the existing sequential roles
 and apply-only continuation. CLI is the trusted host composition boundary.
@@ -65,7 +65,9 @@ acceptance is limited to gatec-synthetic/local-podman fixed Node profiles; the f
 CLI test passed with separate native grants. Other scope remains BLOCKED. A private
 domain-HMAC record binds current owner/project/code/runtime, effective probes and
 four exact native-approved durable outcomes. Its expiry or any mismatch retains
-validation_acceptance_pending. No Phase 9C,
-Phase 9D, deployment, publication or original-source integration is implemented.
+validation_acceptance_pending. Phase 9C extends this composition with finite durable repair and host-owned
+language-neutral discovery/profile contracts. Real repair acceptance remains BLOCKED.
+No Phase 9D, deployment, publication or original-source integration is implemented.
+See [repair architecture](phase9c-architecture.md).
 See [security](phase9-security.md), [Podman security](phase9b-security.md),
 [migration](single-developer-migration.md) and [evidence](VERIFICATION.md).

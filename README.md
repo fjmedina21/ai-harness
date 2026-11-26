@@ -6,6 +6,10 @@ Version **0.8.0**, experimental; not production-ready autonomous execution.
 **Single Developer + Single GitHub Identity + Explicit Project Authorization +
 Human-Confirmed Personal L2 + Durable Podman Validation.**
 
+Phase 9C adds **Language-Agnostic Validation Contracts + Provider-Agnostic Repair +
+Finite Autonomous Repair**, with approval at each patch and sandbox action. Generic
+contracts and synthetic adapters do not imply operational support for every toolchain.
+
 GitHub App OAuth + PKCE verifies one numeric installation owner. The private host
 registry independently authorizes multiple projects with their own canonical source
 and private workspace trees, file/operation policies, tool capabilities, budgets
@@ -13,7 +17,7 @@ and validation profiles. Login never grants global filesystem or execution acces
 No multiuser administration or operational Team approval remains.
 
 Personal L2 requires exact diff review, typed `APPROVE` and fresh native macOS
-authentication. The existing SQLite v3 broker/dispatcher retain expiry, revocation,
+authentication. The existing SQLite approval broker/dispatcher retain expiry, revocation,
 single use, CAS and fenced cross-process continuation. Only the private workspace
 is modified; continuation makes zero model calls. Historical grants are not rebound.
 
@@ -26,7 +30,10 @@ The actual CLI test passed with fresh native patch and sandbox confirmations.
 All other/unaccepted scope retains validation_acceptance_pending. Acceptance is
 private, domain-HMAC protected and tied to owner/project/code/runtime/evidence;
 changes or expiry block it. Cancellation preserves Uncertain state for reconciliation.
-No Phase 9C/9D, production autonomy or release is included.
+Phase 9C adds finite repair foundations with fresh approval at each effect; its real
+acceptance remains BLOCKED. No Phase 9D, production autonomy or release is included.
+See [Phase 9C architecture](docs/phase9c-architecture.md) and
+[repair acceptance](docs/phase9c-e2e.md).
 
 Read [architecture](docs/ARCHITECTURE.md), [project policy](docs/project-authorization.md),
 [Personal approval](docs/phase9-personal-mode.md), [manual configuration migration](docs/single-developer-migration.md),

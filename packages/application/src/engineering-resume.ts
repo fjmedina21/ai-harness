@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { emitTelemetry, canonicalProposalJson, normalizeApprovalPolicy, EngineeringResumeError, type ContinuationLease, type EngineeringPolicy, type EngineeringResumeStore, type ProposalArtifact, type ResumeIdentityVerifier } from "@ai-harness/contracts";
 import { ProposalArtifactStore, sealProposalArtifact } from "@ai-harness/checkpointing";
 import { ApprovalBroker, digestDurableValue, assertApprovalDecision } from "@ai-harness/security";
-import { EngineeringPatchEngine, EngineeringWorkspace, engineeringHash, openEngineeringSource, patchInvocation, createEngineeringTools } from "@ai-harness/tools";
+import { EngineeringPatchEngine, EngineeringWorkspace, engineeringHash, openEngineeringSource, patchInvocation, createEngineeringTools, expectedApprovedSnapshot } from "@ai-harness/tools";
 
 export async function persistEngineeringProposal(store: EngineeringResumeStore, artifacts: ProposalArtifactStore,
   input: Omit<ProposalArtifact, "schemaVersion" | "artifactDigest" | "rootIdentity" | "createdAt" | "expiresAt" | "policyEncoding">, approvalPolicy?: import("@ai-harness/contracts").ApprovalPolicy): Promise<ProposalArtifact> {
@@ -44,6 +44,35 @@ export class EngineeringRecoveryService {
     if (review && (review.patchDigest !== a.patchDigest || review.snapshotDigest !== a.baseSnapshot.digest || review.contentDigest !== a.diffDigest || review.artifactDigest !== a.artifactDigest || review.workspaceId !== a.workspaceId)) throw new EngineeringResumeError("artifact_invalid");
     return a;
   }
+  /** Verify a complete authenticated, consumed predecessor chain; never infer a missing link. */
+  verifyRepairChain(a: ProposalArtifact): import("@ai-harness/contracts").WorkspaceSnapshot {
+    if (!a.repairContext) return a.baseSnapshot;
+    const original = a.repairContext.originalSnapshot, seen = new Set<string>([a.operationId]);
+    let current = a;
+    for (let depth = 0; depth < 17; depth++) {
+      const context = current.repairContext;
+      if (!context) {
+        if (current.baseSnapshot.digest !== original.digest || canonicalProposalJson(current.baseSnapshot) !== canonicalProposalJson(original)) throw new EngineeringResumeError("artifact_invalid");
+        return original;
+      }
+      if (context.sessionId !== a.executionId || context.profileDigest !== a.repairContext!.profileDigest || context.repairPolicyDigest !== a.repairContext!.repairPolicyDigest) throw new EngineeringResumeError("policy_changed");
+      if (seen.has(context.parentOperationId)) throw new EngineeringResumeError("artifact_invalid");
+      seen.add(context.parentOperationId);
+      const ref = this.store.proposal(context.parentOperationId), op = this.store.get(context.parentOperationId);
+      if (!ref || !op || op.state !== "Completed") throw new EngineeringResumeError("reconciliation_required");
+      const parent = this.artifacts.get(ref.artifactDigest), grant = op.approvalId && this.store.approval(op.approvalId);
+      if (!grant || grant.status !== "consumed") throw new EngineeringResumeError("approval_mismatch");
+      assertApprovalDecision(grant, this.store.approvalReview?.(op.operationId));
+      const expected = expectedApprovedSnapshot(parent);
+      if (parent.operationId !== op.operationId || ref.executionId !== a.executionId || parent.executionId !== a.executionId || parent.workspaceId !== a.workspaceId ||
+        canonicalProposalJson(parent.requester) !== canonicalProposalJson(a.requester) || canonicalProposalJson(parent.receipt) !== canonicalProposalJson(a.receipt) ||
+        parent.sourceRevision !== a.sourceRevision || parent.projectAuthorizationDigest !== a.projectAuthorizationDigest || canonicalProposalJson(parent.policy) !== canonicalProposalJson(a.policy) ||
+        canonicalProposalJson(expected) !== canonicalProposalJson(current.baseSnapshot) ||
+        op.argumentDigest !== digestDurableValue(patchInvocation(parent.patch).arguments) || op.resultDigest !== digestDurableValue({ snapshotDigest: expected.digest, patchDigest: parent.patchDigest })) throw new EngineeringResumeError("artifact_invalid");
+      current = parent;
+    }
+    throw new EngineeringResumeError("reconciliation_required");
+  }
   async reconcile(operationId: string, signal?: AbortSignal, assertFence?: () => void): Promise<{ artifact: ProposalArtifact; workspace: EngineeringWorkspace; engine: EngineeringPatchEngine; diff: string }> {
     signal?.throwIfAborted();
     const a = this.artifact(operationId), op = this.store.get(operationId)!;
@@ -54,7 +83,8 @@ export class EngineeringRecoveryService {
     catch { throw new EngineeringResumeError("reconciliation_required"); }
     // Only the originally host-selected source scope is re-read; never scan an arbitrary repository.
     try {
-      const source = await openEngineeringSource(a.receipt.sourceRoot, a.executionId, a.baseSnapshot.files.map(f => f.path));
+      const original = this.verifyRepairChain(a);
+      const source = await openEngineeringSource(a.receipt.sourceRoot, a.executionId, original.files.map(f => f.path));
       if ((await source.inspect(signal)).digest !== a.sourceRevision || (await workspace.inspect(signal)).digest !== a.baseSnapshot.digest) throw new Error();
     } catch { throw new EngineeringResumeError("snapshot_changed"); }
     const engine = new EngineeringPatchEngine(workspace, JSON.parse(a.policyEncoding) as EngineeringPolicy, assertFence);
@@ -78,6 +108,8 @@ export class ExecutionLeaseManager {
   }
 }
 export interface ContinuationOptions {
+  /** Trusted host repair lifecycle fence, rechecked before every filesystem effect. */
+  assertContinuation?(): void;
   /** Already opened/validated host journal, never project configuration. */
   store: EngineeringResumeStore;
   artifacts: ProposalArtifactStore;
@@ -134,6 +166,7 @@ export class ContinuationCoordinator {
         }),
       ]).finally(() => { if (abortListener) signal.removeEventListener("abort", abortListener); });
       const checkDeadline = () => {
+        this.options.assertContinuation?.();
         if (cancellation?.aborted) throw new EngineeringResumeError("cancelled");
         if (signal.aborted || performance.now() - started >= timeoutMs) throw new EngineeringResumeError("timeout");
         if (Date.now() >= actor.expiresAt) throw new EngineeringResumeError("authentication_required");

@@ -11,6 +11,10 @@ import { validateEngineeringPolicy } from "./engineering-patches.js";
 import { captureValidationSnapshot } from "./validation-snapshot.js";
 import { SandboxValidationRegistry, type SnapshotValidationRuntime } from "./snapshot-validation-runtime.js";
 
+/** Stable per-proposal request identity; legacy validation IDs remain unchanged. */
+export function validationRequestId(artifact: ProposalArtifact, actionId: string): string {
+  return artifact.repairContext ? engineeringHash(JSON.stringify([artifact.artifactDigest, actionId])) : actionId;
+}
 /** Derives the exact approved resulting inventory; no re-generation or provider port. */
 export function expectedApprovedSnapshot(artifact: ProposalArtifact): WorkspaceSnapshot {
   const files = new Map(artifact.baseSnapshot.files.map(f => [f.path, { path: f.path, hash: f.hash, bytes: f.bytes }]));
@@ -71,6 +75,7 @@ export class ValidationCoordinator {
   }
   private async dispatch(artifact: ProposalArtifact, workspace: EngineeringWorkspace, actionId: string, approvalId?: string, signal?: AbortSignal) {
     const o = this.options, a = structuredClone(artifact), action = o.registry.get(actionId);
+    const requestId = validationRequestId(a, actionId);
     const { artifactDigest, ...unsigned } = a;
     if (engineeringHash(canonicalProposalJson(unsigned)) !== artifactDigest || a.patchDigest !== a.patch.digest ||
       a.policyDigest !== engineeringHash(a.policyEncoding) || canonicalProposalJson(JSON.parse(a.policyEncoding)) !== canonicalProposalJson(a.policy) ||
@@ -95,7 +100,7 @@ export class ValidationCoordinator {
     if (approvalId) {
       const selectedGrant = o.store.approval(approvalId), selected = selectedGrant && o.store.get(selectedGrant.operationId);
       if (selectedGrant?.status === "approved" && selected?.state === "Approved") {
-        if (selected.executionId !== a.executionId || selected.taskId !== "sandbox-validation" || selected.requestId !== actionId || selected.toolId !== "sandbox.validate" ||
+        if (selected.executionId !== a.executionId || selected.taskId !== "sandbox-validation" || selected.requestId !== requestId || selected.toolId !== "sandbox.validate" ||
           selected.projectRoot !== workspace.receipt.root || selected.argumentDigest !== digestDurableValue(arguments_) || selected.requester.subject !== actor.subject || selected.requester.issuer !== actor.issuer) throw new Error("Sandbox approval scope mismatch");
         lease = o.store.acquireLease(selected.operationId, selected.version, 300000, actor);
       }
@@ -120,7 +125,7 @@ export class ValidationCoordinator {
       const startedAt = new Date().toISOString(), monotonic = performance.now();
       const result = await o.runtime.execute(snapshot, action, signal);
       o.store.assertLease(lease);
-      const validationOp = o.store.list(a.executionId, undefined, 1000).find(x => x.taskId === "sandbox-validation" && x.requestId === actionId);
+      const validationOp = o.store.list(a.executionId, undefined, 1000).find(x => x.taskId === "sandbox-validation" && x.requestId === requestId);
       if (!validationOp) throw new Error("Validation operation unavailable");
       const evidence: ValidationRunEvidence = { schemaVersion: 1, validationId, operationId: validationOp.operationId, executionId: a.executionId, workspaceId: a.workspaceId,
         snapshotId: snapshot.manifest.snapshotId, snapshotDigest: snapshot.manifest.snapshotDigest, transferDigest: snapshot.manifest.transferDigest,
@@ -134,7 +139,7 @@ export class ValidationCoordinator {
       return evidence;
     });
     const result = await dispatcher.dispatch(invocation, { executionId: a.executionId, projectRoot: workspace.receipt.root,
-      defaultDeny: true, grantedPermissions: ["shell:execute"], requireApprovalFor: ["shell:execute"], operation: { taskId: "sandbox-validation", requestId: actionId }, signal }, approvalId);
+      defaultDeny: true, grantedPermissions: ["shell:execute"], requireApprovalFor: ["shell:execute"], operation: { taskId: "sandbox-validation", requestId }, signal }, approvalId);
     if (result.status === "approval_required" && result.operationId && !o.store.approvalReview?.(result.operationId)) {
       if (!o.store.bindValidationReview) throw new Error("Reviewed validation approval unavailable");
       o.store.bindValidationReview(result.operationId, { policy: normalizeApprovalPolicy(o.approvalPolicy), workspaceId: a.workspaceId, artifactDigest: a.artifactDigest,

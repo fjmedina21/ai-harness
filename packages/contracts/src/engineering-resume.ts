@@ -5,6 +5,8 @@ export interface ProposalArtifact {
   /** Optional host resource fingerprint. Legacy artifacts remain inspectable, never silently rebound. */
   projectAuthorizationDigest?: string;
   schemaVersion: 1;
+  /** Host-authenticated predecessor chain; never model authority. */
+  repairContext?: { sessionId: string; iterationId: string; parentOperationId: string; profileDigest: string; repairPolicyDigest: string; originalSnapshot: WorkspaceSnapshot };
   executionId: string;
   requester: HostIdentity;
   operationId: string;
@@ -51,6 +53,8 @@ export interface ContinuationLease {
 }
 /** Additive v2 journal capability; old store implementations retain their v1 API. */
 export interface EngineeringResumeStore extends DurableOperationStore {
+  /** Opt-in durable finite repair state in the same journal; never an approval capability. */
+  readonly repair?: import("./repair.js").RepairJournal;
   bindProposal(reference: ProposalReference, review?: import("./approval-policy.js").ApprovalReviewInput): void;
   proposal(operationId: string): ProposalReference | null;
   decideScoped(id: string, actor: HostIdentity, approved: boolean, binding: ApprovalDecisionBinding): DurableApproval;

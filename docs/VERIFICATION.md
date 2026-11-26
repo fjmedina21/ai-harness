@@ -1,5 +1,51 @@
 # Verification
 
+## Phase 9C — current local implementation
+
+Version **0.8.0**, branch `feat/phase9c-language-agnostic-repair`, based on
+`0ac0bd486134a3a5924bea8c4cad8086b7a7e642`. Phase 9C is **IMPLEMENTED** and
+**OFFLINE VERIFIED**. The real Phase 9C repair lifecycle remains **BLOCKED** pending
+explicit authorization; production use is not certified. Phase 9D is not started.
+
+| Local command | Observed result |
+| --- | --- |
+| `pnpm clean` / `pnpm build` | Pass |
+| `pnpm test` | **993/993** |
+| `pnpm test:github-auth` | **150/150** |
+| `pnpm test:personal-approval` | **43/43** |
+| `pnpm test:phase9b` | **76/76** |
+| `pnpm test:phase9c` | **120/120** |
+| `pnpm harness --help` / `pnpm harness version` | Pass; **0.8.0** experimental |
+| Existing deterministic and Phase 9 evaluations | Pass |
+| `git diff --check` | Pass |
+
+The Phase 9C suite includes bounded static discovery, trusted profiles and normalized
+diagnostics, SQLite migration/integrity/CAS, finite repair, no-progress, independent
+approval and sandbox gates, process recovery, provider/profile independence and
+functional CLI tests. Real temporary files, SQLite, artifact stores and separate
+processes are used. Providers, identity/presence verifiers and Podman are simulated.
+No real credential, paid provider call, generated-code execution on macOS or live
+repair acceptance was used. See [the acceptance report](phase9c-e2e.md).
+
+Local evidence is excluded under `harness-development/phase9c/verification.json`
+and `harness-development/phase9c/source-verification.json`; the latter binds the
+frozen product sources to the final verification pass. Do not publish private
+profiles, journals, keys, credentials, source/diffs or acceptance records.
+
+Baseline hosted CI was verified for `0ac0bd4`: [run 45714289248](https://github.com/fjmedina21/ai-harness/actions/runs/45714289248).
+It does not certify this unpushed working branch. No push, merge, tag, release or
+new remote CI run is claimed. Dedicated remote Podman remains **DEFERRED**.
+
+The existing Gate C controls and historical scoped Node evidence are preserved.
+Changed critical code or policy intentionally invalidates an older signed private
+acceptance; prior Gate C success does not authorize this new repair lifecycle,
+project/profile, model expense or executable action.
+
+## Historical published baseline before Phase 9C
+
+The sections below retain the previous published snapshot and its original test
+counts/live evidence. They are historical records, not current branch verification.
+
 Version **0.8.0**. Implementation `0e0d9cd`, base `df501d8`; integrated and published
 on main at `6148e9e`. The original feature branch has been removed locally.
 Current architecture: Single Developer + Single GitHub Identity + Explicit Project
@@ -31,7 +77,7 @@ image. A separately authorized manual run must then produce real probe, timeout,
 cancellation and cleanup evidence. No runner, Environment, image or workflow run
 was created by this closeout. See [runner prerequisites](DEDICATED-PODMAN-RUNNER.md).
 
-## Current commands and results
+## Historical baseline commands and results
 
 | Command | Current result |
 | --- | --- |
@@ -64,7 +110,8 @@ test authenticates online or executes generated code on macOS.
 | Accepted `local-podman` CLI | IMPLEMENTED; OFFLINE VERIFIED; LIVE VERIFIED for gatec-synthetic/test | Fresh CLI proposal, native patch and sandbox decisions, actual test; independent evidence reopen |
 | Other projects/profiles and arbitrary commands/builds | BLOCKED | No acceptance transfer; no general Node/native/dependency-build claim |
 | Dedicated remote isolation runner | DEFERRED | Separate infrastructure and actual remote acceptance are required |
-| Phase 9C / Phase 9D / production autonomy | BLOCKED / not implemented | Outside this change |
+| Phase 9C finite repair | IMPLEMENTED; offline verification tracked below; real acceptance BLOCKED | New native/GitHub/Podman/provider repair run needs explicit authorization |
+| Phase 9D / production autonomy | Not implemented | Outside this change |
 
 ## Real acceptance scope
 
@@ -136,3 +183,12 @@ See [archived verification](history/verification-before-single-developer.md) and
 The original fixture milestone is preserved in
 [historical verification](history/verification-before-single-developer.md).
 Current commands, counts and scope are documented above.
+
+## Phase 9C language-agnostic finite repair
+
+[Repair architecture](phase9c-architecture.md) and [acceptance](phase9c-e2e.md) describe
+the new implementation scope. Deterministic verification uses real private temporary
+filesystem and SQLite with synthetic providers, human verifiers and Podman. Real
+Phase 9C GitHub/native/Podman/provider E2E is **BLOCKED** pending separate explicit
+authorization; remote Podman remains **DEFERRED**. The prior published CI and Gate C
+records certify their recorded scope and SHA, not this working branch.

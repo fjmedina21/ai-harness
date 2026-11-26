@@ -15,7 +15,8 @@ Current real GitHub/native/Podman acceptance was separately and explicitly autho
 Gate C is **LIVE VERIFIED for gatec-synthetic/local-podman fixed Node profiles**;
 the actual CLI test passed. Other unaccepted execution scopes remain BLOCKED.
 The owner subsequently authorized merge/push to main; [ordinary remote CI passed](https://github.com/fjmedina21/ai-harness/actions/runs/45708916081)
-for `6148e9e`. No release, tags, Phase 9C Autonomous Repair or Phase 9D is included.
+for `6148e9e`. Phase 9C finite repair is IMPLEMENTED and OFFLINE VERIFIED; its real E2E
+acceptance remains BLOCKED. No release, tags or Phase 9D is included.
 
 Current scoped acceptance is backed by a private domain-HMAC record of exact project,
 code, runtime, effective probes and native-approved durable outcomes. The CLI
@@ -90,7 +91,7 @@ of this work; 0.8.0 remains experimental.
 | 6 | Durable SQLite operation journal, transactional host approvals, stable identities, conservative reconciliation and real crash/concurrency tests | Implemented and integrated; experimental foundations; real local SQLite tests passed |
 | 7 | Opt-in telemetry, bounded private sinks, traces/metrics, provider usage, deterministic evaluations and CLI reports | Implemented and integrated; experimental foundations; historical CI/evaluations retained |
 | 8 | Read-only CLI, three-agent integration, explicit providers, authorized tools, optional persistence/diagnostics, offline E2E, standard CI and documented security | **Implemented — offline E2E validated; external validation gates deferred** |
-| 9 | Private workspaces, controlled patches/approvals, fixture/OpenAI CLI, GitHub authenticated L2 and restricted sandbox components | **Partial, experimental; current local single-owner/native/durable Node Gate C verified for exact scope; other profiles blocked; 9C/9D deferred** |
+| 9 | Private workspaces, controlled patches/approvals, fixture/OpenAI CLI, GitHub authenticated L2 and restricted sandbox components | **Partial, experimental; current local single-owner/native/durable Node Gate C verified for exact scope; other profiles blocked; 9C finite repair offline scope, real acceptance BLOCKED; 9D deferred** |
 
 Phase 4 retains `complete()` and legacy scripted tool providers. The default CLI
 and SDD remain fixture/text workflows. Read-only provider integration is through

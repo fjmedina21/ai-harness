@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { engineeringCommand, engineeringLifecycleCommand } from "./engineering-cli.js";
+import { repairCommand } from "./repair-cli.js";
 import { diagnosticCommand } from "./diagnostics-cli.js";
 import { authCommand, loadGitHubHost, type GitHubHost } from "./github-host.js";
 import { readPrivateCostRates } from "./rates.js";
@@ -80,7 +81,7 @@ export async function main(
       }
 
       case "auth": return authCommand(args, output, signal, hostLoader);
-      case "engineering": return engineeringLifecycleCommand(args, output, signal, hostLoader);
+      case "engineering": return args[0]?.startsWith("repair") ? repairCommand(args, output, signal, hostLoader) : engineeringLifecycleCommand(args, output, signal, hostLoader);
 
       case "run": {
         if (optionValue(args, "--workflow") === "implement") return engineeringCommand(args, cwd, output, signal, hostLoader);
@@ -282,7 +283,7 @@ function help(): string {
   \n       [--journal ABSOLUTE_FILE] [--telemetry-dir PRIVATE_DIR] [--rates PRIVATE_JSON]
   \n       [--timeout-ms N] [--json]
   \n  auth login|whoami|status|refresh|logout [--json]   GitHub App authentication with protected host sessions
-  \n  engineering status|diff|approve|reject|revoke|continue --id ID [--json] (GitHub scoped roles required)
+  \n  engineering repair|repair-status|repair-history --id ID [--json] (finite, separately approved repair)\n  engineering status|diff|approve|reject|revoke|continue --id ID [--json] (GitHub scoped roles required)
   \n       Personal approval requires exact interactive review + macOS owner authentication.
   \n  engineering validate --id ID --profile PROFILE --action ACTION (requires accepted exact project/profile)
   \n  run --workflow implement --autonomy propose|isolated --path DIR --request TEXT --provider fixture

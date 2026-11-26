@@ -146,3 +146,7 @@ export * from "./engineering.js";
 export * from "./engineering-resume.js";
 export * from "./phase9-validation.js";
 export * from "./approval-policy.js";
+
+export * from "./repair.js";
+
+export * from "./validation-profile.js";
