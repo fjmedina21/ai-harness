@@ -1,5 +1,8 @@
 # Manual single-developer migration and rollback
 
+> **Status clarification (Phase 9D):** This runbook describes the v3 single-owner migration. Phase 9C separately installs opt-in repair schema v4; no automatic approval conversion is introduced. See [current architecture](ARCHITECTURE.md), [verification](VERIFICATION.md) and [repair acceptance](phase9c-e2e.md).
+
+
 This release keeps application version **0.8.0** and SQLite Journal **v3**.
 It does not rewrite the owner's private configuration, Keychain or real journal.
 The previous multi-account profile is rejected, including a single-element

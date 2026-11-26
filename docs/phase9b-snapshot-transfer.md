@@ -1,5 +1,8 @@
 # Phase 9B — bounded snapshot transfer
 
+> **Status clarification (Phase 9D):** Historical transfer acceptance snapshot. Later Gate C acceptance was restricted to exact fixed Node scope and is not transferable to changed code. See [current architecture](ARCHITECTURE.md), [verification](VERIFICATION.md) and [repair acceptance](phase9c-e2e.md).
+
+
 The implemented transport captures an exact approved L2 workspace into a closed
 manifest and immutable in-memory payload, then streams it through bounded stdin to
 a fixed trusted Node receiver inside Podman. It uses neither archive extraction,

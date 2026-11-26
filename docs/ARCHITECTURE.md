@@ -1,5 +1,17 @@
 # AI Harness architecture
 
+## Phase 9D current documentation update
+
+Version remains **0.8.0**. A static VitePress portal, local search, original diagrams,
+offline checks, documentation CI and manual Pages deployment workflow are implemented.
+See [portal architecture](phase9d-architecture.md), [content plan](phase9d-documentation-plan.md),
+[candidate verification](phase9d-verification.md) and [beta readiness](phase9d-release-readiness.md).
+The runtime baseline is `def9a98`; older baseline/branch/CI statements below are historical.
+Real Phase 9C repair E2E remains **BLOCKED**; later isolation-only probes do not accept it.
+Current runtime acceptance must revalidate exact code/project/profile; historical Gate C is not global support.
+No version bump, push, merge, tag, deployment or release is included.
+
+
 Version **0.8.0**, experimental local software-engineering tool.
 **Single Developer + Single GitHub Identity + Explicit Project Authorization +
 Human-Confirmed Personal L2 + Durable Podman Validation.**
@@ -67,7 +79,7 @@ domain-HMAC record binds current owner/project/code/runtime, effective probes an
 four exact native-approved durable outcomes. Its expiry or any mismatch retains
 validation_acceptance_pending. Phase 9C extends this composition with finite durable repair and host-owned
 language-neutral discovery/profile contracts. Real repair acceptance remains BLOCKED.
-No Phase 9D, deployment, publication or original-source integration is implemented.
+Phase 9D documentation is implemented separately; deployment, publication and original-source integration remain disabled.
 See [repair architecture](phase9c-architecture.md).
 See [security](phase9-security.md), [Podman security](phase9b-security.md),
 [migration](single-developer-migration.md) and [evidence](VERIFICATION.md).

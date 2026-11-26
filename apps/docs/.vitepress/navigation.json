@@ -1,0 +1,212 @@
+[
+  {
+    "id": "getting-started",
+    "text": "Getting Started",
+    "items": [
+      {
+        "text": "Introduction",
+        "link": "/getting-started/"
+      },
+      {
+        "text": "Prerequisites & Installation",
+        "link": "/getting-started/installation"
+      },
+      {
+        "text": "Quick Start & First Workflow",
+        "link": "/getting-started/quick-start"
+      },
+      {
+        "text": "Authentication Setup",
+        "link": "/getting-started/authentication"
+      },
+      {
+        "text": "First Project & Authorization",
+        "link": "/getting-started/project-authorization"
+      },
+      {
+        "text": "Troubleshooting",
+        "link": "/getting-started/troubleshooting"
+      }
+    ]
+  },
+  {
+    "id": "guide",
+    "text": "User Guide",
+    "items": [
+      {
+        "text": "CLI & Projects",
+        "link": "/guide/cli"
+      },
+      {
+        "text": "Multi-Agent Workflows",
+        "link": "/guide/workflows"
+      },
+      {
+        "text": "Provider Configuration",
+        "link": "/guide/providers"
+      },
+      {
+        "text": "Engineering Proposals & Review",
+        "link": "/guide/proposals"
+      },
+      {
+        "text": "Personal L2 & Isolated Workspace",
+        "link": "/guide/personal-l2"
+      },
+      {
+        "text": "Podman Validation",
+        "link": "/guide/podman"
+      },
+      {
+        "text": "Autonomous Repair",
+        "link": "/guide/repair"
+      },
+      {
+        "text": "Results, Recovery & Cancellation",
+        "link": "/guide/results"
+      }
+    ]
+  },
+  {
+    "id": "architecture",
+    "text": "Architecture",
+    "items": [
+      {
+        "text": "System Overview",
+        "link": "/architecture/"
+      },
+      {
+        "text": "Agent Runtime & Orchestration",
+        "link": "/architecture/runtime"
+      },
+      {
+        "text": "Providers & Tool Registry",
+        "link": "/architecture/providers-tools"
+      },
+      {
+        "text": "Discovery & Validation Profiles",
+        "link": "/architecture/validation"
+      },
+      {
+        "text": "RepairCoordinator",
+        "link": "/architecture/repair"
+      },
+      {
+        "text": "SQLite, Events & Recovery",
+        "link": "/architecture/persistence"
+      }
+    ]
+  },
+  {
+    "id": "security",
+    "text": "Security",
+    "items": [
+      {
+        "text": "Security Model & Trust Boundaries",
+        "link": "/security/"
+      },
+      {
+        "text": "Identity, Authorization & Approval",
+        "link": "/security/identity"
+      },
+      {
+        "text": "Podman Isolation",
+        "link": "/security/podman"
+      },
+      {
+        "text": "Secrets, Audit & Evidence",
+        "link": "/security/secrets"
+      },
+      {
+        "text": "Threat Model",
+        "link": "/security/threat-model"
+      },
+      {
+        "text": "Security Limitations",
+        "link": "/security/limitations"
+      }
+    ]
+  },
+  {
+    "id": "reference",
+    "text": "Reference",
+    "items": [
+      {
+        "text": "CLI Reference",
+        "link": "/reference/cli"
+      },
+      {
+        "text": "Configuration Reference",
+        "link": "/reference/configuration"
+      },
+      {
+        "text": "Provider, Workflow & Patch Contracts",
+        "link": "/reference/contracts"
+      },
+      {
+        "text": "Validation Profiles & Repair Policies",
+        "link": "/reference/validation"
+      },
+      {
+        "text": "Status & Error Codes",
+        "link": "/reference/status-codes"
+      }
+    ]
+  },
+  {
+    "id": "development",
+    "text": "Development",
+    "items": [
+      {
+        "text": "Setup, Structure & Conventions",
+        "link": "/development/"
+      },
+      {
+        "text": "Testing, Fixtures & Evaluations",
+        "link": "/development/testing"
+      },
+      {
+        "text": "Adding Providers, Agents & Tools",
+        "link": "/development/extending"
+      },
+      {
+        "text": "Adding a Validation Profile",
+        "link": "/development/validation-profile"
+      },
+      {
+        "text": "Documentation & Contributing",
+        "link": "/development/documentation"
+      }
+    ]
+  },
+  {
+    "id": "releases",
+    "text": "Releases",
+    "items": [
+      {
+        "text": "Capability Status Matrix",
+        "link": "/releases/capabilities"
+      },
+      {
+        "text": "Versioning & Compatibility",
+        "link": "/releases/versioning"
+      },
+      {
+        "text": "Changelog",
+        "link": "/releases/changelog"
+      },
+      {
+        "text": "Release Process & Migration",
+        "link": "/releases/process"
+      },
+      {
+        "text": "Beta Readiness & Draft Notes",
+        "link": "/releases/beta"
+      },
+      {
+        "text": "Source Audit & History",
+        "link": "/releases/sources"
+      }
+    ]
+  }
+]

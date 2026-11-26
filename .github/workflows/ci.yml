@@ -28,7 +28,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm build
@@ -42,3 +42,18 @@ jobs:
           mkdir -p /tmp/phase0-demo
           pnpm harness init --path /tmp/phase0-demo --name ci-demo
           pnpm harness doctor --path /tmp/phase0-demo
+
+  docs-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install reproducibly
+        run: pnpm install --frozen-lockfile
+      - name: Build and validate documentation
+        run: pnpm docs:check

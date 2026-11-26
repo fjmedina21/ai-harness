@@ -8,3 +8,7 @@ coverage/
 .DS_Store
 .ai/state/
 .ai/checkpoints/
+
+# VitePress local cache and generated static output
+apps/docs/.vitepress/cache/
+apps/docs/.vitepress/dist/

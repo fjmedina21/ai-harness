@@ -1,5 +1,8 @@
 # Phase 9 structured patches and approvals
 
+> **Status clarification (Phase 9D):** Historical approval description. The current Personal protocol requires the same verified owner as requester and approver with exact native human review. See [current architecture](ARCHITECTURE.md), [verification](VERIFICATION.md) and [repair acceptance](phase9c-e2e.md).
+
+
 Implemented in tools: `EngineeringPatchEngine`, `createEngineeringTools()` and
 `openEngineeringSource()`. L1 reads only an explicit source selection and creates
 no workspace, source file, journal or checkpoint. L2 operates on a private copy.

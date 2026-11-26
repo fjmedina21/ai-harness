@@ -1,5 +1,8 @@
 # Phase 9B security review
 
+> **Status clarification (Phase 9D):** Historical Phase 9B security snapshot. Later restricted Gate C evidence and offline-verified Phase 9C repair supersede its pending-design statements. See [current architecture](ARCHITECTURE.md), [verification](VERIFICATION.md) and [repair acceptance](phase9c-e2e.md).
+
+
 Generated source, project tests, build scripts, package lifecycle hooks and
 dependency code are untrusted executable data. They may run only in an explicitly
 authorized sandbox. Authentication proves the developer identity; current host

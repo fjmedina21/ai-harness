@@ -1,3 +1,10 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+allowBuilds:
+  esbuild: true
+
+# VitePress 1.6.4 is stable; its default Vite 5 line has unpatched dev-server advisories.
+# Plugin Vue 5.2.4 supports Vite 6. Revalidate this scoped override on upgrades.
+overrides:
+  vitepress@1.6.4>vite: 6.4.5

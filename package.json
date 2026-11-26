@@ -23,10 +23,15 @@
     "smoke:github-auth": "pnpm run build && node apps/cli/dist/github-auth-smoke.js",
     "harness": "node apps/cli/dist/index.js",
     "dev": "pnpm run build && pnpm harness --help",
-    "test:phase9c": "pnpm run build && node --test packages/tools/dist/__tests__/phase9c-*.test.js packages/checkpointing/dist/__tests__/repair-journal.test.js packages/application/dist/__tests__/repair*.test.js apps/cli/dist/__tests__/repair-cli.test.js"
+    "test:phase9c": "pnpm run build && node --test packages/tools/dist/__tests__/phase9c-*.test.js packages/checkpointing/dist/__tests__/repair-journal.test.js packages/application/dist/__tests__/repair*.test.js apps/cli/dist/__tests__/repair-cli.test.js",
+    "docs:dev": "vitepress dev apps/docs --host 127.0.0.1",
+    "docs:build": "vitepress build apps/docs",
+    "docs:preview": "vitepress preview apps/docs --host 127.0.0.1",
+    "docs:check": "tsc --noEmit -p apps/docs/tsconfig.json && pnpm docs:build && node apps/docs/scripts/check.mjs && node apps/docs/scripts/cli-reference.mjs && node apps/docs/scripts/cli-reference.mjs --test && node --test apps/docs/scripts/check.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "vitepress": "1.6.4"
   }
 }

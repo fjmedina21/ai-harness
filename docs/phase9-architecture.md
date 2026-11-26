@@ -1,5 +1,8 @@
 # Phase 9 architecture — experimental implementation boundary
 
+> **Status clarification (Phase 9D):** Historical Phase 9 design snapshot. Its unavailable L3/snapshot-transfer statements were superseded by Phase 9B. Current exact acceptance still requires fresh evidence. See [current architecture](ARCHITECTURE.md), [verification](VERIFICATION.md) and [repair acceptance](phase9c-e2e.md).
+
+
 Status: design defined before operational implementation; L1/L2 and fixture repair
 subsequently implemented on the feature branch. Real L3 is blocked. Version 0.8.0.
 

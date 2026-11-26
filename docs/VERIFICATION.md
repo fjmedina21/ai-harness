@@ -1,5 +1,17 @@
 # Verification
 
+## Phase 9D current documentation update
+
+Version remains **0.8.0**. A static VitePress portal, local search, original diagrams,
+offline checks, documentation CI and manual Pages deployment workflow are implemented.
+See [portal architecture](phase9d-architecture.md), [content plan](phase9d-documentation-plan.md),
+[candidate verification](phase9d-verification.md) and [beta readiness](phase9d-release-readiness.md).
+The runtime baseline is `def9a98`; older baseline/branch/CI statements below are historical.
+Real Phase 9C repair E2E remains **BLOCKED**; later isolation-only probes do not accept it.
+Current runtime acceptance must revalidate exact code/project/profile; historical Gate C is not global support.
+No version bump, push, merge, tag, deployment or release is included.
+
+
 ## Phase 9C — current local implementation
 
 Version **0.8.0**, branch `feat/phase9c-language-agnostic-repair`, based on

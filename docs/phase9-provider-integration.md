@@ -1,5 +1,8 @@
 # Phase 9A provider integration — OpenAI scope
 
+> **Status clarification (Phase 9D):** Historical integration snapshot. Protected CLI approval/continuation and Phase 9B validation were added later; Anthropic engineering remains deferred. See [current architecture](ARCHITECTURE.md), [verification](VERIFICATION.md) and [repair acceptance](phase9c-e2e.md).
+
+
 Design recorded before implementation; OpenAI composition, CLI and offline E2E
 are integrated in audited `main` at **9ce59e8b4b6b97757a3104aaed4684c91cbbeef5**.
 Version remains 0.8.0. Current owner scope

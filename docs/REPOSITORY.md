@@ -1,5 +1,8 @@
 # Repository map — current source, version 0.8.0
 
+> **Status clarification (Phase 9D):** Historical repository map. The current source also includes Phase 9C repair/discovery/profile modules and Phase 9D documentation; old branch/timeout descriptions are snapshots. See [current architecture](ARCHITECTURE.md), [verification](VERIFICATION.md) and [repair acceptance](phase9c-e2e.md).
+
+
 This map describes packages present in the current TypeScript workspace.
 Architecture proposals are maintained separately and do not imply that an
 unlisted service exists. The starting main baseline is `fdcb1130e91a`; this
