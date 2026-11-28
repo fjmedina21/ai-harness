@@ -16,7 +16,7 @@ The diagram abbreviates branching. The contract state/transition table is author
 
 An immutable host policy sets cumulative consumed/reserved iterations, requests, tokens, time, validations, files/bytes and estimated cost. Review delay counts against the global deadline. Repeated diagnostics, patches, content, snapshots and cycles terminate deterministically. Infrastructure/authorization failure is not a repairable compiler error.
 
-SQLite repair state is installed lazily as schema v4 on an explicitly requested session, sharing the operation journal. Read-only inspection does not upgrade a v3 journal. In-flight unknown effects stop for reconciliation. These behaviors are offline verified; real repair E2E remains blocked.
+SQLite repair state is installed lazily as schema v4 on an explicitly requested session, sharing the operation journal. Read-only inspection does not upgrade a v3 journal. In-flight unknown effects stop for reconciliation. These behaviors are offline verified. The 2026-11-27 exact local synthetic repair E2E also passed with a real provider, native confirmations and Podman; see [beta readiness](../releases/beta.md).
 
 ## Source and evidence
 

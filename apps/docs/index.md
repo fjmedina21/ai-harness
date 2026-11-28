@@ -3,7 +3,7 @@ layout: home
 hero:
   name: AI Harness
   text: Local-First AI Software Engineering Harness
-  tagline: "<strong>Experimental — v0.8.0</strong><br>Explicit roles. Provider-neutral contracts. Human control over every code and sandbox effect."
+  tagline: "<strong>Experimental — v0.9.0-beta.1</strong><br>Explicit roles. Provider-neutral contracts. Human control over every code and sandbox effect."
   image:
     src: /logo.svg
     alt: AI Harness original identity
@@ -34,13 +34,13 @@ features:
     details: Fixed Node actions, pinned images, separate sandbox grants and durable evidence. Live acceptance is exact and expires; it is never global support.
     link: /guide/podman
   - title: Supervised finite repair
-    details: Language-neutral validation contracts and bounded repair iterations are offline verified. Real repair E2E remains blocked.
+    details: Language-neutral validation contracts and bounded repair iterations are offline verified. Real repair E2E passed for the exact authorized local synthetic scope; beta readiness remains blocked.
     link: /guide/repair
 ---
 
 <main aria-label="AI Harness overview">
 
-::: warning Experimental — v0.8.0
+::: warning Experimental — v0.9.0-beta.1
 This is an experimental single-developer tool. Implementation, offline verification and real operational acceptance are separate. There is no production autonomy certification, automatic integration or deployment. The proposed `v0.9.0-beta.1` is an unpublished draft.
 :::
 

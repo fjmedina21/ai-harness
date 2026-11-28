@@ -1,6 +1,6 @@
 # Security limitations
 
-**AI Harness 0.8.0 is experimental.** It is not certified for production autonomous
+**AI Harness 0.9.0-beta.1 is experimental.** It is not certified for production autonomous
 execution. The [capability matrix](../releases/capabilities.md) distinguishes
 implementation, offline tests and restricted real acceptance.
 

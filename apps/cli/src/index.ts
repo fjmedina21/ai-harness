@@ -32,7 +32,7 @@ export async function main(
     return 0;
   }
   if (command === "version" || command === "--version" || command === "-v") {
-    output("ai-harness 0.8.0 (experimental)");
+    output("ai-harness 0.9.0-beta.1 (experimental)");
     return 0;
   }
   if (args.includes("--help") || args.includes("-h")) {

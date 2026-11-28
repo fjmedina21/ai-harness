@@ -1,8 +1,19 @@
 # Changelog
 
 This ledger describes source milestones, not published releases. No GitHub Release
-was present when checked on 2026-11-26. Current workspace/CLI version is **0.8.0**.
+was present when checked on 2026-11-26. The local workspace/CLI candidate version is **0.9.0-beta.1**, not released.
 Dates are omitted where no release date exists. Proposed beta notes are a draft.
+
+## 0.9.0-beta.1 — candidate, not released
+
+- Recorded scoped real OpenAI repair acceptance: failed assertion, exact native
+  patch/sandbox approvals, passing Podman validation and independent durable recovery.
+- Archived and excluded an inactive synthetic historical journal with invalid
+  approval expiry bindings; preserved all evidence and uncertain states.
+- Completed sampled tablet/desktop portal visual review with readable captures,
+  keyboard search, theme switching and code-copy checks.
+- Aligned local manifests and CLI version for candidate verification. Hosted
+  candidate CI and final release approval remain pending; no release date or tag.
 
 ## Unreleased — Phase 9D
 

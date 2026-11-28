@@ -1,6 +1,6 @@
 # CLI Reference
 
-AI Harness **0.8.0 — experimental**. This reference describes the checked-in CLI,
+AI Harness **0.9.0-beta.1 — experimental**. This reference describes the checked-in CLI,
 not commands proposed for future phases. Build the repository before invoking
 `pnpm harness`. Examples use placeholders; operational commands require the
 owner's registered host policy and explicit approvals.
@@ -20,7 +20,7 @@ pnpm harness version
 <!-- cli-command: version -->
 
 `help`, `--help` and `-h` display global help. `version`, `--version` and `-v`
-display `ai-harness 0.8.0 (experimental)`. A subcommand containing `--help` or
+display `ai-harness 0.9.0-beta.1 (experimental)`. A subcommand containing `--help` or
 `-h` also displays global help; there is no dedicated per-command help page.
 
 Use separate option/value arguments, such as `--path DIR`. The parsers reject
@@ -471,7 +471,7 @@ pnpm harness engineering repair --id EXECUTION_ID --json
 ```
 
 This is a supervised sequence, not a script to bypass independent human review.
-The real Phase 9C end-to-end repair path remains pending verifiable acceptance;
+The real Phase 9C repair path passed exact local synthetic acceptance on 2026-11-27; each new execution still requires current owner/project/runtime/provider authorization;
 mocked coordinator/CLI tests are not live operational evidence. Language-neutral
 contracts do not provide accepted toolchains for every detected language.
 Output includes session/state, remaining budgets, last validation/diagnostics,

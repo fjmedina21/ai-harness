@@ -1,6 +1,6 @@
 # AI Harness
 
-**Local-First AI Software Engineering Harness** — **0.8.0**, experimental.
+**Local-First AI Software Engineering Harness** — **0.9.0-beta.1**, experimental candidate; not released.
 Single developer, one GitHub identity, explicit project authorization and mandatory
 human-confirmed Personal L2. Not production-ready autonomous execution.
 
@@ -19,7 +19,8 @@ Open the printed `/ai-harness/` URL. [Getting Started](apps/docs/getting-started
 [Security](apps/docs/security/index.md), [CLI Reference](apps/docs/reference/cli.md),
 [Development](apps/docs/development/index.md) and
 [Capability Status](apps/docs/releases/capabilities.md) cover current behavior.
-The portal is prepared for project GitHub Pages but **has not been deployed**.
+The manual Pages workflow passed for `779daab` ([run](https://github.com/fjmedina21/ai-harness/actions/runs/45900829096)).
+This acceptance does not publish or redeploy the portal.
 
 ## Try the offline workflow
 
@@ -53,7 +54,8 @@ No project `.env` is implicitly loaded.
   current code/project/runtime acceptance must revalidate and expires. Dedicated
   remote isolation remains deferred.
 - Language-neutral discovery/profiles/diagnostics and finite repair are implemented
-  and offline verified. **Real Phase 9C repair E2E remains BLOCKED.** Manifest detection
+  and offline verified. [**Real Phase 9C repair E2E is LIVE VERIFIED**](docs/phase9c1-live-acceptance.md)
+  for the 2026-11-27 exact local synthetic scope. **Beta readiness remains BLOCKED.** Manifest detection
   does not promise operational support for every toolchain.
 - No automatic original-source integration, Git writes, deployment or multiuser mode.
 

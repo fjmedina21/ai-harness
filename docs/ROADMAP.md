@@ -1,5 +1,29 @@
 # AI Harness roadmap
 
+## Subsequent candidate preparation — 2026-11-27
+
+The owner requested completion of the remaining checklist. The sampled real-browser
+tablet/desktop visual gate now **PASSES**, with full-size captures, search/theme/menu
+and code-copy checks. Local candidate manifests and CLI are aligned to
+**0.9.0-beta.1**, unreleased. See [candidate verification](phase9c1-release-candidate.md).
+Earlier 0.8.0/status observations below remain historical. Exact candidate hosted CI
+and final owner publication approval remain pending.
+
+
+## Phase 9C.1 current assessment — 2026-11-27
+
+Source `779daab899c2ef9875dc198785ad7b33489763e9`, version **0.8.0**.
+**Phase 9C LIVE VERIFIED** for a newly authorized local synthetic project/journal,
+current Gate C, real OpenAI repair, nine native confirmations and actual failed →
+passed Podman validation. Independent inspection verified durable evidence and
+unchanged originals. The obsolete synthetic journal was subsequently archived and
+[excluded from release scope](phase9c1-historical-journal-exclusion.md) after verified
+inactivity and explicit owner instruction. **Beta remains BLOCKED** for new candidate
+hosted CI and the remaining checklist items. See the
+[current acceptance and gate decision](phase9c1-live-acceptance.md).
+Earlier source/branch/status records below are historical snapshots.
+
+
 ## Phase 9D current documentation update
 
 Version remains **0.8.0**. A static VitePress portal, local search, original diagrams,

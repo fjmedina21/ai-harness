@@ -22,11 +22,11 @@ The checker validates all generated local links/fragments/assets, navigation cov
 
 Base is `/ai-harness/`, clean URLs stay disabled for static `.html` compatibility. CI builds on pull requests without credentials. A dispatch-only workflow publishes a checked Pages artifact from main when explicitly run by the owner. Select GitHub Actions as the Pages source in repository settings first; configure-pages has enablement disabled. The deploy job alone has pages:write and id-token:write and uses the github-pages environment. Expected future URL: `https://fjmedina21.github.io/ai-harness/`.
 
-The [phase verification report](https://github.com/fjmedina21/ai-harness/blob/main/docs/phase9d-verification.md) records actual results and limits. The docs portal and beta release have independent gates.
+The [phase verification report](https://github.com/fjmedina21/ai-harness/blob/v0.9.0-beta.1/docs/phase9d-verification.md) records actual results and limits. The docs portal and beta release have independent gates.
 
 ## Source and evidence
 
-[package.json](https://github.com/fjmedina21/ai-harness/blob/main/package.json), [.github/workflows/ci.yml](https://github.com/fjmedina21/ai-harness/blob/main/.github/workflows/ci.yml), [docs/VERIFICATION.md](https://github.com/fjmedina21/ai-harness/blob/def9a987ff8d449402a67d0dcb58a8420709f68e/docs/VERIFICATION.md).
+[package.json](https://github.com/fjmedina21/ai-harness/blob/v0.9.0-beta.1/package.json), [.github/workflows/ci.yml](https://github.com/fjmedina21/ai-harness/blob/v0.9.0-beta.1/.github/workflows/ci.yml), [docs/VERIFICATION.md](https://github.com/fjmedina21/ai-harness/blob/def9a987ff8d449402a67d0dcb58a8420709f68e/docs/VERIFICATION.md).
 
 ## Publish with GitHub Actions
 

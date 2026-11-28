@@ -1,7 +1,7 @@
 # Autonomous Repair — supervised finite iterations
 
 ::: warning Acceptance boundary
-Repair is IMPLEMENTED and OFFLINE VERIFIED. Real end-to-end repair acceptance remains BLOCKED. Later isolation probes alone do not prove an approved failed-validation → repair → passing-validation cycle.
+Repair is IMPLEMENTED, OFFLINE VERIFIED and LIVE VERIFIED for the 2026-11-27 exact authorized local synthetic scope. That acceptance includes a real provider, native approvals and failed → passed Podman evidence. Each new scope must still revalidate acceptance and authorization; see [beta readiness](../releases/beta.md). Isolation probes alone do not prove a repair cycle.
 :::
 
 The coordinator can analyze verified code diagnostics and propose another patch. It cannot consent, apply changes or execute validation on your behalf. The core is language-agnostic; each operational toolchain still requires an authorized validated profile.

@@ -1,5 +1,29 @@
 # Phase 9D — beta release readiness
 
+## Subsequent candidate preparation — 2026-11-27
+
+The owner requested completion of the remaining checklist. The sampled real-browser
+tablet/desktop visual gate now **PASSES**, with full-size captures, search/theme/menu
+and code-copy checks. Local candidate manifests and CLI are aligned to
+**0.9.0-beta.1**, unreleased. See [candidate verification](phase9c1-release-candidate.md).
+Earlier 0.8.0/status observations below remain historical. Exact candidate hosted CI
+and final owner publication approval remain pending.
+
+
+## Phase 9C.1 current assessment — 2026-11-27
+
+Source `779daab899c2ef9875dc198785ad7b33489763e9`, version **0.8.0**.
+**Phase 9C LIVE VERIFIED** for a newly authorized local synthetic project/journal,
+current Gate C, real OpenAI repair, nine native confirmations and actual failed →
+passed Podman validation. Independent inspection verified durable evidence and
+unchanged originals. The obsolete synthetic journal was subsequently archived and
+[excluded from release scope](phase9c1-historical-journal-exclusion.md) after verified
+inactivity and explicit owner instruction. **Beta remains BLOCKED** for new candidate
+hosted CI and the remaining checklist items. See the
+[current acceptance and gate decision](phase9c1-live-acceptance.md).
+Earlier source/branch/status records below are historical snapshots.
+
+
 Release candidate: **v0.9.0-beta.1 — DRAFT, NOT RELEASED**. Source version remains
 **0.8.0**. Assessment date: **2026-11-26**. Initial source:
 `def9a987ff8d449402a67d0dcb58a8420709f68e`.
@@ -25,7 +49,7 @@ those gates does not change the beta decision below.
 | Local Podman Gate C | Historical restricted LIVE VERIFIED scope; current executable acceptance must revalidate | [Gate C](phase9b-e2e.md) and [runtime](phase9b-validation-runtime.md); historical project/code/profile acceptance is neither transferable nor permanent |
 | Current-code isolation probes | Limited real runtime evidence reviewed | Phase 9C.1 local inspection recorded passing fixed isolation/timeout/cancellation/cleanup probes. This is not coordinated Gate C or repair E2E acceptance; private raw evidence remains excluded |
 | Language-neutral validation contracts | IMPLEMENTED; OFFLINE VERIFIED | [Profiles](phase9c-validation-profiles.md), [discovery](phase9c-project-discovery.md), [Phase 9C acceptance](phase9c-e2e.md); detection does not provide operational toolchain support |
-| Finite supervised repair | IMPLEMENTED; OFFLINE VERIFIED; real E2E BLOCKED | [Phase 9C acceptance](phase9c-e2e.md); synthetic identity/presence/provider/Podman adapters do not establish live repair |
+| Finite supervised repair | IMPLEMENTED; OFFLINE VERIFIED; scoped LIVE VERIFIED 2026-11-27 | [Current acceptance](phase9c1-live-acceptance.md); real provider/native/Podman cycle passed for its exact local synthetic scope |
 | Durable recovery | IMPLEMENTED; OFFLINE VERIFIED; historical scoped live inspection | [Lifecycle](phase9c-state-machine.md); uncertain operations require reconciliation and cannot replay automatically |
 | Remote Podman | DEFERRED | [Dedicated runner](DEDICATED-PODMAN-RUNNER.md); ordinary hosted CI is not remote isolation acceptance |
 | Production autonomous execution | BLOCKED / not certified | [Security](phase9-security.md) and [repair security](phase9c-security.md); no integration, auto-merge or deployment authority |
@@ -60,7 +84,7 @@ and revised release notes/checklist. This assessment does not make that decision
 
 | Severity | Finding | Disposition |
 | --- | --- | --- |
-| High — release blocker | Real Phase 9C lifecycle has no verified completed live acceptance | BLOCKED; exact-scope owner-authorized acceptance required |
+| Resolved for exact local synthetic scope, 2026-11-27 | Real Phase 9C lifecycle passed with independent durable inspection | LIVE VERIFIED; [current report](phase9c1-live-acceptance.md); not universal acceptance |
 | High — runtime trust boundary | Same-UID parent-path races, trusted host/verifier/runtime compromise and container escape resistance are not solved by unit tests | Documented experimental limitation; no production-security claim |
 | Medium — recovery | Filesystem, provider, Podman and SQLite do not share one transaction; interrupted effects can remain uncertain | Conservative non-replay; explicit host reconciliation and verified backups |
 | Medium — compatibility | Only fixed approved Node runtime actions have restricted operational evidence | Unsupported languages/actions remain unsupported; profile admission alone cannot accept them |

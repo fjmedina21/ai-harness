@@ -1,11 +1,25 @@
 # Phase 9C acceptance
 
+## Phase 9C.1 current assessment — 2026-11-27
+
+Source `779daab899c2ef9875dc198785ad7b33489763e9`, version **0.8.0**.
+**Phase 9C LIVE VERIFIED** for a newly authorized local synthetic project/journal,
+current Gate C, real OpenAI repair, nine native confirmations and actual failed →
+passed Podman validation. Independent inspection verified durable evidence and
+unchanged originals. The obsolete synthetic journal was subsequently archived and
+[excluded from release scope](phase9c1-historical-journal-exclusion.md) after verified
+inactivity and explicit owner instruction. **Beta remains BLOCKED** for new candidate
+hosted CI and the remaining checklist items. See the
+[current acceptance and gate decision](phase9c1-live-acceptance.md).
+Earlier source/branch/status records below are historical snapshots.
+
+
 Version **0.8.0**. Keep implementation, deterministic verification and actual live
 acceptance separate. The required offline suite is `pnpm test:phase9c`; run it with
 the existing authentication, Personal approval, Phase 9B and deterministic evaluation
 regressions. Final counts and observed outcomes belong in [verification](VERIFICATION.md).
 
-## Observed offline acceptance
+## Historical offline acceptance at Phase 9C delivery
 
 **IMPLEMENTED; OFFLINE VERIFIED.** The full local suite passed **993/993**;
 `test:phase9c` passed **120/120**, GitHub authentication **150/150**, Personal approval
@@ -72,7 +86,7 @@ A persistent failure must stop at NoProgress or BudgetExhausted. Two synthetic
 profile/provider compositions use the same coordinator; they do not establish live
 support for their ecosystems.
 
-## Real local procedure — BLOCKED pending explicit authorization
+## Historical real local procedure — blocked at initial offline delivery
 
 1. Select an innocuous registered synthetic project and exact accepted fixed profile.
    Authorize this new project/execution, current runtime and owner separately.

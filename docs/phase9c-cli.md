@@ -49,4 +49,4 @@ Status reports project/owner, current iteration and state, profile/action,
 validation and diagnostic references, pending proposal/approval, cumulative usage,
 remaining budget and terminal classification. History preserves durable transitions.
 No --auto-approve, --yes, --skip-review or automatic integration flag exists.
-The real local path remains blocked without fresh exact acceptance and authorization.
+The real local path passed [scoped acceptance on 2026-11-27](phase9c1-live-acceptance.md). New executions still require fresh exact acceptance and authorization.

@@ -30,5 +30,10 @@ strict bounds. This is defense in depth, not complete detection of every secret 
 arbitrary source. Existing same-UID filesystem races, trusted host/verifier compromise,
 container/runtime vulnerabilities, cross-store commit uncertainty and guest staging
 mutability remain limitations. Unit mocks cannot certify native authentication,
-effective VM/cgroup isolation or toolchain support. Real repair acceptance is
-**BLOCKED** until specifically authorized; remote Podman remains **DEFERRED**.
+effective VM/cgroup isolation or toolchain support. Initial real repair acceptance was **BLOCKED** at offline delivery. The
+[2026-11-27 current acceptance](phase9c1-live-acceptance.md) is **LIVE VERIFIED**
+only for its exact authorized local scope; it includes real native confirmations,
+provider repair and separately approved Podman revalidation. Historical journal
+expiry-binding inconsistencies remain preserved and blocked for operational recovery,
+while the inactive synthetic journal is [archived outside release scope](phase9c1-historical-journal-exclusion.md). No dates/grants/claims
+were altered to bypass verification. Remote Podman remains **DEFERRED**.

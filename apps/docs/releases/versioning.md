@@ -1,6 +1,6 @@
 # Versioning and compatibility
 
-The current product version remains **0.8.0**. `v0.9.0-beta.1` is a proposed prerelease identifier, not a created tag or release. All workspace manifests and CLI output stay aligned until an authorized release change.
+The local candidate version is **0.9.0-beta.1** across workspace manifests and CLI. No tag or release has been created. The live acceptance baseline was **0.8.0**; candidate tests, unchanged runtime fingerprints and exact candidate CI are tracked separately. Publication remains a separate owner decision.
 
 ## Semantic Versioning
 

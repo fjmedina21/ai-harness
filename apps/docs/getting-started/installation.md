@@ -17,7 +17,7 @@ pnpm harness version
 pnpm harness --help
 ```
 
-The current version output is `ai-harness 0.8.0 (experimental)`. This repository has no published beta package installation procedure. Pin a reviewed commit for reproducible use rather than treating the moving default branch as a release.
+The current version output is `ai-harness 0.9.0-beta.1 (experimental)`. This repository has no published beta package installation procedure. Pin a reviewed commit for reproducible use rather than treating the moving default branch as a release.
 
 Dependencies need network access during initial installation. Subsequent code/docs builds use local dependencies and do not contact an AI provider or require runtime credentials. Only esbuild's installation script is explicitly admitted for VitePress; do not approve all dependency scripts.
 

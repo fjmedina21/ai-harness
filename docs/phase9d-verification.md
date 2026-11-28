@@ -1,5 +1,15 @@
 # Phase 9D verification
 
+## Subsequent candidate preparation — 2026-11-27
+
+The owner requested completion of the remaining checklist. The sampled real-browser
+tablet/desktop visual gate now **PASSES**, with full-size captures, search/theme/menu
+and code-copy checks. Local candidate manifests and CLI are aligned to
+**0.9.0-beta.1**, unreleased. See [candidate verification](phase9c1-release-candidate.md).
+Earlier 0.8.0/status observations below remain historical. Exact candidate hosted CI
+and final owner publication approval remain pending.
+
+
 Candidate local verification completed; hosted candidate CI and publication are not performed. Version remains **0.8.0**. No push, merge,
 tag, Pages deployment or release has occurred.
 

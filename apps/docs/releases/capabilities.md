@@ -1,6 +1,6 @@
 # Capability status
 
-AI Harness **0.8.0 — experimental**. This matrix separates implemented contracts,
+AI Harness **0.9.0-beta.1 — experimental**. This matrix separates implemented contracts,
 deterministic tests and actual operational acceptance. Snapshot: **2026-11-26**,
 initial source `def9a98`; documentation work does not renew runtime acceptance.
 
@@ -18,7 +18,7 @@ profile. A registered profile is not live acceptance.
 | Podman Local Gate C | IMPLEMENTED; OFFLINE VERIFIED | Historical LIVE VERIFIED only for registered synthetic/local-podman fixed Node scope; code/project/profile/expiry must revalidate |
 | Current-code isolation probes | Fixed runtime probes reviewed | Limited real isolation/timeout/cancellation/cleanup observations; not coordinated Gate C or repair E2E acceptance |
 | Language-Agnostic Validation Contracts | IMPLEMENTED; OFFLINE VERIFIED | Discovery, profiles and normalized diagnostics are reusable contracts; no universal toolchain support |
-| Autonomous Repair | IMPLEMENTED; OFFLINE VERIFIED | Finite and supervised; real Phase 9C E2E remains BLOCKED |
+| Autonomous Repair | IMPLEMENTED; OFFLINE VERIFIED; scoped LIVE VERIFIED | Finite and supervised; 2026-11-27 exact local synthetic E2E passed; [beta remains blocked](beta.md) |
 | Durable SQLite Journal / recovery | IMPLEMENTED; OFFLINE VERIFIED | Historical scoped live continuation/evidence inspection; uncertain effects require reconciliation |
 | OpenAI engineering | IMPLEMENTED; OFFLINE VERIFIED | Historical bounded synthetic workflow smoke; no general task correctness or new paid-call authorization |
 | Anthropic adapters | IMPLEMENTED; OFFLINE VERIFIED | Native tool-calling/inspection contracts exist; no accepted Anthropic engineering workflow claim |

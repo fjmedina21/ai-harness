@@ -54,3 +54,12 @@ smoke:engineering-openai script does not run in standard tests. Null real cost
 and normalized usage are documented compatibility additions. No 0.9.0, tag,
 publication, GitHub Release, push or merge is included; full Phase 9/L3 and
 Anthropic engineering remain outside this owner-approved closure.
+
+## v0.9.0-beta.1 candidate preparation — 2026-11-27
+
+After the scoped live acceptance and owner instruction to complete the remaining
+checklist, all workspace manifests, CLI output and current portal version labels
+are aligned to **0.9.0-beta.1** as an unpublished local candidate. Historical
+0.8.0 records remain unchanged. This is not tag/release/registry publication.
+Candidate regression results and executable fingerprint continuity must be recorded;
+exact candidate hosted CI and final owner release approval remain mandatory.

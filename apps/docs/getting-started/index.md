@@ -13,7 +13,7 @@ Start with the [offline Quick Start](./quick-start.md). It needs no login, API k
 | `run --workflow implement --autonomy propose` | Structured engineering proposal and advisory review | Requires explicit scopes and provider budgets |
 | `--autonomy isolated` | Creates a private working copy and pending patch | No application before exact Personal approval |
 | `engineering validate` | Separately approved fixed Podman action | Requires current exact runtime acceptance |
-| `engineering repair` | Finite proposal/validation coordination | Offline verified; real repair acceptance blocked |
+| `engineering repair` | Finite proposal/validation coordination | Offline verified; scoped local live acceptance passed; new execution still requires exact authorization |
 
 The [security model](../security/index.md) explains why authentication, authorization and approval remain distinct. The [status matrix](../releases/capabilities.md) gives the evidence scope, including historical live tests.
 

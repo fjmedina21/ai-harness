@@ -1,5 +1,53 @@
 # Verification
 
+## Subsequent candidate preparation — 2026-11-27
+
+The owner requested completion of the remaining checklist. The sampled real-browser
+tablet/desktop visual gate now **PASSES**, with full-size captures, search/theme/menu
+and code-copy checks. Local candidate manifests and CLI are aligned to
+**0.9.0-beta.1**, unreleased. See [candidate verification](phase9c1-release-candidate.md).
+Earlier 0.8.0/status observations below remain historical. Exact candidate hosted CI
+and final owner publication approval remain pending.
+
+
+## Phase 9C.1 current assessment — 2026-11-27
+
+Source `779daab899c2ef9875dc198785ad7b33489763e9`, version **0.8.0**.
+**Phase 9C LIVE VERIFIED** for a newly authorized local synthetic project/journal,
+current Gate C, real OpenAI repair, nine native confirmations and actual failed →
+passed Podman validation. Independent inspection verified durable evidence and
+unchanged originals. The obsolete synthetic journal was subsequently archived and
+[excluded from release scope](phase9c1-historical-journal-exclusion.md) after verified
+inactivity and explicit owner instruction. **Beta remains BLOCKED** for new candidate
+hosted CI and the remaining checklist items. See the
+[current acceptance and gate decision](phase9c1-live-acceptance.md).
+Earlier source/branch/status records below are historical snapshots.
+
+
+## Phase 9C.1 final regression — 2026-11-27
+
+Executed after the live run on unchanged product source `779daab` plus the local
+acceptance/documentation edits. Node **v24.18.0**, pnpm **12.21.0**, macOS **27.0.1
+arm64**. All 16 final commands exited 0; measured command time **103.958 seconds**.
+
+| Final check | Result |
+| --- | --- |
+| clean / build | PASS |
+| full tests | 993/993 |
+| GitHub / Personal / Phase 9B / Phase 9C | 150/150; 43/43; 76/76; 120/120 |
+| docs:build / docs:check | PASS |
+| CLI help / version | PASS; 0.8.0 |
+| deterministic / Phase 9 evaluations | 19/19 with 42 assertions; 10/10 |
+| engineering benchmark | PASS; mocked transport, actual FS/SQLite |
+| diff whitespace / Git status inspection | PASS; local documentation changes only |
+
+Frozen-lockfile install passed in the baseline. The complete final suite took
+**40.872 seconds**. Private logs and per-command timings remain excluded under
+`harness-development/phase9c1/final/`. No further provider call or Podman workload
+was used for these regressions. Hosted CI passed on source 779daab; it does not
+certify the new uncommitted documentation candidate. Scope, live proof and blockers
+are summarized in [current acceptance](phase9c1-live-acceptance.md).
+
 ## Phase 9D current documentation update
 
 Version remains **0.8.0**. A static VitePress portal, local search, original diagrams,
@@ -12,7 +60,7 @@ Current runtime acceptance must revalidate exact code/project/profile; historica
 No version bump, push, merge, tag, deployment or release is included.
 
 
-## Phase 9C — current local implementation
+## Phase 9C — historical implementation verification
 
 Version **0.8.0**, branch `feat/phase9c-language-agnostic-repair`, based on
 `0ac0bd486134a3a5924bea8c4cad8086b7a7e642`. Phase 9C is **IMPLEMENTED** and
