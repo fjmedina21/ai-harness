@@ -1,7 +1,7 @@
 # Beta readiness and draft release notes
 
 ::: danger Beta release — BLOCKED
-The portal and beta release are separate gates. The local candidate is `0.9.0-beta.1`, not released. The current scoped real repair E2E passed; the inactive historical journal is archived outside scope; new candidate CI and final release approval remain pending; `v0.9.0-beta.1` is an unpublished draft.
+The portal and beta release are separate gates. The local candidate is `0.9.0-beta.1`, not released. The current scoped real repair E2E passed; the inactive historical journal is archived outside scope; candidate CI passed; final-SHA checks and final release approval remain required; `v0.9.0-beta.1` is an unpublished draft.
 :::
 
 ## Current local acceptance — 2026-11-27
@@ -14,8 +14,9 @@ Nine distinct native confirmations and unchanged original sources were verified.
 The inactive historical private journal was subsequently archived and explicitly
 excluded after verifying expired grants/workspaces, no in-flight operations and
 zero runtime containers. Its invalid expiry bindings and uncertain states remain
-unchanged. **Beta remains BLOCKED**: hosted CI covers `779daab`, while these new local
-candidate changes are unpublished. The tablet/desktop visual review subsequently
+unchanged. Candidate [hosted CI](https://github.com/fjmedina21/ai-harness/actions/runs/46105350756) passed on
+`f98eded`; the final documentation-record commit must pass too. **Publication
+remains BLOCKED** pending final owner approval. The tablet/desktop visual review subsequently
 passed with full-size captures, keyboard search, theme and copy-control checks. Existing cancellation uncertainty is retained
 with cleanup evidence, without replay or claim deletion. See the
 [current acceptance report](https://github.com/fjmedina21/ai-harness/blob/v0.9.0-beta.1/docs/phase9c1-live-acceptance.md)
@@ -27,11 +28,11 @@ The canonical [beta release checklist](https://github.com/fjmedina21/ai-harness/
 
 ## Draft notes
 
-Read the [unpublished v0.9.0-beta.1 draft](https://github.com/fjmedina21/ai-harness/blob/v0.9.0-beta.1/docs/releases/v0.9.0-beta.1-draft.md). It describes single-owner local workflows, exact Personal approvals, restricted Podman validation, finite offline-verified repair and the static portal, with runtime requirements and known limits. It is not proof of a GitHub release.
+Read the [unpublished v0.9.0-beta.1 draft](https://github.com/fjmedina21/ai-harness/blob/v0.9.0-beta.1/docs/releases/v0.9.0-beta.1-draft.md). It describes single-owner local workflows, exact Personal approvals, restricted Podman validation, finite supervised repair with scoped live evidence and the static portal, with runtime requirements and known limits. It is not proof of a GitHub release.
 
 ## Required next gates
 
-Preserve the completed exact-scope live acceptance and its expiry; preserve the historical archive outside operational registration, without changing authorization bindings; review remaining findings; rerun candidate offline/docs checks; obtain exact candidate hosted CI after authorized publication; approve version/tag/release operations separately. Do not substitute earlier Gate C or newer isolation-only probes for a real repair cycle.
+Preserve the completed exact-scope live evidence and enforced runtime expiry, and keep the historical archive outside operational registration. Candidate offline/docs/visual checks and hosted CI passed. Verify successful CI on the final documentation-record SHA and obtain final owner approval of the exact candidate, notes and tag/release. No new real action or release is authorized by earlier evidence.
 
 ## Source and evidence
 

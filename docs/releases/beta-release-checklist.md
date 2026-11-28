@@ -1,6 +1,6 @@
 # Beta release checklist — v0.9.0-beta.1
 
-**CANDIDATE / RELEASE BLOCKED pending exact CI and final approval.** Local version is **0.9.0-beta.1**. No tag or release
+**CANDIDATE / PUBLICATION BLOCKED pending final owner approval and final-SHA CI verification.** Local version is **0.9.0-beta.1**. No tag or release
 exists for this planned version. Assessed **2026-11-26** from initial source
 `def9a987ff8d449402a67d0dcb58a8420709f68e`.
 
@@ -13,7 +13,9 @@ stated scope. A planned command is never evidence that it passed.
 
 Local manifests/CLI are aligned to **0.9.0-beta.1**. The tablet/desktop visual gate
 passed sampled real-browser review; [candidate record](../phase9c1-release-candidate.md).
-Owner review of the concrete final notes and exact candidate hosted CI remain pending.
+Candidate hosted [CI](https://github.com/fjmedina21/ai-harness/actions/runs/46105350756) passed on `f98eded1a4977c95eedd28459a2bf1f4af6e1132`.
+The documentation-record commit must pass on its own SHA before publication;
+final owner review/approval of notes and tag/release remains pending.
 
 ## Phase 9C.1 reassessment — 2026-11-27
 
@@ -31,7 +33,7 @@ Historical assessment paragraphs below retain their original source/date.
 | Candidate build and regression suites | PASS — local candidate | [Candidate verification](../phase9c1-release-candidate.md): clean/build, 993/993 full; focused 150/43/76/120 on local version 0.9.0-beta.1 |
 | Candidate deterministic evaluations | PASS — offline candidate | Deterministic 19/19 (42 assertions); phase9 10/10; [current verification](../VERIFICATION.md) |
 | Initial hosted code CI | PASS — exact initial SHA | [Run 45739242316](https://github.com/fjmedina21/ai-harness/actions/runs/45739242316) for `def9a98` |
-| Candidate hosted code and docs CI | BLOCKED — candidate execution pending | Historical [run 45900226919](https://github.com/fjmedina21/ai-harness/actions/runs/45900226919) passed on 779daab; owner now authorized this candidate branch and exact-SHA CI |
+| Candidate hosted code and docs CI | PASS — exact candidate SHA; final record SHA must pass too | [Run 46105350756](https://github.com/fjmedina21/ai-harness/actions/runs/46105350756) passed build-test/docs-check on `f98eded1a4977c95eedd28459a2bf1f4af6e1132`; verify the same two checks on the final tagged commit |
 | No known critical defect in tested fresh-journal scope | PASS — bounded review | Live acceptance/regressions and advisory review passed; obsolete invalid journal archived and explicitly excluded, not repaired; no general security certification |
 
 ## Security
@@ -55,7 +57,7 @@ Historical assessment paragraphs below retain their original source/date.
 | CLI and configuration reference | PASS — source/type verified | AST coverage: 27 commands / 15 scopes; no-emit config typecheck |
 | Architecture, security and capability matrix | PASS — source reviewed | Eight original SVGs, source links and explicit offline/live limits; historical clarifications retained |
 | Migration and known limitations | PASS — documentation reviewed | Manual migration, opt-in v4, rollback and operational limits documented |
-| Static build, internal links, navigation and base path | PASS — locally verified | 43 source pages; 1,676 local refs; 328 repository paths; /ai-harness/ |
+| Static build, internal links, navigation and base path | PASS — locally verified | 43 source pages; 1,682 local refs; 364 repository paths; /ai-harness/ |
 | Responsive, keyboard, light/dark, local search | PASS — sampled real-browser review | Tablet768×1024 and desktop1280×800 full-size captures inspected; search→anchor, context menu, themes and copy controls verified; [candidate record](../phase9c1-release-candidate.md) |
 | Accessibility review | PASS — sampled review | Landmarks/headings/alternatives/focus/reduced-motion and keyboard search; no formal WCAG certification |
 | Public Pages deployment | NOT APPLICABLE — not authorized in this phase | Readiness can be checked locally; no public URL claimed |
@@ -82,7 +84,7 @@ Historical assessment paragraphs below retain their original source/date.
 | Changelog | PASS — prepared source ledger | [Changelog](../../CHANGELOG.md) separates internal milestones from unpublished releases |
 | Release notes | PREPARED; owner review PENDING | Concrete [candidate notes](v0.9.0-beta.1-draft.md), scope, migration and rollback prepared for final approval |
 | Planned tag | BLOCKED | Proposed `v0.9.0-beta.1`; no tag creation authorized |
-| Reproducible code/docs artifacts | PASS — local preparation | Frozen install, build and docs checks; hosted exact candidate provenance remains pending |
+| Reproducible code/docs artifacts | PASS — local preparation | Frozen install, build and docs checks; candidate hosted provenance recorded; final record commit checks remain mandatory |
 | Rollback plan | PASS — documented procedure only | [Readiness review](../phase9d-release-readiness.md#rollback-and-publication-control); backups and operational rollback rehearsal are not claimed |
 | Owner authorization for candidate preparation | PASS — local preparation | Owner explicitly authorized version 0.9.0-beta.1, local commit, this branch push and exact-SHA CI; tag/release remain separate |
 | Owner authorization for tag/release/Pages | PENDING | Separate final decision on the concrete candidate; no tag/release/deployment performed |
@@ -92,9 +94,8 @@ Historical assessment paragraphs below retain their original source/date.
 
 **Beta: BLOCKED.** The documentation portal may independently become ready for
 controlled deployment. Real repair acceptance passed for the stated current scope. The inactive
-historical journal is archived and excluded. New candidate CI, remaining checklist
-items, and owner release
-authorization remain pending.
+historical journal is archived and excluded. Candidate hosted CI passed. Final documentation-record SHA checks must pass too;
+owner review and tag/release authorization remain pending.
 
 When a check is executed, replace only the affected row with its actual result,
 exact source scope and evidence reference. Keep failed and historical observations

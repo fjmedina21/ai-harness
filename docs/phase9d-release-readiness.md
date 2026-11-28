@@ -1,5 +1,18 @@
 # Phase 9D — beta release readiness
 
+## Candidate hosted verification — 2026-11-27
+
+[Hosted CI](https://github.com/fjmedina21/ai-harness/actions/runs/46105350756) passed **build-test** and **docs-check**
+on exact candidate `f98eded1a4977c95eedd28459a2bf1f4af6e1132`. Local regression,
+scoped live acceptance, sampled visual review and executable digest continuity are
+recorded in [candidate verification](phase9c1-release-candidate.md).
+The owner explicitly authorized version **0.9.0-beta.1**, this branch push and CI.
+Only final owner approval for tag/release remains outstanding after successful CI
+on the final documentation-record commit. That exact final check must be verified
+on GitHub; no earlier SHA substitutes for it. No merge, tag, release or deployment
+was performed. Earlier assessment sections below retain their historical status.
+
+
 ## Subsequent candidate preparation — 2026-11-27
 
 The owner requested completion of the remaining checklist. The sampled real-browser

@@ -55,7 +55,7 @@ No project `.env` is implicitly loaded.
   remote isolation remains deferred.
 - Language-neutral discovery/profiles/diagnostics and finite repair are implemented
   and offline verified. [**Real Phase 9C repair E2E is LIVE VERIFIED**](docs/phase9c1-live-acceptance.md)
-  for the 2026-11-27 exact local synthetic scope. **Beta readiness remains BLOCKED.** Manifest detection
+  for the 2026-11-27 exact local synthetic scope. **Publication awaits final approval and final-SHA CI verification.** Manifest detection
   does not promise operational support for every toolchain.
 - No automatic original-source integration, Git writes, deployment or multiuser mode.
 
@@ -65,8 +65,10 @@ No project `.env` is implicitly loaded.
 [roadmap](docs/ROADMAP.md), [security limitations](apps/docs/security/limitations.md),
 [changelog](CHANGELOG.md), [beta checklist](docs/releases/beta-release-checklist.md)
 and [draft notes](docs/releases/v0.9.0-beta.1-draft.md) separate implementation,
-offline tests and scoped real acceptance. **Beta is BLOCKED**; no version bump,
-tag, release or publication is included.
+offline tests and scoped real acceptance. Candidate [CI](https://github.com/fjmedina21/ai-harness/actions/runs/46105350756) passed
+on `f98eded`; the final documentation-record commit must pass too. Version and
+branch publication were explicitly authorized. Tag/release approval remains pending;
+no beta has been published.
 
 Historical technical/evidence documents remain in [`docs/`](docs/), indexed and
 classified in the [source audit](apps/docs/releases/sources.md). Existing runbooks:

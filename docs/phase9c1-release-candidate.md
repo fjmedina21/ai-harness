@@ -66,11 +66,16 @@ The owner subsequently explicitly authorized the version change, local commit,
 publication of this candidate branch and hosted CI. That authorization excludes
 merge, tag, release, Pages and new provider requests.
 
-## Remaining release gates
+## Hosted CI and publication decision
 
-- Exact candidate commit publication and successful hosted code/documentation CI.
-- Final owner approval of the concrete candidate, notes, tag and GitHub prerelease.
+[Run 46105350756](https://github.com/fjmedina21/ai-harness/actions/runs/46105350756) passed build-test and docs-check
+on exact candidate `f98eded1a4977c95eedd28459a2bf1f4af6e1132`. This result closes
+the candidate implementation/metadata CI gate. The following documentation-only
+record commit must also pass the same workflow on its own SHA before release;
+its definitive result is attached to that commit's GitHub Actions checks.
+No runtime executable or policy is changed by that evidence-record update.
 
-**Release remains BLOCKED while either gate is pending.** A version bump, local
-check or earlier CI run is not publication approval. No package registry publication,
-new Pages deployment, automatic merge or production autonomy claim is included.
+All tested technical gates passed for the bounded scope. **Publication remains
+BLOCKED solely on final owner approval once final-SHA CI passes.** Concrete notes
+are prepared for review. No merge, tag, release, package publication or new Pages
+deployment is included. Version/branch/CI authorization is not release approval.
